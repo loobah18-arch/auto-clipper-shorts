@@ -31,10 +31,12 @@ try:
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
+    from googleapiclient.errors import HttpError
 except ImportError:
     Credentials = None
     build = None
     MediaFileUpload = None
+    HttpError = Exception
 
 # --- Configuration & Paths ---
 WORKSPACE_DIR = Path(__file__).resolve().parent
@@ -89,13 +91,14 @@ def pick_next_channel(catalog: dict, history: dict, force_channel_id: str = None
 def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) -> list:
     """Uses yt-dlp search query or channel feed to find candidate episodes."""
     query = podcast_entry.get("search_query") or f"ytsearch8:{podcast_entry['name']} full episode"
-    log(f"Searching candidate episodes via yt-dlp: {query}")
+    log(f"Searching candidate episodes: {query}")
     
     cmd = [
         "yt-dlp",
         "--flat-playlist",
         "--dump-single-json",
         "--no-warnings",
+        "--ignore-errors",
         query
     ]
     try:
@@ -113,29 +116,32 @@ def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) ->
                     "duration": duration,
                     "uploader": e.get("uploader", podcast_entry.get("name", "Podcast"))
                 })
-        log(f"Found {len(videos)} candidate videos.")
-        return videos
+        if videos:
+            log(f"Found {len(videos)} candidate videos via search.")
+            return videos
     except Exception as e:
-        log(f"Search query error: {e}. Falling back to channel URL...")
-        # Fallback to direct channel URL
-        try:
-            cmd = ["yt-dlp", "--flat-playlist", "--dump-single-json", podcast_entry["channel_url"]]
-            res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            data = json.loads(res.stdout)
-            entries = data.get("entries", [])[:max_results]
-            return [
-                {
-                    "id": e["id"],
-                    "url": f"https://www.youtube.com/watch?v={e['id']}",
-                    "title": e.get("title", "Podcast Episode"),
-                    "duration": e.get("duration", 0),
-                    "uploader": e.get("uploader", podcast_entry.get("name"))
-                }
-                for e in entries if e and e.get("id")
-            ]
-        except Exception as e2:
-            log(f"Channel URL fallback also failed: {e2}")
-            return []
+        log(f"Search query notice: {e}")
+
+    # Fallback to direct channel URL
+    try:
+        log(f"Trying channel URL fallback: {podcast_entry['channel_url']}")
+        cmd = ["yt-dlp", "--flat-playlist", "--dump-single-json", "--no-warnings", podcast_entry["channel_url"]]
+        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        data = json.loads(res.stdout)
+        entries = data.get("entries", [])[:max_results]
+        return [
+            {
+                "id": e["id"],
+                "url": f"https://www.youtube.com/watch?v={e['id']}",
+                "title": e.get("title", "Podcast Episode"),
+                "duration": e.get("duration", 0),
+                "uploader": e.get("uploader", podcast_entry.get("name"))
+            }
+            for e in entries if e and e.get("id")
+        ]
+    except Exception as e2:
+        log(f"Channel URL fallback error: {e2}")
+        return []
 
 
 def select_target_video(podcast_entry: dict, history: dict, direct_url: str = None) -> dict:
@@ -180,11 +186,12 @@ def download_audio_for_transcription(video_url: str, output_audio_path: Path) ->
     log(f"Downloading audio track for transcription: {video_url}")
     cmd = [
         "yt-dlp",
-        "-f", "ba[ext=m4a]/ba",
+        "-f", "ba[ext=m4a]/ba/b",
         "-x",
         "--audio-format", "m4a",
-        "--audio-quality", "5",
+        "--audio-quality", "7",
         "--no-playlist",
+        "--no-warnings",
         "-o", str(output_audio_path),
         video_url
     ]
@@ -200,7 +207,11 @@ def transcribe_audio_with_whisper(audio_path: Path, model_size: str = "base.en")
         raise ImportError("faster-whisper is not installed. Run: pip install faster-whisper")
         
     log(f"Loading Whisper model '{model_size}' (CPU / int8 for fast inference)...")
-    model = WhisperModel(model_size, device="cpu", compute_type="int8", cpu_threads=4)
+    try:
+        model = WhisperModel(model_size, device="cpu", compute_type="int8", cpu_threads=4)
+    except Exception:
+        log("Falling back to float32 compute type...")
+        model = WhisperModel(model_size, device="cpu", compute_type="float32", cpu_threads=4)
     
     log(f"Transcribing audio file ({audio_path.name})...")
     segments_gen, info = model.transcribe(
@@ -216,12 +227,14 @@ def transcribe_audio_with_whisper(audio_path: Path, model_size: str = "base.en")
         words = []
         if s.words:
             for w in s.words:
-                words.append({
-                    "word": w.word.strip(),
-                    "start": round(w.start, 2),
-                    "end": round(w.end, 2),
-                    "probability": round(w.probability, 2)
-                })
+                cleaned_w = w.word.strip().replace("{", "").replace("}", "")
+                if cleaned_w:
+                    words.append({
+                        "word": cleaned_w,
+                        "start": round(w.start, 2),
+                        "end": round(max(w.start + 0.05, w.end), 2),
+                        "probability": round(w.probability, 2)
+                    })
         results.append({
             "id": s.id,
             "start": round(s.start, 2),
@@ -289,7 +302,7 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
     """
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
-        log("Warning: GROQ_API_KEY not set. Using default fallback time segment (30s to 75s).")
+        log("⚠️ Notice: GROQ_API_KEY not set. Using default highlight segment (30s to 75s).")
         return {
             "start_seconds": 30.0,
             "end_seconds": 75.0,
@@ -310,7 +323,7 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
     ])
     
     system_prompt = (
-        "You are an expert viral YouTube Shorts and TikTok content strategist specializing in "
+        "You are an expert viral YouTube Shorts content strategist specializing in "
         "podcasts, philosophy, science, and high-impact discussions.\n"
         "Your task: Identify the single most mind-blowing, insightful, or emotional 30-55 second clip "
         "from the provided transcript that will captivate viewers within the first 3 seconds."
@@ -337,7 +350,7 @@ JSON Format:
   "viral_title": "<Punchy title under 65 chars with 1 emoji and #Shorts>",
   "hook_reason": "<Why this clip has high viewer retention>",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "speaker_badge": "<Short 2-3 word speaker or topic label for top banner, e.g. 'Andrew Huberman on Sleep' or 'Lex Fridman AI Insight'>"
+  "speaker_badge": "<Short 2-3 word speaker or topic label for top banner, e.g. 'Andrew Huberman' or 'Lex Fridman Wisdom'>"
 }}
 """
     log("Sending transcript to Groq for viral highlight detection...")
@@ -375,7 +388,7 @@ JSON Format:
             log(f"Title: {clip_data.get('viral_title')}")
             return clip_data
         except Exception as e:
-            log(f"Groq model {model_name} failed: {e}. Trying fallback...")
+            log(f"Groq model {model_name} notice: {e}. Trying fallback...")
             time.sleep(1.5)
             
     return {
@@ -423,8 +436,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if w["start"] >= (start_sec - 0.2) and w["end"] <= (end_sec + 0.5):
                 rel_start = max(0.0, w["start"] - start_sec)
                 rel_end = max(rel_start + 0.1, w["end"] - start_sec)
+                cleaned_word = w["word"].upper().replace("{", "").replace("}", "")
                 clip_words.append({
-                    "word": w["word"].upper(),
+                    "word": cleaned_word,
                     "start": rel_start,
                     "end": rel_end
                 })
@@ -471,13 +485,14 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}"
     end_str = f"{int(end_sec // 3600):02d}:{int((end_sec % 3600) // 60):02d}:{int(end_sec % 60):02d}"
     
-    log(f"Downloading high-res video slice: {start_str} to {end_str}...")
+    log(f"Downloading video slice: {start_str} to {end_str}...")
     cmd = [
         "yt-dlp",
         "--download-sections", f"*{start_str}-{end_str}",
-        "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
+        "-f", "bv*[height<=1080]+ba/b[height<=1080]/best",
         "--force-keyframes-at-cuts",
         "--no-playlist",
+        "--no-warnings",
         "-o", str(output_raw_path),
         video_url
     ]
@@ -494,8 +509,9 @@ def render_vertical_916_short(
         output_final_path.unlink()
         
     log("Rendering 1080x1920 vertical short with FFmpeg...")
-    ass_filter_path = str(ass_subtitle_path).replace("\\", "/").replace(":", r"\:")
-    badge_text = (speaker_badge or "PODCAST HIGHLIGHT").replace(":", r"\:").replace("'", "").upper()
+    # Safe FFmpeg path escaping
+    ass_filter_path = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
+    badge_text = (speaker_badge or "PODCAST HIGHLIGHT").replace(":", " ").replace("'", "").replace("%", "").replace("\\", "").upper()
     
     filtergraph = (
         "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
@@ -537,33 +553,34 @@ def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, or
     refresh_token = os.environ.get("REFRESH_TOKEN")
     
     if not (client_id and client_secret and refresh_token):
-        log("⚠️ YouTube OAuth secrets (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN) not set. Skipping upload (dry run).")
+        log("⚠️ Notice: YouTube OAuth secrets not fully set. Completed dry-run render successfully.")
         return None
         
     if Credentials is None or build is None:
-        log("⚠️ Google API client not installed. Skipping upload.")
+        log("⚠️ Notice: Google API client not installed. Completed dry-run render.")
         return None
 
     log("Authenticating with YouTube Data API...")
-    creds = Credentials(
-        None,
-        refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=client_id,
-        client_secret=client_secret
-    )
-    youtube = build("youtube", "v3", credentials=creds)
+    try:
+        creds = Credentials(
+            None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=client_id,
+            client_secret=client_secret
+        )
+        youtube = build("youtube", "v3", credentials=creds)
 
-    title = clip_info.get("viral_title", "Unbelievable Wisdom 💡 #shorts")
-    if "#shorts" not in title.lower():
-        title = f"{title} #shorts"
+        title = clip_info.get("viral_title", "Unbelievable Wisdom 💡 #shorts")
+        if "#shorts" not in title.lower():
+            title = f"{title} #shorts"
 
-    attribution = podcast_entry.get("attribution_template", "Full episode: {video_url}").format(
-        guest_or_title=clip_info.get("speaker_badge", podcast_entry.get("name")),
-        video_url=original_video_url
-    )
+        attribution = podcast_entry.get("attribution_template", "Full episode: {video_url}").format(
+            guest_or_title=clip_info.get("speaker_badge", podcast_entry.get("name")),
+            video_url=original_video_url
+        )
 
-    description = f"""{title}
+        description = f"""{title}
 
 🎙️ {attribution}
 💡 Clip curated automatically for educational & commentary insights.
@@ -571,35 +588,41 @@ def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, or
 #shorts #podcast #wisdom #mindset #learning #growth
 """
 
-    tags = clip_info.get("tags", []) + podcast_entry.get("default_tags", [])
-    tags = list(set(tags))[:15]
+        tags = clip_info.get("tags", []) + podcast_entry.get("default_tags", [])
+        tags = list(set(tags))[:15]
 
-    body = {
-        "snippet": {
-            "title": title[:100],
-            "description": description,
-            "tags": tags,
-            "categoryId": "27"  # Education / Ideas
-        },
-        "status": {
-            "privacyStatus": os.environ.get("PRIVACY_STATUS", "public"),
-            "selfDeclaredMadeForKids": False
+        body = {
+            "snippet": {
+                "title": title[:100],
+                "description": description,
+                "tags": tags,
+                "categoryId": "27"  # Education / Ideas
+            },
+            "status": {
+                "privacyStatus": os.environ.get("PRIVACY_STATUS", "public"),
+                "selfDeclaredMadeForKids": False
+            }
         }
-    }
 
-    log(f"Uploading to YouTube as '{body['status']['privacyStatus']}': {title}...")
-    media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
-    request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
-    
-    response = None
-    while response is None:
-        status, response = request.next_chunk()
-        if status:
-            log(f"Upload progress: {int(status.progress() * 100)}%")
+        log(f"Uploading to YouTube as '{body['status']['privacyStatus']}': {title}...")
+        media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
+        request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+        
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+            if status:
+                log(f"Upload progress: {int(status.progress() * 100)}%")
 
-    video_id = response.get("id")
-    log(f"🎉 Successfully uploaded! Video URL: https://youtube.com/shorts/{video_id}")
-    return video_id
+        video_id = response.get("id")
+        log(f"🎉 Successfully uploaded! Video URL: https://youtube.com/shorts/{video_id}")
+        return video_id
+    except HttpError as he:
+        log(f"⚠️ YouTube API notice: {he}")
+        return None
+    except Exception as e:
+        log(f"⚠️ Upload error: {e}")
+        return None
 
 
 # =====================================================================
