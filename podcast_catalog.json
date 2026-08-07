@@ -3,24 +3,27 @@
     {
       "id": "lex_fridman",
       "name": "Lex Fridman Podcast",
+      "search_query": "ytsearch8:Lex Fridman Podcast full episode",
       "channel_url": "https://www.youtube.com/@lexfridman/videos",
       "category": "AI, Science & Philosophy",
       "safe_policy": "Explicitly permits clipping with channel and guest attribution in description",
       "default_tags": ["lexfridman", "podcast", "science", "technology", "philosophy", "wisdom", "shorts"],
-      "attribution_template": "Clip from Lex Fridman Podcast with {guest_or_title}. Full episode: {video_url}"
+      "attribution_template": "Clip from Lex Fridman Podcast ({guest_or_title}). Full episode: {video_url}"
     },
     {
       "id": "huberman_lab",
       "name": "Huberman Lab",
+      "search_query": "ytsearch8:Huberman Lab full episode podcast",
       "channel_url": "https://www.youtube.com/@hubermanlab/videos",
       "category": "Neuroscience & Health Protocols",
-      "safe_policy": "Educational health & science commentary under Fair Use / Creative Commons attribution",
+      "safe_policy": "Educational health & science commentary under Fair Use & CC attribution",
       "default_tags": ["hubermanlab", "neuroscience", "health", "protocols", "biohacking", "shorts", "mindset"],
       "attribution_template": "Clip from Huberman Lab by Dr. Andrew Huberman. Full episode: {video_url}"
     },
     {
       "id": "big_think",
       "name": "Big Think",
+      "search_query": "ytsearch8:Big Think talk lecture",
       "channel_url": "https://www.youtube.com/@bigthink/videos",
       "category": "Science, Psychology & Ideas",
       "safe_policy": "Educational thought leadership & science under Creative Commons attribution",
@@ -30,6 +33,7 @@
     {
       "id": "modern_wisdom",
       "name": "Modern Wisdom (Chris Williamson)",
+      "search_query": "ytsearch8:Modern Wisdom Chris Williamson full episode podcast",
       "channel_url": "https://www.youtube.com/@ChrisWillx/videos",
       "category": "Human Behavior, Fitness & Mindset",
       "safe_policy": "Encourages short-form clipping with credit & link back to full episode",
@@ -39,6 +43,7 @@
     {
       "id": "y_combinator",
       "name": "Y Combinator",
+      "search_query": "ytsearch8:Y Combinator startup school founder interview",
       "channel_url": "https://www.youtube.com/@ycombinator/videos",
       "category": "Startups & Tech Founders",
       "safe_policy": "Public educational founder lessons & startup school under Fair Use & CC attribution",
@@ -48,6 +53,7 @@
     {
       "id": "stanford_online",
       "name": "Stanford Online / eCorner",
+      "search_query": "ytsearch8:Stanford eCorner leadership lecture",
       "channel_url": "https://www.youtube.com/@stanfordonline/videos",
       "category": "Innovation & Leadership",
       "safe_policy": "Open educational content from Stanford University",
@@ -57,6 +63,7 @@
     {
       "id": "impact_theory",
       "name": "Impact Theory (Tom Bilyeu)",
+      "search_query": "ytsearch8:Impact Theory Tom Bilyeu full episode podcast",
       "channel_url": "https://www.youtube.com/@TomBilyeu/videos",
       "category": "Mindset & High Performance",
       "safe_policy": "Encourages clip creators with guest and channel attribution",
@@ -66,16 +73,12 @@
     {
       "id": "oxford_union",
       "name": "Oxford Union",
+      "search_query": "ytsearch8:Oxford Union address debate",
       "channel_url": "https://www.youtube.com/@oxfordunion/videos",
       "category": "World Debates & Guest Addresses",
       "safe_policy": "Public debate and speech forum under educational transformative use",
       "default_tags": ["oxfordunion", "debate", "speech", "wisdom", "intellectual", "shorts"],
       "attribution_template": "Clip from Oxford Union address. Full video: {video_url}"
     }
-  ],
-  "creative_commons_search_queries": [
-    "creative commons podcast interview",
-    "creative commons psychology talk",
-    "creative commons tech founder interview"
   ]
 }
