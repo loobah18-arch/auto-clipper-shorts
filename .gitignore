@@ -1,0 +1,15 @@
+output/
+*.mp4
+*.m4a
+*.ass
+*.wav
+*.aac
+__pycache__/
+*.pyc
+.env
+.venv/
+env/
+client_secrets.json
+token.pickle
+token.json
+.DS_Store

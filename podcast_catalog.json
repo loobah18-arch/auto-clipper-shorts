@@ -1,0 +1,81 @@
+{
+  "podcasts": [
+    {
+      "id": "lex_fridman",
+      "name": "Lex Fridman Podcast",
+      "channel_url": "https://www.youtube.com/@lexfridman/videos",
+      "category": "AI, Science & Philosophy",
+      "safe_policy": "Explicitly permits clipping with channel and guest attribution in description",
+      "default_tags": ["lexfridman", "podcast", "science", "technology", "philosophy", "wisdom", "shorts"],
+      "attribution_template": "Clip from Lex Fridman Podcast with {guest_or_title}. Full episode: {video_url}"
+    },
+    {
+      "id": "huberman_lab",
+      "name": "Huberman Lab",
+      "channel_url": "https://www.youtube.com/@hubermanlab/videos",
+      "category": "Neuroscience & Health Protocols",
+      "safe_policy": "Educational health & science commentary under Fair Use / Creative Commons attribution",
+      "default_tags": ["hubermanlab", "neuroscience", "health", "protocols", "biohacking", "shorts", "mindset"],
+      "attribution_template": "Clip from Huberman Lab by Dr. Andrew Huberman. Full episode: {video_url}"
+    },
+    {
+      "id": "big_think",
+      "name": "Big Think",
+      "channel_url": "https://www.youtube.com/@bigthink/videos",
+      "category": "Science, Psychology & Ideas",
+      "safe_policy": "Educational thought leadership & science under Creative Commons attribution",
+      "default_tags": ["bigthink", "psychology", "mindset", "science", "knowledge", "shorts"],
+      "attribution_template": "Clip from Big Think. Full talk: {video_url}"
+    },
+    {
+      "id": "modern_wisdom",
+      "name": "Modern Wisdom (Chris Williamson)",
+      "channel_url": "https://www.youtube.com/@ChrisWillx/videos",
+      "category": "Human Behavior, Fitness & Mindset",
+      "safe_policy": "Encourages short-form clipping with credit & link back to full episode",
+      "default_tags": ["modernwisdom", "chriswilliamson", "mindset", "psychology", "discipline", "shorts"],
+      "attribution_template": "Clip from Modern Wisdom hosted by Chris Williamson. Full episode: {video_url}"
+    },
+    {
+      "id": "y_combinator",
+      "name": "Y Combinator",
+      "channel_url": "https://www.youtube.com/@ycombinator/videos",
+      "category": "Startups & Tech Founders",
+      "safe_policy": "Public educational founder lessons & startup school under Fair Use & CC attribution",
+      "default_tags": ["ycombinator", "startup", "entrepreneurship", "business", "tech", "shorts"],
+      "attribution_template": "Clip from Y Combinator. Full video: {video_url}"
+    },
+    {
+      "id": "stanford_online",
+      "name": "Stanford Online / eCorner",
+      "channel_url": "https://www.youtube.com/@stanfordonline/videos",
+      "category": "Innovation & Leadership",
+      "safe_policy": "Open educational content from Stanford University",
+      "default_tags": ["stanford", "leadership", "innovation", "education", "success", "shorts"],
+      "attribution_template": "Clip from Stanford University. Full lecture: {video_url}"
+    },
+    {
+      "id": "impact_theory",
+      "name": "Impact Theory (Tom Bilyeu)",
+      "channel_url": "https://www.youtube.com/@TomBilyeu/videos",
+      "category": "Mindset & High Performance",
+      "safe_policy": "Encourages clip creators with guest and channel attribution",
+      "default_tags": ["impacttheory", "tombilyeu", "mindset", "success", "motivation", "shorts"],
+      "attribution_template": "Clip from Impact Theory with Tom Bilyeu. Full episode: {video_url}"
+    },
+    {
+      "id": "oxford_union",
+      "name": "Oxford Union",
+      "channel_url": "https://www.youtube.com/@oxfordunion/videos",
+      "category": "World Debates & Guest Addresses",
+      "safe_policy": "Public debate and speech forum under educational transformative use",
+      "default_tags": ["oxfordunion", "debate", "speech", "wisdom", "intellectual", "shorts"],
+      "attribution_template": "Clip from Oxford Union address. Full video: {video_url}"
+    }
+  ],
+  "creative_commons_search_queries": [
+    "creative commons podcast interview",
+    "creative commons psychology talk",
+    "creative commons tech founder interview"
+  ]
+}

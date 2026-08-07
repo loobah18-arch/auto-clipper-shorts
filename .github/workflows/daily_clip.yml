@@ -1,0 +1,75 @@
+name: 🎬 Auto Podcast Clipper Shorts
+
+on:
+  schedule:
+    # Runs twice daily at 08:00 and 20:00 UTC (100% free runner minutes)
+    - cron: '0 8,20 * * *'
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'Direct YouTube video URL to clip (leave blank for automatic channel rotation)'
+        required: false
+        type: string
+      channel:
+        description: 'Specific podcast channel ID from catalog (e.g. lex_fridman, big_think, huberman_lab)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Run pipeline without uploading to YouTube'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  clip_and_upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 🎥 Install FFmpeg & System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-liberation
+
+      - name: 📦 Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🚀 Run Auto-Clipper Pipeline
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          PRIVACY_STATUS: 'public'
+        run: |
+          PARAMS=""
+          if [ -n "${{ inputs.video_url }}" ]; then
+            PARAMS="$PARAMS --url '${{ inputs.video_url }}'"
+          fi
+          if [ -n "${{ inputs.channel }}" ]; then
+            PARAMS="$PARAMS --channel '${{ inputs.channel }}'"
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            PARAMS="$PARAMS --dry-run"
+          fi
+          
+          python main.py $PARAMS
+
+      - name: 💾 Commit Updated History & State
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add clip_history.json
+          git commit -m "🤖 Auto-clip state update [skip ci]" || echo "No changes to commit"
+          git push
