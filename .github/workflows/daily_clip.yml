@@ -28,6 +28,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
 
+    # Run the bgutil PO Token provider as a Docker service container.
+    # The bgutil plugin in yt-dlp connects to this server at 127.0.0.1:4416
+    # to automatically generate PO Tokens for YouTube requests.
+    services:
+      bgutil-provider:
+        image: brainicism/bgutil-ytdlp-pot-provider:latest
+        ports:
+          - 4416:4416
+
     steps:
       - name: 📥 Check out repository
         uses: actions/checkout@v4
@@ -52,6 +61,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: 🔍 Verify PO Token Provider
+        run: |
+          echo "Checking bgutil PO Token server..."
+          for i in 1 2 3 4 5; do
+            if curl -sf http://127.0.0.1:4416/ping; then
+              echo ""
+              echo "✅ PO Token server is ready!"
+              break
+            fi
+            echo "Waiting for server... (attempt $i)"
+            sleep 5
+          done
 
       - name: 🧪 Run Pipeline Unit Tests
         run: python test_pipeline.py
