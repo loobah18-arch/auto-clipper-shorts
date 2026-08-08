@@ -15,6 +15,8 @@ import shutil
 import tempfile
 import argparse
 import subprocess
+import urllib.request
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -447,11 +449,61 @@ def create_word_timestamps_from_segment(text: str, start_sec: float, end_sec: fl
     return result
 
 
-def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path) -> list:
+def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path) -> bool:
     """
-    Attempts to download instant YouTube captions (manual/auto-generated json3/vtt).
-    Falls back to Whisper AI transcription if captions are unavailable.
+    Downloads audio directly from the podcast's official RSS feed.
+    Completely immune to YouTube BotGuard blocks and requires 0 cookies.
     """
+    if not rss_feed_url:
+        return False
+    try:
+        log(f"🎙️ Querying podcast RSS feed for direct audio: {rss_feed_url}")
+        req = urllib.request.Request(
+            rss_feed_url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            xml_data = resp.read()
+
+        root = ET.fromstring(xml_data)
+        # Find latest episode's enclosure
+        enclosure = root.find(".//item/enclosure")
+        if enclosure is None or not enclosure.get("url"):
+            log("⚠️ No audio enclosure found in RSS feed.")
+            return False
+
+        mp3_url = enclosure.get("url")
+        log(f"📥 Downloading direct podcast audio from CDN: {mp3_url[:75]}...")
+        
+        mp3_req = urllib.request.Request(
+            mp3_url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        )
+        with urllib.request.urlopen(mp3_req, timeout=90) as mp3_resp, open(output_audio_path, "wb") as out_f:
+            shutil.copyfileobj(mp3_resp, out_f)
+
+        file_size_mb = output_audio_path.stat().st_size / (1024 * 1024)
+        log(f"✅ Successfully downloaded clean RSS podcast audio ({file_size_mb:.1f} MB) -> {output_audio_path.name}")
+        return True
+    except Exception as e:
+        log(f"⚠️ RSS audio download notice: {e}")
+        return False
+
+
+def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcast_entry: dict = None) -> list:
+    """
+    Attempts to:
+    1. Download audio via official Podcast RSS feed (100% BotGuard immune, 0 cookies needed) -> Whisper AI.
+    2. Download instant YouTube captions (manual/auto-generated json3/vtt).
+    3. Fallback to yt-dlp audio download -> Whisper AI.
+    """
+    # 1. Try Podcast RSS feed audio first (Zero BotGuard / Zero Captchas)
+    if podcast_entry and podcast_entry.get("rss_feed"):
+        rss_audio_path = output_base / "rss_podcast_audio.mp3"
+        if download_audio_via_rss(podcast_entry["rss_feed"], rss_audio_path):
+            log("Transcribing clean RSS podcast audio with Whisper AI...")
+            return transcribe_audio_with_whisper(rss_audio_path, model_size="base.en")
+
     log(f"Checking for instant YouTube captions for {video_url}...")
     sub_prefix = output_base / "subs_temp"
     
@@ -501,7 +553,7 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path) -> lis
         log(f"YouTube caption extraction notice: {e}")
 
     # Fallback to Whisper AI audio transcription
-    log("Falling back to Whisper AI audio transcription...")
+    log("Falling back to Whisper AI audio transcription via yt-dlp...")
     audio_path = output_base / "whisper_audio.m4a"
     download_audio_for_transcription(video_url, audio_path)
     return transcribe_audio_with_whisper(audio_path, model_size="base.en")
@@ -822,6 +874,59 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # 5. FFmpeg 9:16 Video Rendering Engine
 # =====================================================================
 
+def download_video_via_cobalt(video_url: str, start_sec: float, end_sec: float, output_path: Path) -> bool:
+    """
+    Attempts to download video stream via Cobalt API proxies to bypass YouTube datacenter IP rate limits.
+    """
+    cobalt_instances = [
+        "https://api.cobalt.tools/api/json",
+        "https://cobalt-api.kwiatekm.tokyo/api/json",
+        "https://cobalt.hyonsu.com/api/json"
+    ]
+    payload = json.dumps({
+        "url": video_url,
+        "videoQuality": "1080",
+        "audioFormat": "best"
+    }).encode("utf-8")
+
+    for api_url in cobalt_instances:
+        try:
+            log(f"⚡ Requesting direct stream from Cobalt API ({api_url})...")
+            req = urllib.request.Request(
+                api_url,
+                data=payload,
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "User-Agent": "AutoClipperShorts/1.0"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                stream_url = data.get("url")
+                if stream_url:
+                    log(f"✅ Got direct video stream URL from Cobalt! Slicing clip...")
+                    # Slice directly using ffmpeg
+                    start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}"
+                    dur_str = f"{int((end_sec - start_sec) + 1)}"
+                    ff_cmd = [
+                        "ffmpeg", "-y",
+                        "-ss", start_str,
+                        "-i", stream_url,
+                        "-t", dur_str,
+                        "-c", "copy",
+                        str(output_path)
+                    ]
+                    subprocess.run(ff_cmd, check=True, capture_output=True)
+                    if output_path.exists() and output_path.stat().st_size > 100000:
+                        log(f"✅ Successfully sliced video via Cobalt stream ({output_path.stat().st_size} bytes)")
+                        return True
+        except Exception as e:
+            log(f"Cobalt instance notice ({api_url}): {e}")
+            continue
+    return False
+
+
 def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float, output_raw_path: Path):
     if output_raw_path.exists():
         output_raw_path.unlink()
@@ -829,7 +934,12 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}"
     end_str = f"{int(end_sec // 3600):02d}:{int((end_sec % 3600) // 60):02d}:{int(end_sec % 60):02d}"
     
-    log(f"Downloading video slice: {start_str} to {end_str}...")
+    # 1. Try Cobalt API stream proxy first (100% immune to YouTube IP blocks)
+    if download_video_via_cobalt(video_url, start_sec, end_sec, output_raw_path):
+        return
+
+    # 2. Fallback to yt-dlp section downloader
+    log(f"Downloading video slice via yt-dlp: {start_str} to {end_str}...")
     cmd = [
         "yt-dlp",
         "--download-sections", f"*{start_str}-{end_str}",
@@ -997,8 +1107,8 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     target_video = select_target_video(podcast_entry, history, direct_url=force_url)
     log(f"Selected Video: {target_video['title']} [{target_video['id']}]")
 
-    # 2. Extract Subtitles/Transcript (Instant YouTube Subs + Whisper Fallback)
-    transcript_segments = fetch_youtube_subtitles_or_whisper(target_video["url"], OUTPUT_DIR)
+    # 2. Extract Subtitles/Transcript (Direct RSS Audio + Whisper AI / Instant Subs)
+    transcript_segments = fetch_youtube_subtitles_or_whisper(target_video["url"], OUTPUT_DIR, podcast_entry=podcast_entry)
     if not transcript_segments:
         raise RuntimeError(f"Failed to obtain transcript for video {target_video['id']}")
     
