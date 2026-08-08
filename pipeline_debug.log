@@ -1,35 +1,25 @@
 /opt/hostedtoolcache/Python/3.10.20/x64/lib/python3.10/site-packages/google/api_core/_python_version_support.py:254: FutureWarning: You are using a Python version (3.10.20) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
   warnings.warn(message, FutureWarning)
-[2026-08-08 16:38:08] [AutoClipper] =======================================================
-[2026-08-08 16:38:08] [AutoClipper]  Starting Auto-Clipper Shorts Pipeline
-[2026-08-08 16:38:08] [AutoClipper] =======================================================
-[2026-08-08 16:38:08] [AutoClipper] Selected Podcast Channel: Modern Wisdom (Chris Williamson) (Human Behavior, Fitness & Mindset)
-[2026-08-08 16:38:08] [AutoClipper] Searching candidate episodes: ytsearch8:Modern Wisdom Chris Williamson full episode podcast
-[2026-08-08 16:38:08] [AutoClipper] ⚠️ WARNING: YOUTUBE_COOKIES environment variable is EMPTY!
-[2026-08-08 16:38:08] [AutoClipper]    YouTube will likely block the download with 'Sign in to confirm you’re not a bot'.
-[2026-08-08 16:38:08] [AutoClipper]    Please export your browser cookies as Netscape format, base64 encode them,
-[2026-08-08 16:38:08] [AutoClipper]    and save them as a GitHub Repository Secret named 'YOUTUBE_COOKIES'.
-[2026-08-08 16:38:10] [AutoClipper] Found 8 candidate videos via search.
-[2026-08-08 16:38:10] [AutoClipper] Selected Video: "All Self-Help Boils Down To One Truth" - Jimmy Carr (4K) [ms02ezkAcYw]
-[2026-08-08 16:38:10] [AutoClipper] Checking for instant YouTube captions for https://www.youtube.com/watch?v=ms02ezkAcYw...
-[2026-08-08 16:38:10] [AutoClipper] ⚠️ WARNING: YOUTUBE_COOKIES environment variable is EMPTY!
-[2026-08-08 16:38:10] [AutoClipper]    YouTube will likely block the download with 'Sign in to confirm you’re not a bot'.
-[2026-08-08 16:38:10] [AutoClipper]    Please export your browser cookies as Netscape format, base64 encode them,
-[2026-08-08 16:38:10] [AutoClipper]    and save them as a GitHub Repository Secret named 'YOUTUBE_COOKIES'.
-[2026-08-08 16:38:11] [AutoClipper] YouTube caption extraction notice: Command '['yt-dlp', '--write-auto-subs', '--write-subs', '--sub-lang', 'en.*,en', '--sub-format', 'json3/vtt/srt', '--skip-download', '--no-playlist', '--no-warnings', '--extractor-args', 'youtube:player_client=mweb,default', '-o', '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/subs_temp.%(ext)s', 'https://www.youtube.com/watch?v=ms02ezkAcYw']' returned non-zero exit status 1.
-[2026-08-08 16:38:11] [AutoClipper] Falling back to Whisper AI audio transcription...
-[2026-08-08 16:38:11] [AutoClipper] Downloading audio track for transcription: https://www.youtube.com/watch?v=ms02ezkAcYw
-[2026-08-08 16:38:11] [AutoClipper] ⚠️ WARNING: YOUTUBE_COOKIES environment variable is EMPTY!
-[2026-08-08 16:38:11] [AutoClipper]    YouTube will likely block the download with 'Sign in to confirm you’re not a bot'.
-[2026-08-08 16:38:11] [AutoClipper]    Please export your browser cookies as Netscape format, base64 encode them,
-[2026-08-08 16:38:11] [AutoClipper]    and save them as a GitHub Repository Secret named 'YOUTUBE_COOKIES'.
+[2026-08-08 17:17:00] [AutoClipper] =======================================================
+[2026-08-08 17:17:00] [AutoClipper]  Starting Auto-Clipper Shorts Pipeline
+[2026-08-08 17:17:00] [AutoClipper] =======================================================
+[2026-08-08 17:17:00] [AutoClipper] Selected Podcast Channel: Modern Wisdom (Chris Williamson) (Human Behavior, Fitness & Mindset)
+[2026-08-08 17:17:00] [AutoClipper] Searching candidate episodes: ytsearch8:Modern Wisdom Chris Williamson full episode podcast
+[2026-08-08 17:17:00] [AutoClipper] 🍪 Cookies loaded: 55 entries, 8081 bytes -> /tmp/tmp14wnbvoa_yt_cookies.txt
+[2026-08-08 17:17:04] [AutoClipper] Found 8 candidate videos via search.
+[2026-08-08 17:17:04] [AutoClipper] Selected Video: "All Self-Help Boils Down To One Truth" - Jimmy Carr (4K) [ms02ezkAcYw]
+[2026-08-08 17:17:04] [AutoClipper] Checking for instant YouTube captions for https://www.youtube.com/watch?v=ms02ezkAcYw...
+[2026-08-08 17:17:08] [AutoClipper] YouTube caption extraction notice: Command '['yt-dlp', '--write-auto-subs', '--write-subs', '--sub-lang', 'en.*,en', '--sub-format', 'json3/vtt/srt', '--skip-download', '--no-playlist', '--no-warnings', '--extractor-args', 'youtube:player_client=mweb,default', '--cookies', '/tmp/tmp14wnbvoa_yt_cookies.txt', '-o', '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/subs_temp.%(ext)s', 'https://www.youtube.com/watch?v=ms02ezkAcYw']' returned non-zero exit status 1.
+[2026-08-08 17:17:08] [AutoClipper] Falling back to Whisper AI audio transcription...
+[2026-08-08 17:17:08] [AutoClipper] Downloading audio track for transcription: https://www.youtube.com/watch?v=ms02ezkAcYw
 Deprecated Feature: Support for Python version 3.10 has been deprecated. Please update to Python 3.11 or above
 [youtube] Extracting URL: https://www.youtube.com/watch?v=ms02ezkAcYw
 [youtube] ms02ezkAcYw: Downloading webpage
 [youtube] ms02ezkAcYw: Downloading mweb client config
 [youtube] ms02ezkAcYw: Downloading mweb player API JSON
-[youtube] ms02ezkAcYw: Downloading android vr player API JSON
-ERROR: [youtube] ms02ezkAcYw: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+[youtube] ms02ezkAcYw: Downloading tv downgraded player API JSON
+[youtube] [pot:bgutil:http] Generating a gvs PO Token for mweb client via bgutil HTTP server
+ERROR: [youtube] ms02ezkAcYw: Requested format is not available. Use --list-formats for a list of available formats
 Traceback (most recent call last):
   File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1069, in <module>
     run_pipeline(force_url=args.url, force_channel=args.channel, dry_run=args.dry_run)
@@ -41,4 +31,4 @@ Traceback (most recent call last):
     subprocess.run(cmd, check=True)
   File "/opt/hostedtoolcache/Python/3.10.20/x64/lib/python3.10/subprocess.py", line 526, in run
     raise CalledProcessError(retcode, process.args,
-subprocess.CalledProcessError: Command '['yt-dlp', '-f', 'ba[ext=m4a]/ba/b', '-x', '--audio-format', 'm4a', '--audio-quality', '7', '--no-playlist', '--no-warnings', '--extractor-args', 'youtube:player_client=mweb,default', '-o', '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/whisper_audio.m4a', 'https://www.youtube.com/watch?v=ms02ezkAcYw']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['yt-dlp', '-f', 'ba[ext=m4a]/ba/b', '-x', '--audio-format', 'm4a', '--audio-quality', '7', '--no-playlist', '--no-warnings', '--extractor-args', 'youtube:player_client=mweb,default', '--cookies', '/tmp/tmp14wnbvoa_yt_cookies.txt', '-o', '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/whisper_audio.m4a', 'https://www.youtube.com/watch?v=ms02ezkAcYw']' returned non-zero exit status 1.
