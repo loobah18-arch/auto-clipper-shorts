@@ -163,7 +163,7 @@ def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) ->
         "--dump-single-json",
         "--no-warnings",
         "--ignore-errors",
-        "--extractor-args", "youtube:player_client=android,web,ios",
+        "--extractor-args", "youtube:player_client=mweb,default",
     ] + ytdlp_cookies_args() + [query]
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -194,7 +194,7 @@ def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) ->
             "--flat-playlist",
             "--dump-single-json",
             "--no-warnings",
-            "--extractor-args", "youtube:player_client=android,web,ios",
+            "--extractor-args", "youtube:player_client=mweb,default",
         ] + ytdlp_cookies_args() + [podcast_entry["channel_url"]]
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout)
@@ -222,7 +222,7 @@ def select_target_video(podcast_entry: dict, history: dict, direct_url: str = No
             "--dump-single-json",
             "--no-playlist",
             "--no-warnings",
-            "--extractor-args", "youtube:player_client=android,web,ios",
+            "--extractor-args", "youtube:player_client=mweb,default",
         ] + ytdlp_cookies_args() + [direct_url]
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout)
@@ -435,7 +435,7 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path) -> lis
         "--skip-download",
         "--no-playlist",
         "--no-warnings",
-        "--extractor-args", "youtube:player_client=android,web,ios",
+        "--extractor-args", "youtube:player_client=mweb,default",
     ] + ytdlp_cookies_args() + [
         "-o", f"{sub_prefix}.%(ext)s",
         video_url
@@ -491,7 +491,7 @@ def download_audio_for_transcription(video_url: str, output_audio_path: Path) ->
         "--audio-quality", "7",
         "--no-playlist",
         "--no-warnings",
-        "--extractor-args", "youtube:player_client=android,web,ios",
+        "--extractor-args", "youtube:player_client=mweb,default",
     ] + ytdlp_cookies_args() + [
         "-o", str(output_audio_path),
         video_url
@@ -808,7 +808,7 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
         "--force-keyframes-at-cuts",
         "--no-playlist",
         "--no-warnings",
-        "--extractor-args", "youtube:player_client=android,web,ios",
+        "--extractor-args", "youtube:player_client=mweb,default",
     ] + ytdlp_cookies_args() + [
         "-o", str(output_raw_path),
         video_url
