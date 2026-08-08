@@ -36,7 +36,7 @@
     {
       "id": "impact_theory",
       "name": "Impact Theory (Tom Bilyeu)",
-      "rss_feed": "https://feeds.megaphone.fm/impacttheory",
+      "rss_feed": "https://rss.art19.com/tom-bilyeus-impact-theory",
       "search_query": "ytsearch8:Impact Theory Tom Bilyeu full episode podcast",
       "channel_url": "https://www.youtube.com/@TomBilyeu/videos",
       "category": "Mindset & High Performance",
@@ -45,26 +45,26 @@
       "attribution_template": "Clip from Impact Theory with Tom Bilyeu. Full episode: {video_url}"
     },
     {
-      "id": "big_think",
-      "name": "Big Think",
-      "rss_feed": "https://feeds.megaphone.fm/bigthink",
-      "search_query": "ytsearch8:Big Think talk lecture",
-      "channel_url": "https://www.youtube.com/@bigthink/videos",
-      "category": "Science, Psychology & Ideas",
-      "safe_policy": "Educational thought leadership & science under Creative Commons attribution",
-      "default_tags": ["bigthink", "psychology", "mindset", "science", "knowledge", "shorts"],
-      "attribution_template": "Clip from Big Think. Full talk: {video_url}"
+      "id": "diary_of_a_ceo",
+      "name": "The Diary Of A CEO (Steven Bartlett)",
+      "rss_feed": "https://feeds.megaphone.fm/thediaryofaceo",
+      "search_query": "ytsearch8:The Diary Of A CEO Steven Bartlett full episode podcast",
+      "channel_url": "https://www.youtube.com/@TheDiaryOfACEO/videos",
+      "category": "Business, Psychology & Health",
+      "safe_policy": "Encourages short clips with episode attribution in description",
+      "default_tags": ["diaryofaceo", "stevenbartlett", "psychology", "business", "health", "mindset", "shorts"],
+      "attribution_template": "Clip from The Diary Of A CEO with Steven Bartlett ({guest_or_title}). Full episode: {video_url}"
     },
     {
-      "id": "y_combinator",
-      "name": "Y Combinator",
-      "rss_feed": "https://anchor.fm/s/5d6e2468/podcast/rss",
-      "search_query": "ytsearch8:Y Combinator startup school founder interview",
-      "channel_url": "https://www.youtube.com/@ycombinator/videos",
-      "category": "Startups & Tech Founders",
-      "safe_policy": "Public educational founder lessons & startup school under Fair Use & CC attribution",
-      "default_tags": ["ycombinator", "startup", "entrepreneurship", "business", "tech", "shorts"],
-      "attribution_template": "Clip from Y Combinator. Full video: {video_url}"
+      "id": "tim_ferriss",
+      "name": "The Tim Ferriss Show",
+      "rss_feed": "https://rss.art19.com/tim-ferriss-show",
+      "search_query": "ytsearch8:The Tim Ferriss Show full episode podcast",
+      "channel_url": "https://www.youtube.com/@timferriss/videos",
+      "category": "High Performance & Tactics",
+      "safe_policy": "Fair use educational commentary with full link attribution",
+      "default_tags": ["timferriss", "productivity", "tactics", "success", "performance", "wisdom", "shorts"],
+      "attribution_template": "Clip from The Tim Ferriss Show ({guest_or_title}). Full episode: {video_url}"
     }
   ]
 }
