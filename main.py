@@ -96,6 +96,12 @@ def setup_cookies_file() -> str:
     """
     Reads the YOUTUBE_COOKIES env var (base64-encoded Netscape cookies.txt content)
     and writes it to a temporary file for yt-dlp to use.
+
+    Per yt-dlp FAQ (https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp):
+    - File must be in Mozilla/Netscape format
+    - First line must be '# Netscape HTTP Cookie File' or '# HTTP Cookie File'
+    - Newlines must be LF (\n) on Linux, NOT CRLF (\r\n)
+
     Returns the path to the cookies file, or None if not configured.
     """
     global _COOKIES_FILE
@@ -109,14 +115,34 @@ def setup_cookies_file() -> str:
     try:
         # Decode base64 -> Netscape cookies.txt content
         decoded = base64.b64decode(raw).decode("utf-8")
+
+        # Normalize CRLF -> LF (yt-dlp FAQ: CRLF causes HTTP 400 on Linux)
+        decoded = decoded.replace("\r\n", "\n").replace("\r", "\n")
+
+        # Validate Netscape header (yt-dlp FAQ: first line must be one of these)
+        first_line = decoded.split("\n", 1)[0].strip()
+        valid_headers = ["# Netscape HTTP Cookie File", "# HTTP Cookie File"]
+        if first_line not in valid_headers:
+            log(f"⚠️ Cookie file missing required Netscape header. Got: '{first_line[:60]}'")
+            log(f"   Prepending '# Netscape HTTP Cookie File' header.")
+            decoded = "# Netscape HTTP Cookie File\n" + decoded
+
+        # Count actual cookie lines (non-empty, non-comment lines with tab separators)
+        cookie_lines = [l for l in decoded.strip().split("\n")
+                        if l.strip() and not l.startswith("#") and "\t" in l]
+        if not cookie_lines:
+            log("⚠️ YOUTUBE_COOKIES decoded but contains no valid cookie entries. Skipping.")
+            return None
+
         tmp = tempfile.NamedTemporaryFile(
-            mode="w", suffix="_yt_cookies.txt", delete=False, encoding="utf-8"
+            mode="w", suffix="_yt_cookies.txt", delete=False, encoding="utf-8",
+            newline="\n"  # Force LF line endings on all platforms
         )
         tmp.write(decoded)
         tmp.flush()
         tmp.close()
         _COOKIES_FILE = tmp.name
-        log(f"🍪 Cookies loaded from YOUTUBE_COOKIES secret ({len(decoded)} bytes -> {_COOKIES_FILE})")
+        log(f"🍪 Cookies loaded: {len(cookie_lines)} entries, {len(decoded)} bytes -> {_COOKIES_FILE}")
         return _COOKIES_FILE
     except Exception as e:
         log(f"⚠️ Failed to decode YOUTUBE_COOKIES: {e}")
