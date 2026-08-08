@@ -154,10 +154,7 @@ def setup_cookies_file() -> str:
 
 
 def ytdlp_cookies_args() -> list:
-    """Returns ['--cookies', '<path>'] if a cookies file is available, else []."""
-    cf = setup_cookies_file()
-    if cf:
-        return ["--cookies", cf]
+    """Returns [] to bypass passing cookies, which forces yt-dlp to use native ios/android clients."""
     return []
 
 
