@@ -110,6 +110,10 @@ def setup_cookies_file() -> str:
 
     raw = os.environ.get("YOUTUBE_COOKIES", "").strip()
     if not raw:
+        log("⚠️ WARNING: YOUTUBE_COOKIES environment variable is EMPTY!")
+        log("   YouTube will likely block the download with 'Sign in to confirm you’re not a bot'.")
+        log("   Please export your browser cookies as Netscape format, base64 encode them,")
+        log("   and save them as a GitHub Repository Secret named 'YOUTUBE_COOKIES'.")
         return None
 
     try:
