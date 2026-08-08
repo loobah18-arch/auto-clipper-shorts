@@ -705,7 +705,7 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
         
     client = Groq(api_key=groq_api_key)
     chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
-    sample_chunks = chunks[:35]
+    sample_chunks = chunks[:12]
     
     formatted_transcript = "\n".join([
         f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
@@ -943,12 +943,12 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     cmd = [
         "yt-dlp",
         "--download-sections", f"*{start_str}-{end_str}",
-        "-f", "bv*[height<=1080]+ba/b[height<=1080]/best",
+        "-f", "b/best/bv*+ba/ba/b",
         "--merge-output-format", "mp4",
         "--force-keyframes-at-cuts",
         "--no-playlist",
         "--no-warnings",
-        "--extractor-args", "youtube:player_client=mweb,web,default",
+        "--extractor-args", "youtube:player_client=ios,android,web,default",
     ] + ytdlp_cookies_args() + [
         "-o", str(output_raw_path),
         video_url
