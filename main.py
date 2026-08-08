@@ -10,7 +10,9 @@ import sys
 import re
 import json
 import time
+import base64
 import shutil
+import tempfile
 import argparse
 import subprocess
 from datetime import datetime, timezone
@@ -86,9 +88,53 @@ def find_system_font() -> str:
     return "DejaVu Sans"
 
 
+# Global cookies file path (written once at startup, cleaned up at exit)
+_COOKIES_FILE: str = None
+
+
+def setup_cookies_file() -> str:
+    """
+    Reads the YOUTUBE_COOKIES env var (base64-encoded Netscape cookies.txt content)
+    and writes it to a temporary file for yt-dlp to use.
+    Returns the path to the cookies file, or None if not configured.
+    """
+    global _COOKIES_FILE
+    if _COOKIES_FILE and os.path.exists(_COOKIES_FILE):
+        return _COOKIES_FILE
+
+    raw = os.environ.get("YOUTUBE_COOKIES", "").strip()
+    if not raw:
+        return None
+
+    try:
+        # Decode base64 -> Netscape cookies.txt content
+        decoded = base64.b64decode(raw).decode("utf-8")
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix="_yt_cookies.txt", delete=False, encoding="utf-8"
+        )
+        tmp.write(decoded)
+        tmp.flush()
+        tmp.close()
+        _COOKIES_FILE = tmp.name
+        log(f"🍪 Cookies loaded from YOUTUBE_COOKIES secret ({len(decoded)} bytes -> {_COOKIES_FILE})")
+        return _COOKIES_FILE
+    except Exception as e:
+        log(f"⚠️ Failed to decode YOUTUBE_COOKIES: {e}")
+        return None
+
+
+def ytdlp_cookies_args() -> list:
+    """Returns ['--cookies', '<path>'] if a cookies file is available, else []."""
+    cf = setup_cookies_file()
+    if cf:
+        return ["--cookies", cf]
+    return []
+
+
 # =====================================================================
 # 1. Source Discovery & Metadata
 # =====================================================================
+
 
 def pick_next_channel(catalog: dict, history: dict, force_channel_id: str = None) -> tuple:
     podcasts = catalog.get("podcasts", [])
@@ -118,8 +164,7 @@ def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) ->
         "--no-warnings",
         "--ignore-errors",
         "--extractor-args", "youtube:player_client=android,web,ios",
-        query
-    ]
+    ] + ytdlp_cookies_args() + [query]
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout)
@@ -150,8 +195,7 @@ def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) ->
             "--dump-single-json",
             "--no-warnings",
             "--extractor-args", "youtube:player_client=android,web,ios",
-            podcast_entry["channel_url"]
-        ]
+        ] + ytdlp_cookies_args() + [podcast_entry["channel_url"]]
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout)
         entries = data.get("entries", [])[:max_results]
@@ -179,8 +223,7 @@ def select_target_video(podcast_entry: dict, history: dict, direct_url: str = No
             "--no-playlist",
             "--no-warnings",
             "--extractor-args", "youtube:player_client=android,web,ios",
-            direct_url
-        ]
+        ] + ytdlp_cookies_args() + [direct_url]
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout)
         return {
@@ -393,6 +436,7 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path) -> lis
         "--no-playlist",
         "--no-warnings",
         "--extractor-args", "youtube:player_client=android,web,ios",
+    ] + ytdlp_cookies_args() + [
         "-o", f"{sub_prefix}.%(ext)s",
         video_url
     ]
@@ -448,6 +492,7 @@ def download_audio_for_transcription(video_url: str, output_audio_path: Path) ->
         "--no-playlist",
         "--no-warnings",
         "--extractor-args", "youtube:player_client=android,web,ios",
+    ] + ytdlp_cookies_args() + [
         "-o", str(output_audio_path),
         video_url
     ]
@@ -764,6 +809,7 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
         "--no-playlist",
         "--no-warnings",
         "--extractor-args", "youtube:player_client=android,web,ios",
+    ] + ytdlp_cookies_args() + [
         "-o", str(output_raw_path),
         video_url
     ]
