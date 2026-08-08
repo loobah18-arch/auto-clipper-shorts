@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Auto Clipper Shorts - Automated Podcast & Talk Clipping Pipeline for YouTube Shorts
-Transcribes audio with Whisper AI, identifies viral hooks with Groq LLM,
-renders vertical 9:16 video with karaoke subtitles, and publishes to YouTube.
+Extracts subtitles/captions or Whisper AI audio, identifies viral hooks with Groq LLM,
+renders vertical 9:16 video with karaoke subtitles via FFmpeg, and publishes to YouTube.
 """
 
 import os
@@ -13,7 +13,7 @@ import time
 import shutil
 import argparse
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # External optional imports (handled gracefully)
@@ -48,9 +48,18 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
 FALLBACK_GROQ_MODEL = "llama-3.1-8b-instant"
 
+# Font candidates for FFmpeg drawtext on Linux/Debian/Ubuntu
+FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+]
+
 
 def log(msg: str):
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] [AutoClipper] {msg}", flush=True)
 
 
@@ -67,6 +76,14 @@ def load_json(path: Path, default_val=None):
 def save_json(path: Path, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def find_system_font() -> str:
+    """Finds an available TrueType font file on the host system for FFmpeg."""
+    for font_path in FONT_CANDIDATES:
+        if os.path.exists(font_path):
+            return font_path
+    return "DejaVu Sans"
 
 
 # =====================================================================
@@ -95,10 +112,12 @@ def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) ->
     
     cmd = [
         "yt-dlp",
+        "--default-search", "ytsearch",
         "--flat-playlist",
         "--dump-single-json",
         "--no-warnings",
         "--ignore-errors",
+        "--extractor-args", "youtube:player_client=android,web,ios",
         query
     ]
     try:
@@ -125,7 +144,14 @@ def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) ->
     # Fallback to direct channel URL
     try:
         log(f"Trying channel URL fallback: {podcast_entry['channel_url']}")
-        cmd = ["yt-dlp", "--flat-playlist", "--dump-single-json", "--no-warnings", podcast_entry["channel_url"]]
+        cmd = [
+            "yt-dlp",
+            "--flat-playlist",
+            "--dump-single-json",
+            "--no-warnings",
+            "--extractor-args", "youtube:player_client=android,web,ios",
+            podcast_entry["channel_url"]
+        ]
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout)
         entries = data.get("entries", [])[:max_results]
@@ -147,7 +173,14 @@ def get_latest_videos_from_channel(podcast_entry: dict, max_results: int = 8) ->
 def select_target_video(podcast_entry: dict, history: dict, direct_url: str = None) -> dict:
     if direct_url:
         log(f"Using direct URL: {direct_url}")
-        cmd = ["yt-dlp", "--dump-single-json", "--no-warnings", direct_url]
+        cmd = [
+            "yt-dlp",
+            "--dump-single-json",
+            "--no-playlist",
+            "--no-warnings",
+            "--extractor-args", "youtube:player_client=android,web,ios",
+            direct_url
+        ]
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout)
         return {
@@ -175,8 +208,230 @@ def select_target_video(podcast_entry: dict, history: dict, direct_url: str = No
 
 
 # =====================================================================
-# 2. Audio Extraction & Whisper Transcription
+# 2. Subtitle / Transcript Extraction (YouTube Subtitles & Whisper AI)
 # =====================================================================
+
+def parse_vtt_subtitles(vtt_text: str) -> list:
+    """Parses WebVTT subtitle format into structured segments with word estimates."""
+    segments = []
+    lines = vtt_text.strip().splitlines()
+    
+    time_pattern = re.compile(r"(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})")
+    time_short_pattern = re.compile(r"(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2})\.(\d{3})")
+    
+    current_start = None
+    current_end = None
+    current_text_lines = []
+    
+    def parse_time(match_groups):
+        if len(match_groups) == 8:
+            h, m, s, ms = int(match_groups[0]), int(match_groups[1]), int(match_groups[2]), int(match_groups[3])
+            return h * 3600 + m * 60 + s + ms / 1000.0
+        elif len(match_groups) == 6:
+            m, s, ms = int(match_groups[0]), int(match_groups[1]), int(match_groups[2])
+            return m * 60 + s + ms / 1000.0
+        return 0.0
+
+    seg_id = 0
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean or line_clean.startswith("WEBVTT") or line_clean.startswith("NOTE"):
+            continue
+            
+        m = time_pattern.search(line_clean)
+        if m:
+            if current_start is not None and current_text_lines:
+                text_combined = " ".join(current_text_lines).strip()
+                text_combined = re.sub(r"<[^>]+>", "", text_combined)
+                if text_combined:
+                    words = create_word_timestamps_from_segment(text_combined, current_start, current_end)
+                    segments.append({
+                        "id": seg_id,
+                        "start": round(current_start, 2),
+                        "end": round(current_end, 2),
+                        "text": text_combined,
+                        "words": words
+                    })
+                    seg_id += 1
+            h1, m1, s1, ms1 = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+            h2, m2, s2, ms2 = int(m.group(5)), int(m.group(6)), int(m.group(7)), int(m.group(8))
+            current_start = h1 * 3600 + m1 * 60 + s1 + ms1 / 1000.0
+            current_end = h2 * 3600 + m2 * 60 + s2 + ms2 / 1000.0
+            current_text_lines = []
+            continue
+            
+        m_short = time_short_pattern.search(line_clean)
+        if m_short:
+            if current_start is not None and current_text_lines:
+                text_combined = " ".join(current_text_lines).strip()
+                text_combined = re.sub(r"<[^>]+>", "", text_combined)
+                if text_combined:
+                    words = create_word_timestamps_from_segment(text_combined, current_start, current_end)
+                    segments.append({
+                        "id": seg_id,
+                        "start": round(current_start, 2),
+                        "end": round(current_end, 2),
+                        "text": text_combined,
+                        "words": words
+                    })
+                    seg_id += 1
+            m1, s1, ms1 = int(m_short.group(1)), int(m_short.group(2)), int(m_short.group(3))
+            m2, s2, ms2 = int(m_short.group(4)), int(m_short.group(5)), int(m_short.group(6))
+            current_start = m1 * 60 + s1 + ms1 / 1000.0
+            current_end = m2 * 60 + s2 + ms2 / 1000.0
+            current_text_lines = []
+            continue
+            
+        if current_start is not None:
+            # Subtitle text line
+            current_text_lines.append(line_clean)
+            
+    if current_start is not None and current_text_lines:
+        text_combined = " ".join(current_text_lines).strip()
+        text_combined = re.sub(r"<[^>]+>", "", text_combined)
+        if text_combined:
+            words = create_word_timestamps_from_segment(text_combined, current_start, current_end)
+            segments.append({
+                "id": seg_id,
+                "start": round(current_start, 2),
+                "end": round(current_end, 2),
+                "text": text_combined,
+                "words": words
+            })
+
+    return segments
+
+
+def parse_json3_subtitles(json3_data: dict) -> list:
+    """Parses YouTube JSON3 subtitle format containing exact word/offset timestamps."""
+    segments = []
+    events = json3_data.get("events", [])
+    seg_id = 0
+    
+    for ev in events:
+        start_ms = ev.get("tStartMs", 0)
+        dur_ms = ev.get("dDurationMs", 0)
+        start_sec = start_ms / 1000.0
+        end_sec = (start_ms + dur_ms) / 1000.0
+        
+        segs = ev.get("segs", [])
+        if not segs:
+            continue
+            
+        words = []
+        full_text_parts = []
+        for s in segs:
+            w_text = s.get("utf8", "")
+            offset_ms = s.get("tOffsetMs", 0)
+            cleaned_w = w_text.strip()
+            if cleaned_w:
+                w_start = (start_ms + offset_ms) / 1000.0
+                words.append({
+                    "word": cleaned_w,
+                    "start": round(w_start, 2),
+                    "end": round(w_start + 0.35, 2),
+                    "probability": 1.0
+                })
+                full_text_parts.append(cleaned_w)
+                
+        # Adjust end times between consecutive words
+        for idx in range(len(words) - 1):
+            words[idx]["end"] = min(words[idx + 1]["start"], words[idx]["start"] + 0.6)
+        if words and end_sec > words[-1]["start"]:
+            words[-1]["end"] = round(end_sec, 2)
+            
+        full_text = " ".join(full_text_parts)
+        if full_text:
+            segments.append({
+                "id": seg_id,
+                "start": round(start_sec, 2),
+                "end": round(max(end_sec, start_sec + 0.5), 2),
+                "text": full_text,
+                "words": words
+            })
+            seg_id += 1
+            
+    return segments
+
+
+def create_word_timestamps_from_segment(text: str, start_sec: float, end_sec: float) -> list:
+    """Generates evenly-spaced word timestamps across segment duration."""
+    words_list = text.split()
+    if not words_list:
+        return []
+    duration = max(0.2, end_sec - start_sec)
+    step = duration / len(words_list)
+    result = []
+    for idx, w in enumerate(words_list):
+        w_start = start_sec + idx * step
+        w_end = w_start + step
+        result.append({
+            "word": w.strip(),
+            "start": round(w_start, 2),
+            "end": round(w_end, 2),
+            "probability": 1.0
+        })
+    return result
+
+
+def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path) -> list:
+    """
+    Attempts to download instant YouTube captions (manual/auto-generated json3/vtt).
+    Falls back to Whisper AI transcription if captions are unavailable.
+    """
+    log(f"Checking for instant YouTube captions for {video_url}...")
+    sub_prefix = output_base / "subs_temp"
+    
+    # Try downloading JSON3 / VTT English subtitles
+    cmd = [
+        "yt-dlp",
+        "--write-auto-subs",
+        "--write-subs",
+        "--sub-lang", "en.*,en",
+        "--sub-format", "json3/vtt/srt",
+        "--skip-download",
+        "--no-playlist",
+        "--no-warnings",
+        "--extractor-args", "youtube:player_client=android,web,ios",
+        "-o", f"{sub_prefix}.%(ext)s",
+        video_url
+    ]
+    try:
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
+        # Check if json3 or vtt file was created
+        json3_files = list(output_base.glob("subs_temp*.json3"))
+        if json3_files:
+            log(f"Found YouTube JSON3 captions: {json3_files[0].name}")
+            with open(json3_files[0], "r", encoding="utf-8") as f:
+                data = json.load(f)
+            segments = parse_json3_subtitles(data)
+            if segments and len(segments) > 5:
+                log(f"Parsed {len(segments)} segments with word timestamps from YouTube captions.")
+                # Clean up
+                for jf in json3_files:
+                    jf.unlink()
+                return segments
+                
+        vtt_files = list(output_base.glob("subs_temp*.vtt"))
+        if vtt_files:
+            log(f"Found YouTube WebVTT captions: {vtt_files[0].name}")
+            with open(vtt_files[0], "r", encoding="utf-8") as f:
+                vtt_text = f.read()
+            segments = parse_vtt_subtitles(vtt_text)
+            if segments and len(segments) > 5:
+                log(f"Parsed {len(segments)} segments from WebVTT captions.")
+                for vf in vtt_files:
+                    vf.unlink()
+                return segments
+    except Exception as e:
+        log(f"YouTube caption extraction notice: {e}")
+
+    # Fallback to Whisper AI audio transcription
+    log("Falling back to Whisper AI audio transcription...")
+    audio_path = output_base / "whisper_audio.m4a"
+    download_audio_for_transcription(video_url, audio_path)
+    return transcribe_audio_with_whisper(audio_path, model_size="base.en")
+
 
 def download_audio_for_transcription(video_url: str, output_audio_path: Path) -> Path:
     """Fast audio download (low bitrate m4a) for quick transcription."""
@@ -192,6 +447,7 @@ def download_audio_for_transcription(video_url: str, output_audio_path: Path) ->
         "--audio-quality", "7",
         "--no-playlist",
         "--no-warnings",
+        "--extractor-args", "youtube:player_client=android,web,ios",
         "-o", str(output_audio_path),
         video_url
     ]
@@ -200,9 +456,7 @@ def download_audio_for_transcription(video_url: str, output_audio_path: Path) ->
 
 
 def transcribe_audio_with_whisper(audio_path: Path, model_size: str = "base.en") -> list:
-    """
-    Transcribes audio using faster-whisper with word-level timestamps.
-    """
+    """Transcribes audio using faster-whisper with word-level timestamps."""
     if WhisperModel is None:
         raise ImportError("faster-whisper is not installed. Run: pip install faster-whisper")
         
@@ -235,6 +489,9 @@ def transcribe_audio_with_whisper(audio_path: Path, model_size: str = "base.en")
                         "end": round(max(w.start + 0.05, w.end), 2),
                         "probability": round(w.probability, 2)
                     })
+        else:
+            words = create_word_timestamps_from_segment(s.text.strip(), s.start, s.end)
+            
         results.append({
             "id": s.id,
             "start": round(s.start, 2),
@@ -250,7 +507,7 @@ def transcribe_audio_with_whisper(audio_path: Path, model_size: str = "base.en")
 # 3. AI Highlight & Viral Hook Selection (Groq)
 # =====================================================================
 
-def chunk_transcript(segments: list, max_duration_sec: float = 120.0) -> list:
+def chunk_transcript(segments: list, max_duration_sec: float = 90.0) -> list:
     chunks = []
     curr_words = []
     curr_start = None
@@ -293,7 +550,13 @@ def parse_llm_json(raw_text: str) -> dict:
         match = re.search(r"\{.*\}", clean, re.DOTALL)
         if match:
             return json.loads(match.group(0))
-        raise
+        raise ValueError(f"Could not parse JSON from LLM output: {raw_text[:200]}")
+
+
+def format_seconds_to_min_sec(seconds: float) -> str:
+    m = int(seconds // 60)
+    s = int(seconds % 60)
+    return f"{m:02d}:{s:02d}"
 
 
 def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, podcast_entry: dict) -> dict:
@@ -315,10 +578,10 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
         
     client = Groq(api_key=groq_api_key)
     chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
-    sample_chunks = chunks[:25]
+    sample_chunks = chunks[:35]
     
     formatted_transcript = "\n".join([
-        f"[{datetime.utcfromtimestamp(c['start']).strftime('%M:%S')} - {datetime.utcfromtimestamp(c['end']).strftime('%M:%S')}] {c['text']}"
+        f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
         for c in sample_chunks
     ])
     
@@ -375,16 +638,16 @@ JSON Format:
             duration = end_sec - start_sec
             
             if duration < 20 or duration > 65:
-                if duration <= 0:
+                if duration <= 0 or start_sec < 0:
                     start_sec = 30.0
                     end_sec = 75.0
                 elif duration > 65:
                     end_sec = start_sec + 50.0
             
-            clip_data["start_seconds"] = start_sec
-            clip_data["end_seconds"] = end_sec
-            clip_data["duration"] = round(end_sec - start_sec, 2)
-            log(f"Groq selected clip: {start_sec:.1f}s -> {end_sec:.1f}s ({clip_data['duration']}s)")
+            clip_data["start_seconds"] = max(0.0, start_sec)
+            clip_data["end_seconds"] = max(start_sec + 20.0, end_sec)
+            clip_data["duration"] = round(clip_data["end_seconds"] - clip_data["start_seconds"], 2)
+            log(f"Groq selected clip: {clip_data['start_seconds']:.1f}s -> {clip_data['end_seconds']:.1f}s ({clip_data['duration']}s)")
             log(f"Title: {clip_data.get('viral_title')}")
             return clip_data
         except Exception as e:
@@ -425,23 +688,28 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,DejaVu Sans,62,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,2,2,40,40,180,1
+Style: Default,DejaVu Sans,64,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,2,2,40,40,190,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     clip_words = []
     for seg in segments:
-        for w in seg.get("words", []):
+        words = seg.get("words", [])
+        if not words and seg.get("text"):
+            words = create_word_timestamps_from_segment(seg["text"], seg["start"], seg["end"])
+            
+        for w in words:
             if w["start"] >= (start_sec - 0.2) and w["end"] <= (end_sec + 0.5):
                 rel_start = max(0.0, w["start"] - start_sec)
                 rel_end = max(rel_start + 0.1, w["end"] - start_sec)
-                cleaned_word = w["word"].upper().replace("{", "").replace("}", "")
-                clip_words.append({
-                    "word": cleaned_word,
-                    "start": rel_start,
-                    "end": rel_end
-                })
+                cleaned_word = w["word"].upper().replace("{", "").replace("}", "").replace("\\", "")
+                if cleaned_word:
+                    clip_words.append({
+                        "word": cleaned_word,
+                        "start": rel_start,
+                        "end": rel_end
+                    })
 
     events = []
     GROUP_SIZE = 4
@@ -457,9 +725,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             line_parts = []
             for idx, gw in enumerate(group):
                 if idx == active_idx:
-                    line_parts.append(r"{\c&H002BF5FF\t(\fscx112\fscy112)}" + gw["word"] + r"{\r}")
+                    # Pop animation and glowing yellow highlight
+                    line_parts.append(r"{\c&H002BF5FF\fscx110\fscy110}" + gw["word"] + r"{\c&H00FFFFFF\fscx100\fscy100}")
                 else:
-                    line_parts.append(r"{\c&H00FFFFFF}" + gw["word"])
+                    line_parts.append(r"{\c&H00FFFFFF\fscx100\fscy100}" + gw["word"])
                     
             full_line_text = " ".join(line_parts)
             start_str = format_ass_time(w_start)
@@ -490,9 +759,11 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
         "yt-dlp",
         "--download-sections", f"*{start_str}-{end_str}",
         "-f", "bv*[height<=1080]+ba/b[height<=1080]/best",
+        "--merge-output-format", "mp4",
         "--force-keyframes-at-cuts",
         "--no-playlist",
         "--no-warnings",
+        "--extractor-args", "youtube:player_client=android,web,ios",
         "-o", str(output_raw_path),
         video_url
     ]
@@ -513,13 +784,19 @@ def render_vertical_916_short(
     ass_filter_path = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
     badge_text = (speaker_badge or "PODCAST HIGHLIGHT").replace(":", " ").replace("'", "").replace("%", "").replace("\\", "").upper()
     
+    font_file = find_system_font()
+    if os.path.exists(font_file):
+        font_opt = f"fontfile='{font_file}'"
+    else:
+        font_opt = "font='DejaVu Sans'"
+        
     filtergraph = (
         "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
         "boxblur=25:5,eq=brightness=-0.08:contrast=1.05[bg];"
         "[0:v]scale=1040:-2[fg];"
         "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 50[comp1];"
         f"[comp1]drawbox=y=160:color=black@0.65:width=iw:height=90:t=fill,"
-        f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:font='DejaVu Sans':x=(w-text_w)/2:y=182[comp2];"
+        f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182[comp2];"
         f"[comp2]ass='{ass_filter_path}'[v]"
     )
     
@@ -644,11 +921,10 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     target_video = select_target_video(podcast_entry, history, direct_url=force_url)
     log(f"Selected Video: {target_video['title']} [{target_video['id']}]")
 
-    # 2. Extract Audio & Transcribe
-    audio_temp_path = OUTPUT_DIR / f"audio_{target_video['id']}.m4a"
-    download_audio_for_transcription(target_video["url"], audio_temp_path)
-    
-    transcript_segments = transcribe_audio_with_whisper(audio_temp_path, model_size="base.en")
+    # 2. Extract Subtitles/Transcript (Instant YouTube Subs + Whisper Fallback)
+    transcript_segments = fetch_youtube_subtitles_or_whisper(target_video["url"], OUTPUT_DIR)
+    if not transcript_segments:
+        raise RuntimeError(f"Failed to obtain transcript for video {target_video['id']}")
     
     # 3. AI Highlight Detection (Groq)
     clip_info = select_viral_clip_with_groq(transcript_segments, target_video, podcast_entry)
@@ -690,12 +966,12 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
         "start": start_sec,
         "end": end_sec,
         "uploaded_youtube_id": uploaded_id,
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     })
     save_json(HISTORY_PATH, history)
     
-    # Clean up intermediate files
-    for temp_f in [audio_temp_path, raw_slice_path, ass_sub_path]:
+    # Clean up intermediate temporary files
+    for temp_f in [raw_slice_path, ass_sub_path]:
         if temp_f.exists():
             try:
                 temp_f.unlink()
