@@ -804,13 +804,15 @@ def select_viral_clip_with_groq(
                     parsed = parse_llm_json(content)
                     if parsed and "start_seconds" in parsed and "end_seconds" in parsed:
                         min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
-                        start_sec = max(min_start, float(parsed.get("start_seconds", min_start)))
-                        raw_end = float(parsed.get("end_seconds", start_sec + 45.0))
-                        clip_dur = max(38.0, min(55.0, raw_end - start_sec))
-                        end_sec = start_sec + clip_dur
-                        parsed["start_seconds"] = round(start_sec, 2)
-                        parsed["end_seconds"] = round(end_sec, 2)
-                        parsed["duration"] = round(clip_dur, 2)
+                        raw_start = max(min_start, float(parsed.get("start_seconds", min_start)))
+                        raw_end = float(parsed.get("end_seconds", raw_start + 45.0))
+                        
+                        start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, raw_start, raw_end)
+                        clip_dur = end_sec - start_sec
+                        
+                        parsed["start_seconds"] = start_sec
+                        parsed["end_seconds"] = end_sec
+                        parsed["duration"] = clip_dur
                         log(f"✅ NVIDIA Nemotron selected clip (Part {part_number}): {parsed['start_seconds']}s -> {parsed['end_seconds']}s ({clip_dur:.1f}s)")
                         return parsed
             except Exception as ne:
@@ -823,10 +825,11 @@ def select_viral_clip_with_groq(
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
         default_start = continuation_start_sec + 1.0 if continuation_start_sec else 30.0
+        start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, default_start, default_start + 45.0)
         return {
-            "start_seconds": default_start,
-            "end_seconds": default_start + 45.0,
-            "duration": 45.0,
+            "start_seconds": start_sec,
+            "end_seconds": end_sec,
+            "duration": end_sec - start_sec,
             "topic_title": f"{podcast_entry.get('name', 'Podcast')} Masterclass",
             "viral_title": f"{podcast_entry.get('name', 'Podcast')} Insight [Part {part_number}] 💡 #Shorts",
             "hook_reason": "Curated insightful discussion",
@@ -875,14 +878,15 @@ JSON Schema:
             clip_data = parse_llm_json(raw_content)
             
             min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
-            start_sec = max(min_start, float(clip_data.get("start_seconds", min_start)))
-            raw_end = float(clip_data.get("end_seconds", start_sec + 45.0))
-            clip_dur = max(38.0, min(55.0, raw_end - start_sec))
-            end_sec = start_sec + clip_dur
+            raw_start = max(min_start, float(clip_data.get("start_seconds", min_start)))
+            raw_end = float(clip_data.get("end_seconds", raw_start + 45.0))
             
-            clip_data["start_seconds"] = round(start_sec, 2)
-            clip_data["end_seconds"] = round(end_sec, 2)
-            clip_data["duration"] = round(clip_dur, 2)
+            start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, raw_start, raw_end)
+            clip_dur = end_sec - start_sec
+            
+            clip_data["start_seconds"] = start_sec
+            clip_data["end_seconds"] = end_sec
+            clip_data["duration"] = clip_dur
             log(f"✅ Groq selected clip (Part {part_number}): {clip_data['start_seconds']}s -> {clip_data['end_seconds']}s ({clip_dur:.1f}s)")
             return clip_data
         except Exception as ge:
@@ -890,10 +894,11 @@ JSON Schema:
             
     # Fallback to deterministic sequential slice
     default_start = continuation_start_sec + 1.0 if continuation_start_sec else 30.0
+    start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, default_start, default_start + 45.0)
     return {
-        "start_seconds": round(default_start, 2),
-        "end_seconds": round(default_start + 45.0, 2),
-        "duration": 45.0,
+        "start_seconds": start_sec,
+        "end_seconds": end_sec,
+        "duration": end_sec - start_sec,
         "topic_title": f"{podcast_entry.get('name', 'Podcast')} Masterclass",
         "viral_title": f"{podcast_entry.get('name', 'Podcast')} Insight [Part {part_number}] 💡 #Shorts",
         "hook_reason": "Curated insightful discussion",
@@ -1201,19 +1206,77 @@ def render_vertical_916_short(
         log(f"Thumbnail frame notice: {te}")
 
 
-def get_cute_animal_image_info() -> Path:
+def detect_speaker_gender(speaker_name: str, episode_title: str = "") -> str:
     """
-    Finds one of the cute AI-generated anthropomorphic animal avatars in assets/images/animals/.
-    Prefers avatar_*.jpg avatars with dark grey podcast studio backgrounds.
+    Determines whether the primary speaker is male or female based on name and context.
     """
-    img_dir = Path(__file__).resolve().parent / "assets" / "images" / "animals"
-    if img_dir.exists():
-        avatars = sorted(list(img_dir.glob("avatar_*.jpg")) + list(img_dir.glob("avatar_*.png")))
-        if avatars:
-            return random.choice(avatars)
-        candidates = sorted(list(img_dir.glob("*.jpg")) + list(img_dir.glob("*.png")))
+    female_identifiers = {
+        "elizabeth", "gilbert", "mel", "robbins", "brene", "brown", "esther", "perel", 
+        "sara", "blakely", "rhonda", "patrick", "vanessa", "edwards", "mary", "sarah", 
+        "lisa", "jennifer", "amy", "emma", "laura", "rachel", "claire", "anna", "tara",
+        "she", "her", "female", "woman"
+    }
+    combined = f"{speaker_name} {episode_title}".lower()
+    for fi in female_identifiers:
+        if re.search(rf"\b{fi}\b", combined):
+            return "female"
+    return "male"
+
+
+def snap_clip_to_sentence_boundary(transcript_segments: list, start_sec: float, raw_end_sec: float) -> tuple:
+    """
+    Snaps start_sec and end_sec to exact spoken word boundaries to guarantee
+    speech starts immediately on frame 0 and ends naturally with the final word,
+    eliminating dead silence / muted audio at the end.
+    """
+    matching_words = []
+    if transcript_segments:
+        for s in transcript_segments:
+            for w in s.get("words", []):
+                matching_words.append(w)
+                
+    if matching_words:
+        candidates_start = [w for w in matching_words if w["start"] >= (start_sec - 1.0)]
+        actual_start = candidates_start[0]["start"] if candidates_start else start_sec
+        
+        target_dur = max(38.0, min(52.0, raw_end_sec - actual_start))
+        target_end = actual_start + target_dur
+        
+        valid_ends = [w for w in matching_words if (w["end"] - actual_start) >= 36.0 and (w["end"] - actual_start) <= 58.0]
+        if valid_ends:
+            best_end_word = min(valid_ends, key=lambda w: abs(w["end"] - target_end))
+            actual_end = best_end_word["end"] + 0.35
+            return (round(actual_start, 2), round(actual_end, 2))
+            
+    duration = max(38.0, min(55.0, raw_end_sec - start_sec))
+    return (round(start_sec, 2), round(start_sec + duration, 2))
+
+
+def get_cute_animal_image_info(gender: str = "male") -> Path:
+    """
+    Finds one of the adult anime-style anthropomorphic animal avatars (head to belly cutout)
+    on a solid dark grey studio background.
+    - If female: Selects feminine avatar (e.g. female_snow_leopard.jpg, female_fox.jpg)
+    - If male: Selects manly masculine avatar (e.g. male_wolf.jpg, male_lion.jpg)
+    """
+    base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
+    target_dir = base_dir / ("female" if gender == "female" else "male")
+    
+    if target_dir.exists():
+        candidates = sorted(list(target_dir.glob("*.jpg")) + list(target_dir.glob("*.png")))
         if candidates:
             return random.choice(candidates)
+            
+    if base_dir.exists():
+        all_avatars = sorted(list(base_dir.rglob("*.jpg")) + list(base_dir.rglob("*.png")))
+        if all_avatars:
+            return random.choice(all_avatars)
+            
+    img_dir = Path(__file__).resolve().parent / "assets" / "images" / "animals"
+    if img_dir.exists():
+        fallback_candidates = sorted(list(img_dir.glob("*.jpg")) + list(img_dir.glob("*.png")))
+        if fallback_candidates:
+            return random.choice(fallback_candidates)
     return None
 
 
@@ -1254,14 +1317,15 @@ def render_studio_visualizer_short(
     ass_subtitle_path: Path,
     output_final_path: Path,
     speaker_badge: str = "",
-    transcript_segments: list = None
+    transcript_segments: list = None,
+    speaker_gender: str = "male"
 ):
     """
     Renders a 1080x1920 split-screen animated short:
-    - Top half (1080x960): Animated anthropomorphic animal avatar against dark grey studio background
-      (dynamically shakes and scales up 10% whenever speech is detected)
+    - Top half (1080x960): Adult anime-style anthropomorphic animal avatar against dark grey studio background
+      (manly for male speakers, feminine for female speakers; dynamically shakes and expands +10% when speaking)
     - Bottom half (1080x960): Subway Surfers gameplay footage
-    - Audio: Sample-accurate speech + calm royalty-free BGM with zero dropout
+    - Audio: Sample-accurate speech + calm royalty-free BGM with zero dropout / muting
     - Overlays: Floating speaker badge, middle kinetic neon subtitles, bottom retention bar
     """
     if output_final_path.exists():
@@ -1270,9 +1334,9 @@ def render_studio_visualizer_short(
     duration = max(10.0, end_sec - start_sec)
     dur_str = f"{duration:.2f}"
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
-    log(f"🎨 Rendering Animated Split-Screen Short ({duration:.1f}s) with reactive avatar + Subway Surfers...")
+    log(f"🎨 Rendering Animated Split-Screen Short ({duration:.1f}s) with adult anime avatar ({speaker_gender}) + Subway Surfers...")
     
-    # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy (avoids MP3 frame padding delays)
+    # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
     
     subprocess.run([
@@ -1295,7 +1359,7 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
-    animal_path = get_cute_animal_image_info()
+    animal_path = get_cute_animal_image_info(speaker_gender)
     bgm_path = get_background_music_info()
     
     # Build speech activity expression for reactive avatar shake and +10% zoom
@@ -1683,6 +1747,7 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     final_render_path = OUTPUT_DIR / f"clip_{target_video['id']}_final.mp4"
     
     if audio_full_path.exists() and audio_full_path.stat().st_size > 500000:
+        gender = detect_speaker_gender(badge_name, target_video.get("title", ""))
         render_studio_visualizer_short(
             audio_full_path=audio_full_path,
             start_sec=start_sec,
@@ -1690,7 +1755,8 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
             ass_subtitle_path=ass_sub_path,
             output_final_path=final_render_path,
             speaker_badge=composed_badge,
-            transcript_segments=transcript_segments
+            transcript_segments=transcript_segments,
+            speaker_gender=gender
         )
     else:
         raw_slice_path = OUTPUT_DIR / f"raw_slice_{target_video['id']}.mp4"
