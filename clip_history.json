@@ -74,7 +74,26 @@
       "end": 121.16,
       "uploaded_youtube_id": "I1wCV_ewL8g",
       "created_at": "2026-08-09T16:10:37.578472+00:00"
+    },
+    {
+      "video_id": "4AlZGl1o89s",
+      "title": "The Tim Ferriss Show Insight [Part 1] 💡 #Shorts",
+      "channel": "The Tim Ferriss Show",
+      "part": 1,
+      "start": 30.0,
+      "end": 75.0,
+      "uploaded_youtube_id": "oIKFUZFQb1g",
+      "created_at": "2026-08-09T16:58:53.872243+00:00"
     }
   ],
-  "active_series": null
+  "active_series": {
+    "video_id": "4AlZGl1o89s",
+    "podcast_id": "tim_ferriss",
+    "episode_title": "#878: How to Start When You're Stuck, Finish What You Begin, and Stop Waiting for Inspiration — Creative Advice from Elizabeth Gilbert, Seth Godin, Joyce Carol Oates, Anne Lamott and More",
+    "topic_title": "The Tim Ferriss Show Masterclass",
+    "speaker_badge": "The Tim Ferriss Show",
+    "current_part": 1,
+    "max_parts": 3,
+    "last_clip_end_sec": 75.0
+  }
 }
