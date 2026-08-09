@@ -981,32 +981,38 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
         return
 
     # 1. Ultra-fast direct stream slicing via FFmpeg (No DASH merging errors)
-    try:
-        log(f"Resolving direct video stream URL for slice {start_str} to {end_str}...")
-        g_cmd = [
-            "yt-dlp",
-            "-g",
-            "-f", "18/b/best",
-            "--extractor-args", "youtube:player_client=mweb,default",
-        ] + ytdlp_cookies_args() + [video_url]
-        res = subprocess.run(g_cmd, capture_output=True, text=True, check=True)
-        stream_url = res.stdout.strip().split("\n")[0]
-        if stream_url.startswith("http"):
-            log("Direct stream URL resolved. Slicing with FFmpeg...")
-            ff_slice_cmd = [
-                "ffmpeg", "-y",
-                "-ss", start_str,
-                "-to", end_str,
-                "-i", stream_url,
-                "-c", "copy",
-                str(output_raw_path)
-            ]
-            subprocess.run(ff_slice_cmd, check=True, capture_output=True)
-            if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
-                log(f"✅ Video slice created via direct FFmpeg stream ({output_raw_path.stat().st_size / 1024:.1f} KB)")
-                return
-    except Exception as ge:
-        log(f"Direct stream slice notice: {ge}. Trying fallback...")
+    client_profiles = [
+        ("android,ios,web", []),
+        ("web,tv,android", []),
+        ("mweb,default", ytdlp_cookies_args())
+    ]
+    for client_name, cookie_args in client_profiles:
+        try:
+            log(f"Resolving direct video stream URL via [{client_name}] for slice {start_str} to {end_str}...")
+            g_cmd = [
+                "yt-dlp",
+                "-g",
+                "-f", "18/b/best",
+                "--extractor-args", f"youtube:player_client={client_name}",
+            ] + cookie_args + [video_url]
+            res = subprocess.run(g_cmd, capture_output=True, text=True, check=True)
+            stream_url = res.stdout.strip().split("\n")[-1].strip()
+            if stream_url.startswith("http"):
+                log("Direct stream URL resolved. Slicing with FFmpeg...")
+                ff_slice_cmd = [
+                    "ffmpeg", "-y",
+                    "-ss", start_str,
+                    "-to", end_str,
+                    "-i", stream_url,
+                    "-c", "copy",
+                    str(output_raw_path)
+                ]
+                subprocess.run(ff_slice_cmd, check=True, capture_output=True)
+                if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
+                    log(f"✅ Video slice created via direct FFmpeg stream ({output_raw_path.stat().st_size / 1024:.1f} KB)")
+                    return
+        except Exception as ge:
+            log(f"Direct stream profile [{client_name}] notice: {ge}. Trying next profile...")
 
     # 2. Fallback to yt-dlp section downloader
     log(f"Downloading video slice via yt-dlp fallback: {start_str} to {end_str}...")
