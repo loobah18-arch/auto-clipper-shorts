@@ -137,5 +137,16 @@ is setting clear non-negotiable boundaries.
         self.assertEqual(p["id"], "huberman_lab")
 
 
+    def test_find_system_font(self):
+        font_path = find_system_font()
+        self.assertIsInstance(font_path, str)
+        self.assertTrue(len(font_path) > 0)
+
+    def test_thumbnail_path_naming(self):
+        video_p = Path("/tmp/clip_test123_final.mp4")
+        thumb_p = video_p.with_name(f"thumb_{video_p.stem}.jpg")
+        self.assertEqual(thumb_p.name, "thumb_clip_test123_final.jpg")
+
+
 if __name__ == "__main__":
     unittest.main()

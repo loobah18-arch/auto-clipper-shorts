@@ -1117,6 +1117,7 @@ def render_vertical_916_short(
         "-filter_complex", filtergraph,
         "-map", "[v]",
         "-map", "0:a?",
+        "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
         "-c:v", "libx264",
         "-preset", "veryfast",
         "-crf", "19",
@@ -1130,6 +1131,22 @@ def render_vertical_916_short(
     
     subprocess.run(cmd, check=True)
     log(f"Video render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
+
+    # Generate high-impact thumbnail from 5s timestamp
+    thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
+    try:
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-ss", "00:00:05",
+            "-i", str(output_final_path),
+            "-vframes", "1",
+            "-q:v", "2",
+            str(thumb_path)
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if thumb_path.exists():
+            log(f"📸 Thumbnail generated: {thumb_path.name} ({thumb_path.stat().st_size // 1024} KB)")
+    except Exception as te:
+        log(f"Thumbnail frame notice: {te}")
 
 
 # =====================================================================
@@ -1205,6 +1222,20 @@ def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, or
 
         video_id = response.get("id")
         log(f"🎉 Successfully uploaded! Video URL: https://youtube.com/shorts/{video_id}")
+
+        # Optional thumbnail upload
+        thumb_path = video_path.with_name(f"thumb_{video_path.stem}.jpg")
+        if thumb_path.exists():
+            try:
+                log(f"Uploading high-definition custom thumbnail for {video_id}...")
+                youtube.thumbnails().set(
+                    videoId=video_id,
+                    media_body=MediaFileUpload(str(thumb_path), mimetype="image/jpeg")
+                ).execute()
+                log("✅ Custom thumbnail uploaded successfully!")
+            except Exception as te:
+                log(f"Thumbnail upload notice: {te}")
+
         return video_id
     except HttpError as he:
         log(f"⚠️ YouTube API notice: {he}")
