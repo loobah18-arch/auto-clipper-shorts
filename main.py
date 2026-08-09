@@ -995,15 +995,15 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     
     # 1. Ultra-fast direct stream slicing via FFmpeg (Dual 1080p Video + Audio)
     client_profiles = [
+        ("android_vr", []),
         ("mweb", []),
         ("web", []),
         ("tv,web", []),
-        ("android_vr", []),
         ("mweb", ytdlp_cookies_args()),
         ("web", ytdlp_cookies_args()),
     ]
     formats_to_try = [
-        "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
+        "137+140/bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
         "bestvideo+bestaudio/best",
         "18/22/b/best"
     ]
@@ -1053,8 +1053,8 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
                 log(f"Direct stream [{client_name}] notice: {ge}. Trying next profile...")
 
     # 2. Fallback to yt-dlp section downloader
-    for fb_client, fb_cookies in [("mweb", []), ("web", []), ("mweb,default", ytdlp_cookies_args()), ("android_vr", []), ("web", ytdlp_cookies_args())]:
-        for fb_fmt in ["bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best", "bestvideo+bestaudio/best"]:
+    for fb_client, fb_cookies in [("android_vr", []), ("mweb", []), ("web", []), ("mweb,default", ytdlp_cookies_args()), ("web", ytdlp_cookies_args())]:
+        for fb_fmt in ["137+140/bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best", "bestvideo+bestaudio/best"]:
             try:
                 log(f"Downloading video slice via yt-dlp fallback [{fb_client}]: {start_str} to {end_str}...")
                 cmd = [
