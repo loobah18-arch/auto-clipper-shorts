@@ -949,7 +949,8 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
         "--force-keyframes-at-cuts",
         "--no-playlist",
         "--no-warnings",
-        "--extractor-args", "youtube:player_client=ios,android,web,default",
+        "--extractor-args", "youtube:player_client=mweb,default",
+    ] + ytdlp_cookies_args() + [
         "-o", str(output_raw_path),
         video_url
     ]
