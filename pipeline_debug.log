@@ -1,32 +1,32 @@
 /opt/hostedtoolcache/Python/3.10.20/x64/lib/python3.10/site-packages/google/api_core/_python_version_support.py:254: FutureWarning: You are using a Python version (3.10.20) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
   warnings.warn(message, FutureWarning)
-[2026-08-09 03:16:14] [AutoClipper] =======================================================
-[2026-08-09 03:16:14] [AutoClipper]  Starting Auto-Clipper Shorts Pipeline
-[2026-08-09 03:16:14] [AutoClipper] =======================================================
-[2026-08-09 03:16:14] [AutoClipper] Selected Podcast Channel: Impact Theory (Tom Bilyeu) (Mindset & High Performance)
-[2026-08-09 03:16:14] [AutoClipper] Searching candidate episodes: ytsearch8:Impact Theory Tom Bilyeu full episode podcast
-[2026-08-09 03:16:14] [AutoClipper] 🍪 Cookies loaded: 55 entries, 8081 bytes -> /tmp/tmp7nk84wg7_yt_cookies.txt
-[2026-08-09 03:16:17] [AutoClipper] Found 8 candidate videos via search.
-[2026-08-09 03:16:17] [AutoClipper] Selected Video: If You Feel Fear or Anxiety, Listen to This | Trent Shelton on Impact Theory [BI1P14gjqKI]
-[2026-08-09 03:16:17] [AutoClipper] 🎙️ Querying podcast RSS feed for direct audio: https://rss.art19.com/tom-bilyeus-impact-theory
-[2026-08-09 03:16:17] [AutoClipper] 📥 Downloading direct podcast audio from CDN: https://pscrb.fm/rss/p/pdrl.fm/02d1c6/tracking.swap.fm/track/2TbQRMLORjx6LK...
-[2026-08-09 03:16:20] [AutoClipper] ✅ Successfully downloaded clean RSS podcast audio (55.5 MB) -> rss_podcast_audio.mp3
-[2026-08-09 03:16:20] [AutoClipper] Transcribing clean RSS podcast audio with Whisper AI...
-[2026-08-09 03:16:20] [AutoClipper] Loading Whisper model 'base.en' (CPU / int8 for fast inference)...
+[2026-08-09 05:40:20] [AutoClipper] =======================================================
+[2026-08-09 05:40:20] [AutoClipper]  Starting Auto-Clipper Shorts Pipeline
+[2026-08-09 05:40:20] [AutoClipper] =======================================================
+[2026-08-09 05:40:20] [AutoClipper] Selected Podcast Channel: Impact Theory (Tom Bilyeu) (Mindset & High Performance)
+[2026-08-09 05:40:20] [AutoClipper] Searching candidate episodes: ytsearch8:Impact Theory Tom Bilyeu full episode podcast
+[2026-08-09 05:40:20] [AutoClipper] 🍪 Cookies loaded: 55 entries, 8081 bytes -> /tmp/tmplf7i56xm_yt_cookies.txt
+[2026-08-09 05:40:22] [AutoClipper] Found 8 candidate videos via search.
+[2026-08-09 05:40:22] [AutoClipper] Selected Video: If You Feel Fear or Anxiety, Listen to This | Trent Shelton on Impact Theory [BI1P14gjqKI]
+[2026-08-09 05:40:22] [AutoClipper] 🎙️ Querying podcast RSS feed for direct audio: https://rss.art19.com/tom-bilyeus-impact-theory
+[2026-08-09 05:40:24] [AutoClipper] 📥 Downloading direct podcast audio from CDN: https://pscrb.fm/rss/p/pdrl.fm/02d1c6/tracking.swap.fm/track/2TbQRMLORjx6LK...
+[2026-08-09 05:40:28] [AutoClipper] ✅ Successfully downloaded clean RSS podcast audio (55.7 MB) -> rss_podcast_audio.mp3
+[2026-08-09 05:40:28] [AutoClipper] Transcribing clean RSS podcast audio with Whisper AI...
+[2026-08-09 05:40:28] [AutoClipper] Loading Whisper model 'base.en' (CPU / int8 for fast inference)...
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-[2026-08-09 03:16:23] [AutoClipper] Transcribing audio file (rss_podcast_audio.mp3)...
-[2026-08-09 03:18:35] [AutoClipper] Transcription complete! Generated 830 segments.
-[2026-08-09 03:18:35] [AutoClipper] Sending transcript to Groq for viral highlight detection...
-[2026-08-09 03:18:36] [AutoClipper] Groq selected clip: 10.5s -> 30.5s (20.0s)
-[2026-08-09 03:18:36] [AutoClipper] Title: Buffett Sells! 🚨 #Shorts
-[2026-08-09 03:18:36] [AutoClipper] Generated dynamic karaoke subtitles with 54 events.
-[2026-08-09 03:18:36] [AutoClipper] ⚡ Requesting direct stream from Cobalt API (https://api.cobalt.tools/api/json)...
-[2026-08-09 03:18:36] [AutoClipper] Cobalt instance notice (https://api.cobalt.tools/api/json): HTTP Error 400: Bad Request
-[2026-08-09 03:18:36] [AutoClipper] ⚡ Requesting direct stream from Cobalt API (https://cobalt-api.kwiatekm.tokyo/api/json)...
-[2026-08-09 03:18:36] [AutoClipper] Cobalt instance notice (https://cobalt-api.kwiatekm.tokyo/api/json): <urlopen error [Errno -2] Name or service not known>
-[2026-08-09 03:18:36] [AutoClipper] ⚡ Requesting direct stream from Cobalt API (https://cobalt.hyonsu.com/api/json)...
-[2026-08-09 03:18:37] [AutoClipper] Cobalt instance notice (https://cobalt.hyonsu.com/api/json): <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1017)>
-[2026-08-09 03:18:37] [AutoClipper] Downloading video slice via yt-dlp: 00:00:10 to 00:00:30...
+[2026-08-09 05:40:30] [AutoClipper] Transcribing audio file (rss_podcast_audio.mp3)...
+[2026-08-09 05:43:50] [AutoClipper] Transcription complete! Generated 746 segments.
+[2026-08-09 05:43:50] [AutoClipper] Sending transcript to Groq for viral highlight detection...
+[2026-08-09 05:43:51] [AutoClipper] Groq selected clip: 10.5s -> 30.5s (20.0s)
+[2026-08-09 05:43:51] [AutoClipper] Title: Buffett's Warning 🚨 #Shorts
+[2026-08-09 05:43:51] [AutoClipper] Generated dynamic karaoke subtitles with 54 events.
+[2026-08-09 05:43:51] [AutoClipper] ⚡ Requesting direct stream from Cobalt API (https://api.cobalt.tools/api/json)...
+[2026-08-09 05:43:51] [AutoClipper] Cobalt instance notice (https://api.cobalt.tools/api/json): HTTP Error 400: Bad Request
+[2026-08-09 05:43:51] [AutoClipper] ⚡ Requesting direct stream from Cobalt API (https://cobalt-api.kwiatekm.tokyo/api/json)...
+[2026-08-09 05:43:51] [AutoClipper] Cobalt instance notice (https://cobalt-api.kwiatekm.tokyo/api/json): <urlopen error [Errno -2] Name or service not known>
+[2026-08-09 05:43:51] [AutoClipper] ⚡ Requesting direct stream from Cobalt API (https://cobalt.hyonsu.com/api/json)...
+[2026-08-09 05:43:51] [AutoClipper] Cobalt instance notice (https://cobalt.hyonsu.com/api/json): <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1017)>
+[2026-08-09 05:43:51] [AutoClipper] Downloading video slice via yt-dlp: 00:00:10 to 00:00:30...
 Deprecated Feature: Support for Python version 3.10 has been deprecated. Please update to Python 3.11 or above
 [youtube] Extracting URL: https://www.youtube.com/watch?v=BI1P14gjqKI
 [youtube] BI1P14gjqKI: Downloading webpage
@@ -36,12 +36,12 @@ Deprecated Feature: Support for Python version 3.10 has been deprecated. Please 
 [youtube] [pot:bgutil:http] Generating a gvs PO Token for mweb client via bgutil HTTP server
 ERROR: [youtube] BI1P14gjqKI: Requested format is not available. Use --list-formats for a list of available formats
 Traceback (most recent call last):
-  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1180, in <module>
+  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1179, in <module>
     run_pipeline(force_url=args.url, force_channel=args.channel, dry_run=args.dry_run)
-  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1127, in run_pipeline
+  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1126, in run_pipeline
     download_video_clip_segment(target_video["url"], start_sec, end_sec, raw_slice_path)
-  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 957, in download_video_clip_segment
+  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 956, in download_video_clip_segment
     subprocess.run(cmd, check=True)
   File "/opt/hostedtoolcache/Python/3.10.20/x64/lib/python3.10/subprocess.py", line 526, in run
     raise CalledProcessError(retcode, process.args,
-subprocess.CalledProcessError: Command '['yt-dlp', '--download-sections', '*00:00:10-00:00:30', '-f', 'b/best/bv*+ba/ba/b', '--format-sort', 'res:1080,res:720,ext:mp4:m4a', '--merge-output-format', 'mp4', '--force-keyframes-at-cuts', '--no-playlist', '--no-warnings', '--extractor-args', 'youtube:player_client=mweb,default', '--cookies', '/tmp/tmp7nk84wg7_yt_cookies.txt', '-o', '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/raw_slice_BI1P14gjqKI.mp4', 'https://www.youtube.com/watch?v=BI1P14gjqKI']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['yt-dlp', '--download-sections', '*00:00:10-00:00:30', '-f', 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '--force-keyframes-at-cuts', '--no-playlist', '--no-warnings', '--extractor-args', 'youtube:player_client=mweb,default', '--cookies', '/tmp/tmplf7i56xm_yt_cookies.txt', '-o', '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/raw_slice_BI1P14gjqKI.mp4', 'https://www.youtube.com/watch?v=BI1P14gjqKI']' returned non-zero exit status 1.
