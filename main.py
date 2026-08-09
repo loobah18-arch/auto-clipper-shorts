@@ -667,6 +667,8 @@ def chunk_transcript(segments: list, max_duration_sec: float = 90.0) -> list:
 
 def parse_llm_json(raw_text: str) -> dict:
     clean = raw_text.strip()
+    # Strip thinking tags if present
+    clean = re.sub(r"<think>.*?</think>", "", clean, flags=re.DOTALL).strip()
     if "```json" in clean:
         clean = clean.split("```json")[1].split("```")[0].strip()
     elif "```" in clean:
@@ -674,9 +676,12 @@ def parse_llm_json(raw_text: str) -> dict:
     try:
         return json.loads(clean)
     except Exception:
-        match = re.search(r"\{.*\}", clean, re.DOTALL)
+        match = re.search(r"\{[\s\S]*\}", clean)
         if match:
-            return json.loads(match.group(0))
+            try:
+                return json.loads(match.group(0))
+            except Exception:
+                pass
         raise ValueError(f"Could not parse JSON from LLM output: {raw_text[:200]}")
 
 
@@ -688,50 +693,61 @@ def format_seconds_to_min_sec(seconds: float) -> str:
 
 def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, podcast_entry: dict) -> dict:
     """
-    Prompts Groq Llama 3.3 to analyze transcript and select the single most engaging 30-55s clip.
+    Prompts NVIDIA Nemotron 3 Ultra (550B MoE) or Groq Llama 3.3 to analyze transcript
+    and select the single most engaging 30-55s clip.
     """
     # 1. Check if NVIDIA Nemotron 3 Ultra is configured
     raw_n_key = os.environ.get("NVIDIA_API_KEY", "")
     nvidia_api_key = raw_n_key.strip().replace(" ", "").strip("\"'") if raw_n_key else None
     if nvidia_api_key:
-        try:
-            log("🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight detection...")
-            chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
-            # Nemotron supports 1M context: send full transcript!
-            formatted_transcript = "\n".join([
-                f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
-                for c in chunks[:50]
-            ])
-            n_sys = "You are an expert viral YouTube Shorts strategist. Output valid JSON only."
-            n_user = f"Analyze transcript and pick the best 30-55s clip:\n{formatted_transcript}\n\nJSON Schema:\n{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"viral_title\": \"<string>\", \"hook_reason\": \"<string>\", \"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<string>\"}}"
-            
-            n_payload = json.dumps({
-                "model": "nvidia/nemotron-3-ultra-550b-a55b",
-                "messages": [
-                    {"role": "system", "content": n_sys},
-                    {"role": "user", "content": n_user}
-                ],
-                "temperature": 0.3,
-                "max_tokens": 600
-            }).encode("utf-8")
-            
-            n_req = urllib.request.Request(
-                "https://integrate.api.nvidia.com/v1/chat/completions",
-                data=n_payload,
-                headers={
-                    "Authorization": f"Bearer {nvidia_api_key}",
-                    "Content-Type": "application/json"
-                }
-            )
-            with urllib.request.urlopen(n_req, timeout=30) as n_resp:
-                n_data = json.loads(n_resp.read().decode("utf-8"))
-                content = n_data["choices"][0]["message"]["content"]
-                parsed = parse_llm_json(content)
-                if parsed and "start_seconds" in parsed and "end_seconds" in parsed:
-                    log(f"✅ NVIDIA Nemotron selected viral clip: {parsed['start_seconds']}s -> {parsed['end_seconds']}s")
-                    return parsed
-        except Exception as ne:
-            log(f"⚠️ NVIDIA Nemotron notice: {ne}. Falling back to Groq...")
+        for attempt in range(1, 3):
+            try:
+                log(f"🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight detection (attempt {attempt})...")
+                chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
+                # Nemotron supports 1M context: send full transcript!
+                formatted_transcript = "\n".join([
+                    f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
+                    for c in chunks[:50]
+                ])
+                n_sys = "You are an expert viral YouTube Shorts content strategist. You MUST return ONLY a single JSON object. No conversational text, no markdown wrapper."
+                n_user = (
+                    f"Analyze transcript and pick the best 30-55s viral clip for YouTube Shorts:\n{formatted_transcript}\n\n"
+                    f"JSON Schema:\n{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"viral_title\": \"<string>\", "
+                    f"\"hook_reason\": \"<string>\", \"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<string>\"}}\n\n"
+                    f"Return ONLY the JSON object."
+                )
+                
+                n_payload = json.dumps({
+                    "model": "nvidia/nemotron-3-ultra-550b-a55b",
+                    "messages": [
+                        {"role": "system", "content": n_sys},
+                        {"role": "user", "content": n_user}
+                    ],
+                    "temperature": 0.2,
+                    "max_tokens": 2048
+                }).encode("utf-8")
+                
+                n_req = urllib.request.Request(
+                    "https://integrate.api.nvidia.com/v1/chat/completions",
+                    data=n_payload,
+                    headers={
+                        "Authorization": f"Bearer {nvidia_api_key}",
+                        "Content-Type": "application/json"
+                    }
+                )
+                with urllib.request.urlopen(n_req, timeout=35) as n_resp:
+                    n_data = json.loads(n_resp.read().decode("utf-8"))
+                    content = n_data["choices"][0]["message"]["content"]
+                    parsed = parse_llm_json(content)
+                    if parsed and "start_seconds" in parsed and "end_seconds" in parsed:
+                        log(f"✅ NVIDIA Nemotron selected viral clip: {parsed['start_seconds']}s -> {parsed['end_seconds']}s")
+                        return parsed
+            except Exception as ne:
+                log(f"⚠️ NVIDIA Nemotron notice (attempt {attempt}): {ne}")
+                if attempt < 2:
+                    time.sleep(2)
+                else:
+                    log("Falling back to Groq...")
 
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
@@ -981,11 +997,12 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     if download_video_via_cobalt(video_url, start_sec, end_sec, output_raw_path):
         return
 
-    # 1. Ultra-fast direct stream slicing via FFmpeg (No DASH merging errors)
+    # 2. Ultra-fast direct stream slicing via FFmpeg (No DASH merging errors)
     client_profiles = [
         ("mweb", ytdlp_cookies_args()),
-        ("android,ios,web", []),
-        ("web,tv,android", []),
+        ("android_vr,android", []),
+        ("android,ios", []),
+        ("web,tv", []),
     ]
     for client_name, cookie_args in client_profiles:
         try:
@@ -993,7 +1010,7 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
             g_cmd = [
                 "yt-dlp",
                 "-g",
-                "-f", "bestvideo[height<=1080]+bestaudio/18/b/best",
+                "-f", "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
                 "--extractor-args", f"youtube:player_client={client_name}",
             ] + cookie_args + [video_url]
             res = subprocess.run(g_cmd, capture_output=True, text=True, check=True)
@@ -1030,22 +1047,29 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
         except Exception as ge:
             log(f"Direct stream profile [{client_name}] notice: {ge}. Trying next profile...")
 
-    # 2. Fallback to yt-dlp section downloader
-    log(f"Downloading video slice via yt-dlp fallback: {start_str} to {end_str}...")
-    cmd = [
-        "yt-dlp",
-        "--download-sections", f"*{start_str}-{end_str}",
-        "-f", "b/best/18",
-        "--merge-output-format", "mp4",
-        "--force-keyframes-at-cuts",
-        "--no-playlist",
-        "--no-warnings",
-        "--extractor-args", "youtube:player_client=mweb,default",
-    ] + ytdlp_cookies_args() + [
-        "-o", str(output_raw_path),
-        video_url
-    ]
-    subprocess.run(cmd, check=True)
+    # 3. Fallback to yt-dlp section downloader
+    for fb_client, fb_cookies in [("mweb,default", ytdlp_cookies_args()), ("android,ios", []), ("web", [])]:
+        try:
+            log(f"Downloading video slice via yt-dlp fallback [{fb_client}]: {start_str} to {end_str}...")
+            cmd = [
+                "yt-dlp",
+                "--download-sections", f"*{start_str}-{end_str}",
+                "-f", "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
+                "--merge-output-format", "mp4",
+                "--force-keyframes-at-cuts",
+                "--no-playlist",
+                "--no-warnings",
+                "--extractor-args", f"youtube:player_client={fb_client}",
+            ] + fb_cookies + [
+                "-o", str(output_raw_path),
+                video_url
+            ]
+            subprocess.run(cmd, check=True)
+            if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
+                log(f"✅ Video slice downloaded via yt-dlp fallback ({output_raw_path.stat().st_size / 1024:.1f} KB)")
+                return
+        except Exception as fb_err:
+            log(f"yt-dlp fallback profile [{fb_client}] failed: {fb_err}")
 
 
 def render_vertical_916_short(

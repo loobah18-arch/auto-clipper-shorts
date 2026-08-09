@@ -111,6 +111,14 @@ is setting clear non-negotiable boundaries.
         j2 = parse_llm_json('```json\n{"start_seconds": 12.5, "end_seconds": 55.0, "viral_title": "Hook"}\n```')
         self.assertEqual(j2["start_seconds"], 12.5)
 
+        # Thinking tag wrapped (e.g. reasoning LLMs)
+        j3 = parse_llm_json('<think>\nAnalyzing the transcript for hooks...\n</think>\n{"start_seconds": 10.0, "end_seconds": 40.0, "viral_title": "Mindset"}')
+        self.assertEqual(j3["start_seconds"], 10.0)
+
+        # Conversational reasoning prefix before JSON
+        j4 = parse_llm_json('I have analyzed the transcript and here is the JSON:\n{"start_seconds": 22.0, "end_seconds": 52.0, "viral_title": "Focus"}')
+        self.assertEqual(j4["start_seconds"], 22.0)
+
     def test_format_ass_time(self):
         self.assertEqual(format_ass_time(0.0), "0:00:00.00")
         self.assertEqual(format_ass_time(65.42), "0:01:05.42")
