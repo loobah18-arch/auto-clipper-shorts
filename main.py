@@ -450,13 +450,13 @@ def create_word_timestamps_from_segment(text: str, start_sec: float, end_sec: fl
     return result
 
 
-def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path) -> bool:
+def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path) -> dict:
     """
-    Downloads audio directly from the podcast's official RSS feed.
+    Downloads audio directly from the podcast's official RSS feed and extracts real episode metadata.
     Completely immune to YouTube BotGuard blocks and requires 0 cookies.
     """
     if not rss_feed_url:
-        return False
+        return {"success": False}
     try:
         log(f"🎙️ Querying podcast RSS feed for direct audio: {rss_feed_url}")
         req = urllib.request.Request(
@@ -467,14 +467,25 @@ def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path) -> bool:
             xml_data = resp.read()
 
         root = ET.fromstring(xml_data)
-        # Find latest episode's enclosure
-        enclosure = root.find(".//item/enclosure")
+        item = root.find(".//item")
+        if item is None:
+            log("⚠️ No item found in RSS feed.")
+            return {"success": False}
+            
+        enclosure = item.find("enclosure")
         if enclosure is None or not enclosure.get("url"):
             log("⚠️ No audio enclosure found in RSS feed.")
-            return False
+            return {"success": False}
+
+        title_el = item.find("title")
+        ep_title = title_el.text.strip() if (title_el is not None and title_el.text) else "Podcast Episode"
+        
+        # Look for itunes:author
+        author_el = item.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}author")
+        ep_author = author_el.text.strip() if (author_el is not None and author_el.text) else ""
 
         mp3_url = enclosure.get("url")
-        log(f"📥 Downloading direct podcast audio from CDN: {mp3_url[:75]}...")
+        log(f"📥 Downloading direct podcast audio ({ep_title[:50]}...): {mp3_url[:60]}...")
         
         mp3_req = urllib.request.Request(
             mp3_url,
@@ -484,14 +495,18 @@ def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path) -> bool:
             shutil.copyfileobj(mp3_resp, out_f)
 
         file_size_mb = output_audio_path.stat().st_size / (1024 * 1024)
-        log(f"✅ Successfully downloaded clean RSS podcast audio ({file_size_mb:.1f} MB) -> {output_audio_path.name}")
-        return True
+        log(f"✅ Successfully downloaded clean RSS audio ({file_size_mb:.1f} MB) -> {output_audio_path.name}")
+        return {
+            "success": True,
+            "title": ep_title,
+            "author": ep_author
+        }
     except Exception as e:
         log(f"⚠️ RSS audio download notice: {e}")
-        return False
+        return {"success": False}
 
 
-def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcast_entry: dict = None) -> list:
+def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcast_entry: dict = None, video_meta: dict = None) -> list:
     """
     Attempts to:
     1. Download audio via official Podcast RSS feed (100% BotGuard immune, 0 cookies needed) -> Whisper AI.
@@ -501,7 +516,12 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
     # 1. Try Podcast RSS feed audio first (Zero BotGuard / Zero Captchas)
     if podcast_entry and podcast_entry.get("rss_feed"):
         rss_audio_path = output_base / "rss_podcast_audio.mp3"
-        if download_audio_via_rss(podcast_entry["rss_feed"], rss_audio_path):
+        rss_info = download_audio_via_rss(podcast_entry["rss_feed"], rss_audio_path)
+        if rss_info.get("success"):
+            if video_meta is not None and rss_info.get("title"):
+                video_meta["title"] = rss_info["title"]
+                if rss_info.get("author"):
+                    video_meta["uploader"] = rss_info["author"]
             try:
                 log("Transcribing clean RSS podcast audio with Whisper AI...")
                 return transcribe_audio_with_whisper(rss_audio_path, model_size="base.en")
@@ -715,15 +735,17 @@ def select_viral_clip_with_groq(
     raw_n_key = os.environ.get("NVIDIA_API_KEY", "")
     nvidia_api_key = raw_n_key.strip().replace(" ", "").strip("\"'") if raw_n_key else None
     
-    chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
-    
-    # If continuing an episodic series, slice transcript around continuation timestamp
+    # Filter transcript segments strictly AFTER continuation_start_sec if continuing a series
     if continuation_start_sec is not None and continuation_start_sec > 0:
-        relevant_chunks = [c for c in chunks if c["end"] >= (continuation_start_sec - 10) and c["start"] <= (continuation_start_sec + 300)]
-        if not relevant_chunks:
-            relevant_chunks = chunks[:25]
+        valid_segments = [s for s in transcript_segments if s.get("start", 0) >= (continuation_start_sec + 0.5)]
+        if not valid_segments:
+            log(f"⚠️ No remaining transcript after timestamp {continuation_start_sec:.1f}s.")
+            valid_segments = transcript_segments
     else:
-        relevant_chunks = chunks[:25]
+        valid_segments = transcript_segments
+
+    chunks = chunk_transcript(valid_segments, max_duration_sec=90.0)
+    relevant_chunks = chunks[:25]
         
     formatted_transcript = "\n".join([
         f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
@@ -733,12 +755,12 @@ def select_viral_clip_with_groq(
     if part_number > 1 and continuation_start_sec is not None:
         goal_instruction = (
             f"This is PART {part_number} of a multi-part series on '{topic_title or 'this topic'}'.\n"
-            f"Find the direct 35-55 second insight continuation starting around timestamp {format_seconds_to_min_sec(continuation_start_sec)}."
+            f"Find the direct 38-55 second insight continuation starting strictly after timestamp {format_seconds_to_min_sec(continuation_start_sec)}."
         )
     else:
         goal_instruction = (
             "Identify the exact timestamp where the speaker begins introducing a brand new, high-impact topic, secret, principle, or insight (Part 1).\n"
-            "The clip MUST start right where they begin sharing this specific information or topic (skip any small talk/intro). Duration: 35-55 seconds."
+            "The clip MUST start right where they begin sharing this specific information or topic (skip any small talk/intro). Duration: 38-55 seconds."
         )
 
     # 1. Check if NVIDIA Nemotron 3 Ultra is configured
@@ -781,7 +803,15 @@ def select_viral_clip_with_groq(
                     content = n_data["choices"][0]["message"]["content"]
                     parsed = parse_llm_json(content)
                     if parsed and "start_seconds" in parsed and "end_seconds" in parsed:
-                        log(f"✅ NVIDIA Nemotron selected clip (Part {part_number}): {parsed['start_seconds']}s -> {parsed['end_seconds']}s")
+                        min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
+                        start_sec = max(min_start, float(parsed.get("start_seconds", min_start)))
+                        raw_end = float(parsed.get("end_seconds", start_sec + 45.0))
+                        clip_dur = max(38.0, min(55.0, raw_end - start_sec))
+                        end_sec = start_sec + clip_dur
+                        parsed["start_seconds"] = round(start_sec, 2)
+                        parsed["end_seconds"] = round(end_sec, 2)
+                        parsed["duration"] = round(clip_dur, 2)
+                        log(f"✅ NVIDIA Nemotron selected clip (Part {part_number}): {parsed['start_seconds']}s -> {parsed['end_seconds']}s ({clip_dur:.1f}s)")
                         return parsed
             except Exception as ne:
                 log(f"⚠️ NVIDIA Nemotron notice (attempt {attempt}): {ne}")
@@ -792,7 +822,7 @@ def select_viral_clip_with_groq(
 
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
-        default_start = continuation_start_sec if continuation_start_sec else 30.0
+        default_start = continuation_start_sec + 1.0 if continuation_start_sec else 30.0
         return {
             "start_seconds": default_start,
             "end_seconds": default_start + 45.0,
@@ -844,34 +874,29 @@ JSON Schema:
             raw_content = resp.choices[0].message.content
             clip_data = parse_llm_json(raw_content)
             
-            start_sec = float(clip_data.get("start_seconds", 0))
-            end_sec = float(clip_data.get("end_seconds", 0))
-            duration = end_sec - start_sec
+            min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
+            start_sec = max(min_start, float(clip_data.get("start_seconds", min_start)))
+            raw_end = float(clip_data.get("end_seconds", start_sec + 45.0))
+            clip_dur = max(38.0, min(55.0, raw_end - start_sec))
+            end_sec = start_sec + clip_dur
             
-            if duration < 20 or duration > 65:
-                if duration <= 0 or start_sec < 0:
-                    start_sec = continuation_start_sec if continuation_start_sec else 30.0
-                    end_sec = start_sec + 45.0
-                elif duration > 65:
-                    end_sec = start_sec + 50.0
-            
-            clip_data["start_seconds"] = max(0.0, start_sec)
-            clip_data["end_seconds"] = max(start_sec + 20.0, end_sec)
-            clip_data["duration"] = round(clip_data["end_seconds"] - clip_data["start_seconds"], 2)
-            log(f"Groq selected clip (Part {part_number}): {clip_data['start_seconds']:.1f}s -> {clip_data['end_seconds']:.1f}s ({clip_data['duration']}s)")
+            clip_data["start_seconds"] = round(start_sec, 2)
+            clip_data["end_seconds"] = round(end_sec, 2)
+            clip_data["duration"] = round(clip_dur, 2)
+            log(f"✅ Groq selected clip (Part {part_number}): {clip_data['start_seconds']}s -> {clip_data['end_seconds']}s ({clip_dur:.1f}s)")
             return clip_data
-        except Exception as e:
-            log(f"Groq model {model_name} notice: {e}. Trying fallback...")
-            time.sleep(1.5)
+        except Exception as ge:
+            log(f"⚠️ Groq highlight detection notice: {ge}")
             
-    default_start = continuation_start_sec if continuation_start_sec else 30.0
+    # Fallback to deterministic sequential slice
+    default_start = continuation_start_sec + 1.0 if continuation_start_sec else 30.0
     return {
-        "start_seconds": default_start,
-        "end_seconds": default_start + 45.0,
+        "start_seconds": round(default_start, 2),
+        "end_seconds": round(default_start + 45.0, 2),
         "duration": 45.0,
         "topic_title": f"{podcast_entry.get('name', 'Podcast')} Masterclass",
         "viral_title": f"{podcast_entry.get('name', 'Podcast')} Insight [Part {part_number}] 💡 #Shorts",
-        "hook_reason": "High emotional resonance",
+        "hook_reason": "Curated insightful discussion",
         "tags": ["podcast", "wisdom", "mindset", "success", "shorts"],
         "speaker_badge": podcast_entry.get("name", "Insight")
     }
@@ -1193,6 +1218,19 @@ def get_background_video_info() -> tuple:
     return (None, 0.0)
 
 
+def get_background_music_info() -> Path:
+    """
+    Finds one of the royalty-free background music tracks in assets/bgm/.
+    Returns Path if found, else None.
+    """
+    bgm_dir = Path(__file__).resolve().parent / "assets" / "bgm"
+    if bgm_dir.exists():
+        candidates = sorted(list(bgm_dir.glob("*.mp3")))
+        if candidates:
+            return random.choice(candidates)
+    return None
+
+
 def render_studio_visualizer_short(
     audio_full_path: Path,
     start_sec: float,
@@ -1203,14 +1241,14 @@ def render_studio_visualizer_short(
 ):
     """
     Renders a 1080x1920 short with Subway Surfers gameplay background,
-    official podcast audio track, speaker badges, and kinetic karaoke subtitles.
+    official podcast audio track, royalty-free BGM, speaker badges, and kinetic karaoke subtitles.
     100% immune to YouTube BotGuard / datacenter IP blocks.
     """
     if output_final_path.exists():
         output_final_path.unlink()
         
     duration = max(10.0, end_sec - start_sec)
-    log(f"🎨 Rendering Short ({duration:.1f}s) with Subway Surfers gameplay background...")
+    log(f"🎨 Rendering Short ({duration:.1f}s) with Subway Surfers background and royalty-free BGM...")
     
     # 1. Slice audio segment directly with FFmpeg
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.mp3")
@@ -1238,37 +1276,65 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
+    bgm_path = get_background_music_info()
     
     if bg_path and bg_path.exists():
-        # Pick random start offset so every short gets a fresh gameplay segment
-        bg_start = random.uniform(5.0, max(5.0, bg_dur - duration - 5.0))
+        bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
         log(f"🎮 Using Subway Surfers background from {bg_path.name} (offset {bg_start:.1f}s)...")
         
-        filtergraph = (
+        v_filter = (
             "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.04:brightness=-0.04[bg];"
             f"[bg]drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
             f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
             f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
             f"ass='{ass_filter_path}'[v]"
         )
-        cmd = [
-            "ffmpeg", "-y",
-            "-ss", f"{bg_start:.2f}",
-            "-i", str(bg_path),
-            "-i", str(audio_slice_path),
-            "-filter_complex", filtergraph,
-            "-map", "[v]",
-            "-map", "1:a",
-            "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "20",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-pix_fmt", "yuv420p",
-            "-shortest",
-            str(output_final_path)
-        ]
+        
+        if bgm_path and bgm_path.exists():
+            log(f"🎵 Mixing royalty-free background music ({bgm_path.name})...")
+            a_filter = (
+                "[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
+                "[2:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm];"
+                "[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+            )
+            filtergraph = f"{v_filter};{a_filter}"
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", f"{bg_start:.2f}",
+                "-i", str(bg_path),
+                "-i", str(audio_slice_path),
+                "-i", str(bgm_path),
+                "-filter_complex", filtergraph,
+                "-map", "[v]",
+                "-map", "[aout]",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-pix_fmt", "yuv420p",
+                "-shortest",
+                str(output_final_path)
+            ]
+        else:
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", f"{bg_start:.2f}",
+                "-i", str(bg_path),
+                "-i", str(audio_slice_path),
+                "-filter_complex", v_filter,
+                "-map", "[v]",
+                "-map", "1:a",
+                "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-pix_fmt", "yuv420p",
+                "-shortest",
+                str(output_final_path)
+            ]
     else:
         log("ℹ️ No gameplay background video found. Falling back to dynamic dark visualizer...")
         filtergraph = (
@@ -1458,7 +1524,7 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
         log(f"🎬 Starting New Episodic Topic Series: Part 1 for {podcast_entry['name']}...")
 
     # 2. Extract Subtitles/Transcript (Direct RSS Audio + Whisper AI / Instant Subs)
-    transcript_segments = fetch_youtube_subtitles_or_whisper(target_video["url"], OUTPUT_DIR, podcast_entry=podcast_entry)
+    transcript_segments = fetch_youtube_subtitles_or_whisper(target_video["url"], OUTPUT_DIR, podcast_entry=podcast_entry, video_meta=target_video)
     if not transcript_segments:
         raise RuntimeError(f"Failed to obtain transcript for video {target_video['id']}")
     
