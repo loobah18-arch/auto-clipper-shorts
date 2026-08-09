@@ -53,16 +53,26 @@
       "end": 29.16,
       "uploaded_youtube_id": "wPGqtXDlhyM",
       "created_at": "2026-08-09T15:09:11.776067+00:00"
+    },
+    {
+      "video_id": "BbGv7GTbRN8",
+      "title": "The Diary Of A CEO (Steven Bartlett) Insight [Part 2] 💡 #Shorts",
+      "channel": "The Diary Of A CEO (Steven Bartlett)",
+      "part": 2,
+      "start": 30.16,
+      "end": 75.16,
+      "uploaded_youtube_id": "7aRU_RcMxJ4",
+      "created_at": "2026-08-09T15:51:01.671804+00:00"
     }
   ],
   "active_series": {
     "video_id": "BbGv7GTbRN8",
     "podcast_id": "diary_of_a_ceo",
-    "episode_title": "Vitamin D Expert: The Supplement World Is Giving The WRONG Advice!",
-    "topic_title": "Exercise Alzheimer's Prevention",
-    "speaker_badge": "Vitamin D Expert",
-    "current_part": 1,
+    "episode_title": "Most Replayed Moment: Alzheimer's Starts 20 Years Before Symptoms! How To Protect Your Brain Now",
+    "topic_title": "The Diary Of A CEO (Steven Bartlett) Masterclass",
+    "speaker_badge": "The Diary Of A CEO (Steven Bartlett)",
+    "current_part": 2,
     "max_parts": 3,
-    "last_clip_end_sec": 29.16
+    "last_clip_end_sec": 75.16
   }
 }
