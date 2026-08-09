@@ -1280,6 +1280,32 @@ def get_cute_animal_image_info(gender: str = "male") -> Path:
     return None
 
 
+def get_character_pose_sequence(gender: str = "male") -> list:
+    """
+    Finds the pose variations for a chosen adult anime character avatar.
+    Returns list of Paths to character poses (e.g. pose_01.jpg, pose_02.jpg, pose_03.jpg).
+    """
+    base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
+    target_dir = base_dir / ("female" if gender == "female" else "male")
+    
+    if target_dir.exists():
+        # Find character subdirectories (e.g. wolf, lion, snow_leopard, fox)
+        char_dirs = [d for d in target_dir.iterdir() if d.is_dir()]
+        if char_dirs:
+            chosen_char = random.choice(char_dirs)
+            poses = sorted(list(chosen_char.glob("*.jpg")) + list(chosen_char.glob("*.png")))
+            if poses:
+                return poses
+                
+        # If flat directory
+        flat_poses = sorted(list(target_dir.glob("*.jpg")) + list(target_dir.glob("*.png")))
+        if flat_poses:
+            return flat_poses
+            
+    single = get_cute_animal_image_info(gender)
+    return [single] if single else []
+
+
 def get_background_video_info() -> tuple:
     """
     Finds one of the 3 one-minute Subway Surfers gameplay background videos in assets/backgrounds/.
@@ -1322,7 +1348,7 @@ def render_studio_visualizer_short(
 ):
     """
     Renders a 1080x1920 split-screen animated short:
-    - Top half (1080x960): Adult anime-style anthropomorphic animal avatar against dark grey studio background
+    - Top half (1080x960): Adult anime-style avatar with dynamic gesture pose switching every 4.5s
       (manly for male speakers, feminine for female speakers; dynamically shakes and expands +10% when speaking)
     - Bottom half (1080x960): Subway Surfers gameplay footage
     - Audio: Sample-accurate speech + calm royalty-free BGM with zero dropout / muting
@@ -1359,8 +1385,13 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
-    animal_path = get_cute_animal_image_info(speaker_gender)
+    pose_paths = get_character_pose_sequence(speaker_gender)
+    if not pose_paths:
+        single = get_cute_animal_image_info(speaker_gender)
+        pose_paths = [single] if single else []
+        
     bgm_path = get_background_music_info()
+    has_bgm = bool(bgm_path and bgm_path.exists())
     
     # Build speech activity expression for reactive avatar shake and +10% zoom
     spk_intervals = []
@@ -1379,14 +1410,39 @@ def render_studio_visualizer_short(
     else:
         spk_expr = "1"
     
-    if bg_path and bg_path.exists() and animal_path and animal_path.exists():
+    if bg_path and bg_path.exists() and pose_paths:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🐱 Using animated avatar: {animal_path.name} & gameplay: {bg_path.name} (offset {bg_start:.1f}s)...")
+        num_poses = len(pose_paths)
+        pose_interval = 4.5  # Switch gesture pose every 4.5 seconds
+        log(f"🐱 Using animated avatar with {num_poses} dynamic gesture pose(s) & gameplay: {bg_path.name} (offset {bg_start:.1f}s)...")
         
-        # Split-screen with speech-reactive avatar animation (+10% zoom + micro-shake when speaking)
-        top_filter = (
-            f"[1:v]scale=1200:1066:force_original_aspect_ratio=increase,crop=1200:1066,loop=loop=-1:size=1:start=0,"
-            f"crop="
+        # Build multi-pose input scaling and time-switching filtergraph
+        pose_offset = 3 if has_bgm else 2
+        pose_filters = []
+        for idx in range(num_poses):
+            inp_idx = pose_offset + idx
+            pose_filters.append(f"[{inp_idx}:v]scale=1200:1066:force_original_aspect_ratio=increase,crop=1200:1066,loop=loop=-1:size=1:start=0[p{idx}]")
+            
+        if num_poses == 1:
+            composite_chain = "[p0]"
+        else:
+            curr_layer = "p0"
+            for idx in range(1, num_poses):
+                active_ranges = []
+                t_start = idx * pose_interval
+                while t_start < duration:
+                    t_end = min(duration, t_start + pose_interval)
+                    active_ranges.append(f"between(t,{t_start:.2f},{t_end:.2f})")
+                    t_start += num_poses * pose_interval
+                    
+                enable_cond = "+".join(active_ranges) if active_ranges else "0"
+                next_layer = f"p0_{idx}"
+                pose_filters.append(f"[{curr_layer}][p{idx}]overlay=0:0:enable='{enable_cond}'[{next_layer}]")
+                curr_layer = next_layer
+            composite_chain = f"[{curr_layer}]"
+            
+        top_filter = ";".join(pose_filters) + ";" + (
+            f"{composite_chain}crop="
             f"w='if({spk_expr}, 1080/1.10, 1080)':"
             f"h='if({spk_expr}, 960/1.10, 960)':"
             f"x='(1200-out_w)/2 + if({spk_expr}, 5*sin(30*PI*t), 0)':"
@@ -1405,21 +1461,25 @@ def render_studio_visualizer_short(
             f"ass='{ass_filter_path}'[v]"
         )
         
-        if bgm_path and bgm_path.exists():
+        cmd = [
+            "ffmpeg", "-y",
+            "-ss", f"{bg_start:.2f}",
+            "-i", str(bg_path),
+            "-i", str(audio_slice_path)
+        ]
+        
+        if has_bgm:
             log(f"🎵 Mixing calm royalty-free BGM: {bgm_path.name}...")
+            cmd.extend(["-i", str(bgm_path)])
+            for p in pose_paths:
+                cmd.extend(["-i", str(p)])
             a_filter = (
-                "[2:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
-                "[3:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm];"
+                "[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
+                "[2:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm];"
                 "[voice][bgm]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
             )
             filtergraph = f"{v_filter};{a_filter}"
-            cmd = [
-                "ffmpeg", "-y",
-                "-ss", f"{bg_start:.2f}",
-                "-i", str(bg_path),
-                "-i", str(animal_path),
-                "-i", str(audio_slice_path),
-                "-i", str(bgm_path),
+            cmd.extend([
                 "-filter_complex", filtergraph,
                 "-map", "[v]",
                 "-map", "[aout]",
@@ -1431,25 +1491,24 @@ def render_studio_visualizer_short(
                 "-pix_fmt", "yuv420p",
                 "-t", dur_str,
                 str(output_final_path)
-            ]
+            ])
         else:
-            filtergraph = f"{v_filter};[2:a]loudnorm=I=-14:LRA=7:TP=-1.5[aout]"
-            cmd = [
-                "ffmpeg", "-y",
-                "-ss", f"{bg_start:.2f}",
-                "-i", str(bg_path),
-                "-i", str(animal_path),
-                "-i", str(audio_slice_path),
+            for p in pose_paths:
+                cmd.extend(["-i", str(p)])
+            filtergraph = f"{v_filter};[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[aout]"
+            cmd.extend([
                 "-filter_complex", filtergraph,
                 "-map", "[v]",
                 "-map", "[aout]",
                 "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
                 "-c:a", "aac",
                 "-b:a", "192k",
                 "-pix_fmt", "yuv420p",
                 "-t", dur_str,
                 str(output_final_path)
-            ]
+            ])
     elif bg_path and bg_path.exists():
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
         log(f"🎮 Using full-screen Subway Surfers from {bg_path.name} (offset {bg_start:.1f}s)...")
