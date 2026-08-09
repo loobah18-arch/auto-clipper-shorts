@@ -925,7 +925,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,DejaVu Sans,68,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,2,2,40,40,290,1
+Style: Default,DejaVu Sans,68,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,2,2,40,40,240,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -1201,6 +1201,19 @@ def render_vertical_916_short(
         log(f"Thumbnail frame notice: {te}")
 
 
+def get_cute_animal_image_info() -> Path:
+    """
+    Finds one of the cute AI-generated animal images in assets/images/animals/.
+    Returns Path if found, else None.
+    """
+    img_dir = Path(__file__).resolve().parent / "assets" / "images" / "animals"
+    if img_dir.exists():
+        candidates = sorted(list(img_dir.glob("*.jpg")) + list(img_dir.glob("*.png")))
+        if candidates:
+            return random.choice(candidates)
+    return None
+
+
 def get_background_video_info() -> tuple:
     """
     Finds one of the 3 one-minute Subway Surfers gameplay background videos in assets/backgrounds/.
@@ -1240,28 +1253,29 @@ def render_studio_visualizer_short(
     speaker_badge: str = ""
 ):
     """
-    Renders a 1080x1920 short with Subway Surfers gameplay background,
-    official podcast audio track, royalty-free BGM, speaker badges, and kinetic karaoke subtitles.
-    100% immune to YouTube BotGuard / datacenter IP blocks.
+    Renders a 1080x1920 split-screen short:
+    - Top half (1080x960): Cute AI-generated animal image
+    - Bottom half (1080x960): Subway Surfers gameplay footage
+    - Audio: Sample-accurate speech + subtle royalty-free BGM with 0 fadeout
+    - Overlays: Floating speaker capsule badge, glowing center divider, kinetic karaoke subtitles, bottom retention bar
     """
     if output_final_path.exists():
         output_final_path.unlink()
         
     duration = max(10.0, end_sec - start_sec)
-    log(f"🎨 Rendering Short ({duration:.1f}s) with Subway Surfers background and royalty-free BGM...")
-    
-    # 1. Slice audio segment directly with FFmpeg
-    audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.mp3")
-    start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}"
     dur_str = f"{duration:.2f}"
+    start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
+    log(f"🎨 Rendering Split-Screen Short ({duration:.1f}s) with cute animal + Subway Surfers...")
+    
+    # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy (avoids MP3 frame padding delays)
+    audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
     
     subprocess.run([
         "ffmpeg", "-y",
-        "-ss", start_str,
         "-i", str(audio_full_path),
+        "-ss", start_str,
         "-t", dur_str,
-        "-c:a", "libmp3lame",
-        "-b:a", "192k",
+        "-c:a", "pcm_s16le",
         str(audio_slice_path)
     ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
@@ -1276,11 +1290,75 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
+    animal_path = get_cute_animal_image_info()
     bgm_path = get_background_music_info()
     
-    if bg_path and bg_path.exists():
+    if bg_path and bg_path.exists() and animal_path and animal_path.exists():
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🎮 Using Subway Surfers background from {bg_path.name} (offset {bg_start:.1f}s)...")
+        log(f"🐱 Using cute animal: {animal_path.name} & gameplay: {bg_path.name} (offset {bg_start:.1f}s)...")
+        
+        # Split-screen: Top half Cute Animal, Bottom half Subway Surfers with divider line
+        v_filter = (
+            f"[1:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,loop=loop=-1:size=1:start=0[top];"
+            f"[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.04:brightness=-0.04[bot];"
+            f"[top][bot]vstack[stacked];"
+            f"[stacked]drawbox=y=956:color=#00D2FF@0.9:width=iw:height=8:t=fill,"
+            f"drawbox=y=80:color=black@0.75:width=iw:height=90:t=fill,"
+            f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=102,"
+            f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+            f"ass='{ass_filter_path}'[v]"
+        )
+        
+        if bgm_path and bgm_path.exists():
+            log(f"🎵 Mixing royalty-free BGM: {bgm_path.name}...")
+            a_filter = (
+                "[2:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
+                "[3:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm];"
+                "[voice][bgm]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
+            )
+            filtergraph = f"{v_filter};{a_filter}"
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", f"{bg_start:.2f}",
+                "-i", str(bg_path),
+                "-i", str(animal_path),
+                "-i", str(audio_slice_path),
+                "-i", str(bgm_path),
+                "-filter_complex", filtergraph,
+                "-map", "[v]",
+                "-map", "[aout]",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-pix_fmt", "yuv420p",
+                "-t", dur_str,
+                str(output_final_path)
+            ]
+        else:
+            filtergraph = f"{v_filter};[2:a]loudnorm=I=-14:LRA=7:TP=-1.5[aout]"
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", f"{bg_start:.2f}",
+                "-i", str(bg_path),
+                "-i", str(animal_path),
+                "-i", str(audio_slice_path),
+                "-filter_complex", filtergraph,
+                "-map", "[v]",
+                "-map", "[aout]",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-pix_fmt", "yuv420p",
+                "-t", dur_str,
+                str(output_final_path)
+            ]
+    elif bg_path and bg_path.exists():
+        bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
+        log(f"🎮 Using full-screen Subway Surfers from {bg_path.name} (offset {bg_start:.1f}s)...")
         
         v_filter = (
             "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.04:brightness=-0.04[bg];"
@@ -1291,11 +1369,11 @@ def render_studio_visualizer_short(
         )
         
         if bgm_path and bgm_path.exists():
-            log(f"🎵 Mixing royalty-free background music ({bgm_path.name})...")
+            log(f"🎵 Mixing royalty-free BGM: {bgm_path.name}...")
             a_filter = (
                 "[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
                 "[2:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm];"
-                "[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+                "[voice][bgm]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
             )
             filtergraph = f"{v_filter};{a_filter}"
             cmd = [
@@ -1313,7 +1391,7 @@ def render_studio_visualizer_short(
                 "-c:a", "aac",
                 "-b:a", "192k",
                 "-pix_fmt", "yuv420p",
-                "-shortest",
+                "-t", dur_str,
                 str(output_final_path)
             ]
         else:
@@ -1332,7 +1410,7 @@ def render_studio_visualizer_short(
                 "-c:a", "aac",
                 "-b:a", "192k",
                 "-pix_fmt", "yuv420p",
-                "-shortest",
+                "-t", dur_str,
                 str(output_final_path)
             ]
     else:
@@ -1359,7 +1437,7 @@ def render_studio_visualizer_short(
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",
-            "-shortest",
+            "-t", dur_str,
             str(output_final_path)
         ]
     
@@ -1367,7 +1445,7 @@ def render_studio_visualizer_short(
     if audio_slice_path.exists():
         audio_slice_path.unlink()
         
-    log(f"✅ Subway Surfers Short render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
+    log(f"✅ Short render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
 
     # Thumbnail generation
     thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
