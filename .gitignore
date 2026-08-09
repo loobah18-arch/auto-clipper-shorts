@@ -1,5 +1,6 @@
 output/
 *.mp4
+!assets/backgrounds/*.mp4
 *.m4a
 *.ass
 *.wav

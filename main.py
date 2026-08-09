@@ -1175,6 +1175,31 @@ def render_vertical_916_short(
         log(f"Thumbnail frame notice: {te}")
 
 
+def get_background_video_info() -> tuple:
+    """
+    Finds the background gameplay video (Subway Surfers).
+    Returns (Path, duration_seconds) if found, else (None, 0.0).
+    """
+    # 1. Check local full-length downloaded file
+    local_download = Path("/sdcard/Download/vidssave.com MEU NOVO RECORDE 30_14 NO COINS - TOP2 GLOBAL SUBWAY SURFERS 720p.mp4")
+    if local_download.exists() and local_download.stat().st_size > 1000000:
+        return (local_download, 1853.0)
+        
+    # 2. Check repository background asset
+    repo_asset = Path(__file__).resolve().parent / "assets" / "backgrounds" / "subway_surfers.mp4"
+    if repo_asset.exists() and repo_asset.stat().st_size > 1000000:
+        return (repo_asset, 200.0)
+        
+    # 3. Check any .mp4 in assets/backgrounds directory
+    bg_dir = Path(__file__).resolve().parent / "assets" / "backgrounds"
+    if bg_dir.exists():
+        mp4s = list(bg_dir.glob("*.mp4"))
+        if mp4s:
+            return (mp4s[0], 200.0)
+            
+    return (None, 0.0)
+
+
 def render_studio_visualizer_short(
     audio_full_path: Path,
     start_sec: float,
@@ -1184,15 +1209,15 @@ def render_studio_visualizer_short(
     speaker_badge: str = ""
 ):
     """
-    Renders a high-aesthetic 1080x1920 Studio Visualizer short using official podcast audio track,
-    dynamic neon audio waveforms, speaker badges, and kinetic karaoke subtitles.
+    Renders a 1080x1920 short with Subway Surfers gameplay background,
+    official podcast audio track, speaker badges, and kinetic karaoke subtitles.
     100% immune to YouTube BotGuard / datacenter IP blocks.
     """
     if output_final_path.exists():
         output_final_path.unlink()
         
     duration = max(10.0, end_sec - start_sec)
-    log(f"🎨 Rendering Studio Visualizer Short ({duration:.1f}s) with dynamic waveform...")
+    log(f"🎨 Rendering Short ({duration:.1f}s) with Subway Surfers gameplay background...")
     
     # 1. Slice audio segment directly with FFmpeg
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.mp3")
@@ -1219,38 +1244,71 @@ def render_studio_visualizer_short(
     else:
         font_opt = "font='DejaVu Sans'"
 
-    filtergraph = (
-        f"color=c=#0B0E14:s=1080x1920:d={dur_str}[bg];"
-        "[0:a]showwaves=s=920x240:mode=p2p:colors=#00D2FF@0.85[wave];"
-        "[bg][wave]overlay=(W-w)/2:(H-h)/2 - 50,"
-        f"drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
-        f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
-        f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
-        f"ass='{ass_filter_path}'[v]"
-    )
+    bg_path, bg_dur = get_background_video_info()
     
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", str(audio_slice_path),
-        "-filter_complex", filtergraph,
-        "-map", "[v]",
-        "-map", "0:a",
-        "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", "19",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        "-pix_fmt", "yuv420p",
-        "-shortest",
-        str(output_final_path)
-    ]
+    if bg_path and bg_path.exists():
+        # Pick random start offset so every short gets a fresh gameplay segment
+        bg_start = random.uniform(5.0, max(5.0, bg_dur - duration - 5.0))
+        log(f"🎮 Using Subway Surfers background from {bg_path.name} (offset {bg_start:.1f}s)...")
+        
+        filtergraph = (
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.04:brightness=-0.04[bg];"
+            f"[bg]drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
+            f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
+            f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+            f"ass='{ass_filter_path}'[v]"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            "-ss", f"{bg_start:.2f}",
+            "-i", str(bg_path),
+            "-i", str(audio_slice_path),
+            "-filter_complex", filtergraph,
+            "-map", "[v]",
+            "-map", "1:a",
+            "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "20",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-pix_fmt", "yuv420p",
+            "-shortest",
+            str(output_final_path)
+        ]
+    else:
+        log("ℹ️ No gameplay background video found. Falling back to dynamic dark visualizer...")
+        filtergraph = (
+            f"color=c=#0B0E14:s=1080x1920:d={dur_str}[bg];"
+            "[0:a]showwaves=s=920x240:mode=p2p:colors=#00D2FF@0.85[wave];"
+            "[bg][wave]overlay=(W-w)/2:(H-h)/2 - 50,"
+            f"drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
+            f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
+            f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+            f"ass='{ass_filter_path}'[v]"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(audio_slice_path),
+            "-filter_complex", filtergraph,
+            "-map", "[v]",
+            "-map", "0:a",
+            "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "20",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-pix_fmt", "yuv420p",
+            "-shortest",
+            str(output_final_path)
+        ]
     
     subprocess.run(cmd, check=True)
     if audio_slice_path.exists():
         audio_slice_path.unlink()
         
-    log(f"✅ Studio Visualizer render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
+    log(f"✅ Subway Surfers Short render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
 
     # Thumbnail generation
     thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
