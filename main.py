@@ -501,8 +501,11 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
     if podcast_entry and podcast_entry.get("rss_feed"):
         rss_audio_path = output_base / "rss_podcast_audio.mp3"
         if download_audio_via_rss(podcast_entry["rss_feed"], rss_audio_path):
-            log("Transcribing clean RSS podcast audio with Whisper AI...")
-            return transcribe_audio_with_whisper(rss_audio_path, model_size="base.en")
+            try:
+                log("Transcribing clean RSS podcast audio with Whisper AI...")
+                return transcribe_audio_with_whisper(rss_audio_path, model_size="base.en")
+            except Exception as we:
+                log(f"⚠️ Whisper AI notice: {we}. Trying instant YouTube captions...")
 
     log(f"Checking for instant YouTube captions for {video_url}...")
     sub_prefix = output_base / "subs_temp"
@@ -555,8 +558,12 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
     # Fallback to Whisper AI audio transcription
     log("Falling back to Whisper AI audio transcription via yt-dlp...")
     audio_path = output_base / "whisper_audio.m4a"
-    download_audio_for_transcription(video_url, audio_path)
-    return transcribe_audio_with_whisper(audio_path, model_size="base.en")
+    try:
+        download_audio_for_transcription(video_url, audio_path)
+        return transcribe_audio_with_whisper(audio_path, model_size="base.en")
+    except Exception as fe:
+        log(f"⚠️ Audio transcription fallback error: {fe}")
+        return []
 
 
 def download_audio_for_transcription(video_url: str, output_audio_path: Path) -> Path:
