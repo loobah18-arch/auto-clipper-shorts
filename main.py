@@ -691,7 +691,8 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
     Prompts Groq Llama 3.3 to analyze transcript and select the single most engaging 30-55s clip.
     """
     # 1. Check if NVIDIA Nemotron 3 Ultra is configured
-    nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
+    raw_n_key = os.environ.get("NVIDIA_API_KEY", "")
+    nvidia_api_key = raw_n_key.strip().replace(" ", "").strip("\"'") if raw_n_key else None
     if nvidia_api_key:
         try:
             log("🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight detection...")
@@ -982,9 +983,9 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
 
     # 1. Ultra-fast direct stream slicing via FFmpeg (No DASH merging errors)
     client_profiles = [
+        ("mweb", ytdlp_cookies_args()),
         ("android,ios,web", []),
         ("web,tv,android", []),
-        ("mweb,default", ytdlp_cookies_args())
     ]
     for client_name, cookie_args in client_profiles:
         try:
@@ -992,25 +993,40 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
             g_cmd = [
                 "yt-dlp",
                 "-g",
-                "-f", "18/b/best",
+                "-f", "bestvideo[height<=1080]+bestaudio/18/b/best",
                 "--extractor-args", f"youtube:player_client={client_name}",
             ] + cookie_args + [video_url]
             res = subprocess.run(g_cmd, capture_output=True, text=True, check=True)
-            stream_url = res.stdout.strip().split("\n")[-1].strip()
-            if stream_url.startswith("http"):
-                log("Direct stream URL resolved. Slicing with FFmpeg...")
+            stream_lines = [l.strip() for l in res.stdout.strip().split("\n") if l.strip().startswith("http")]
+            
+            if len(stream_lines) >= 2:
+                v_url, a_url = stream_lines[0], stream_lines[1]
+                log(f"Direct dual stream URLs resolved (video + audio). Slicing with FFmpeg...")
+                ff_slice_cmd = [
+                    "ffmpeg", "-y",
+                    "-ss", start_str, "-to", end_str, "-i", v_url,
+                    "-ss", start_str, "-to", end_str, "-i", a_url,
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    str(output_raw_path)
+                ]
+                subprocess.run(ff_slice_cmd, check=True, capture_output=True)
+            elif len(stream_lines) == 1:
+                log("Direct single stream URL resolved. Slicing with FFmpeg...")
                 ff_slice_cmd = [
                     "ffmpeg", "-y",
                     "-ss", start_str,
                     "-to", end_str,
-                    "-i", stream_url,
+                    "-i", stream_lines[0],
                     "-c", "copy",
                     str(output_raw_path)
                 ]
                 subprocess.run(ff_slice_cmd, check=True, capture_output=True)
-                if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
-                    log(f"✅ Video slice created via direct FFmpeg stream ({output_raw_path.stat().st_size / 1024:.1f} KB)")
-                    return
+                
+            if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
+                log(f"✅ Video slice created via direct FFmpeg stream ({output_raw_path.stat().st_size / 1024:.1f} KB)")
+                return
         except Exception as ge:
             log(f"Direct stream profile [{client_name}] notice: {ge}. Trying next profile...")
 
