@@ -1554,12 +1554,11 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     save_json(HISTORY_PATH, history)
     
     # Clean up intermediate temporary files
-    for temp_f in [raw_slice_path, ass_sub_path]:
-        if temp_f.exists():
-            try:
-                temp_f.unlink()
-            except Exception:
-                pass
+    if ass_sub_path.exists():
+        try:
+            ass_sub_path.unlink()
+        except Exception:
+            pass
                 
     log("=======================================================")
     log(" Pipeline Finished Successfully! 🎉")
