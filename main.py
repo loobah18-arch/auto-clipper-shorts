@@ -1037,6 +1037,7 @@ def render_vertical_916_short(
         "-c:v", "libx264",
         "-preset", "veryfast",
         "-crf", "19",
+        "-force_key_frames", "expr:gte(t,n_forced*1)",
         "-c:a", "aac",
         "-b:a", "192k",
         "-pix_fmt", "yuv420p",
