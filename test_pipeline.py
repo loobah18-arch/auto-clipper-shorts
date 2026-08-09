@@ -97,8 +97,8 @@ is setting clear non-negotiable boundaries.
         self.assertIn("[Script Info]", content)
         self.assertIn("PlayResX: 1080", content)
         self.assertIn("PlayResY: 1920", content)
-        self.assertIn("002BF5FF", content)  # Yellow active highlight
-        self.assertIn("fscx110", content)   # Scale pop animation
+        self.assertIn("002BF5FF", content)  # Neon active highlight
+        self.assertIn("fscx118", content)   # Scale pop animation
         if test_ass_path.exists():
             test_ass_path.unlink()
 

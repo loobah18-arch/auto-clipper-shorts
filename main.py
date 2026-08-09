@@ -925,7 +925,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,DejaVu Sans,68,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,2,2,40,40,240,1
+Style: Default,DejaVu Sans,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,3,2,40,40,700,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -949,7 +949,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     })
 
     events = []
-    GROUP_SIZE = 4
+    GROUP_SIZE = 3
     for i in range(0, len(clip_words), GROUP_SIZE):
         group = clip_words[i:i + GROUP_SIZE]
         if not group:
@@ -962,8 +962,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             line_parts = []
             for idx, gw in enumerate(group):
                 if idx == active_idx:
-                    # Pop animation and glowing yellow highlight
-                    line_parts.append(r"{\c&H002BF5FF\fscx110\fscy110}" + gw["word"] + r"{\c&H00FFFFFF\fscx100\fscy100}")
+                    # Pop animation and glowing electric neon cyan highlight
+                    line_parts.append(r"{\c&H002BF5FF\fscx118\fscy118}" + gw["word"] + r"{\c&H00FFFFFF\fscx100\fscy100}")
                 else:
                     line_parts.append(r"{\c&H00FFFFFF\fscx100\fscy100}" + gw["word"])
                     
