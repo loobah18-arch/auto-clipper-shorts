@@ -943,8 +943,7 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     cmd = [
         "yt-dlp",
         "--download-sections", f"*{start_str}-{end_str}",
-        "-f", "b/best/bv*+ba/ba/b",
-        "--format-sort", "res:1080,res:720,ext:mp4:m4a",
+        "-f", "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b",
         "--merge-output-format", "mp4",
         "--force-keyframes-at-cuts",
         "--no-playlist",
