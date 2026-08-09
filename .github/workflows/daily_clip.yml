@@ -84,6 +84,7 @@ jobs:
       - name: 🚀 Run Auto-Clipper Pipeline
         id: run_pipeline
         env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
