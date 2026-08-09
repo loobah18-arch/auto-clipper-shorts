@@ -691,28 +691,62 @@ def format_seconds_to_min_sec(seconds: float) -> str:
     return f"{m:02d}:{s:02d}"
 
 
-def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, podcast_entry: dict) -> dict:
+def select_viral_clip_with_groq(
+    transcript_segments: list,
+    video_meta: dict,
+    podcast_entry: dict,
+    continuation_start_sec: float = None,
+    part_number: int = 1,
+    topic_title: str = None
+) -> dict:
     """
-    Prompts NVIDIA Nemotron 3 Ultra (550B MoE) or Groq Llama 3.3 to analyze transcript
-    and select the single most engaging 30-55s clip.
+    Prompts NVIDIA Nemotron 3 Ultra (550B MoE) or Groq Llama 3.3 to analyze transcript.
+    - If Part 1: Identifies the exact moment where the speaker begins introducing a new topic/framework.
+    - If Part > 1: Finds the direct insight continuation starting from previous clip's end.
     """
-    # 1. Check if NVIDIA Nemotron 3 Ultra is configured
     raw_n_key = os.environ.get("NVIDIA_API_KEY", "")
     nvidia_api_key = raw_n_key.strip().replace(" ", "").strip("\"'") if raw_n_key else None
+    
+    chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
+    
+    # If continuing an episodic series, slice transcript around continuation timestamp
+    if continuation_start_sec is not None and continuation_start_sec > 0:
+        relevant_chunks = [c for c in chunks if c["end"] >= (continuation_start_sec - 10) and c["start"] <= (continuation_start_sec + 300)]
+        if not relevant_chunks:
+            relevant_chunks = chunks[:25]
+    else:
+        relevant_chunks = chunks[:25]
+        
+    formatted_transcript = "\n".join([
+        f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
+        for c in relevant_chunks
+    ])
+    
+    if part_number > 1 and continuation_start_sec is not None:
+        goal_instruction = (
+            f"This is PART {part_number} of a multi-part series on '{topic_title or 'this topic'}'.\n"
+            f"Find the direct 35-55 second insight continuation starting around timestamp {format_seconds_to_min_sec(continuation_start_sec)}."
+        )
+    else:
+        goal_instruction = (
+            "Identify the exact timestamp where the speaker begins introducing a brand new, high-impact topic, secret, principle, or insight (Part 1).\n"
+            "The clip MUST start right where they begin sharing this specific information or topic (skip any small talk/intro). Duration: 35-55 seconds."
+        )
+
+    # 1. Check if NVIDIA Nemotron 3 Ultra is configured
     if nvidia_api_key:
         for attempt in range(1, 3):
             try:
-                log(f"🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight detection (attempt {attempt})...")
-                # Send first 25 high-energy chunks (~35 mins) for rapid 20s reasoning
-                formatted_transcript = "\n".join([
-                    f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
-                    for c in chunks[:25]
-                ])
+                log(f"🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part {part_number}, attempt {attempt})...")
                 n_sys = "You are an expert viral YouTube Shorts content strategist. You MUST return ONLY a single JSON object. No conversational text, no markdown wrapper."
                 n_user = (
-                    f"Analyze transcript and pick the best 30-55s viral clip for YouTube Shorts:\n{formatted_transcript}\n\n"
-                    f"JSON Schema:\n{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"viral_title\": \"<string>\", "
-                    f"\"hook_reason\": \"<string>\", \"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<string>\"}}\n\n"
+                    f"Podcast: {podcast_entry.get('name', 'Podcast')}\n"
+                    f"Episode: {video_meta.get('title', 'Episode')}\n"
+                    f"Goal: {goal_instruction}\n\n"
+                    f"Transcript:\n{formatted_transcript}\n\n"
+                    f"JSON Schema:\n{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"topic_title\": \"<Core 3-5 word topic title>\", "
+                    f"\"viral_title\": \"<Punchy title under 60 chars with 1 emoji and #Shorts>\", \"hook_reason\": \"<string>\", "
+                    f"\"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<Speaker Name>\"}}\n\n"
                     f"Return ONLY the JSON object."
                 )
                 
@@ -723,7 +757,7 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
                         {"role": "user", "content": n_user}
                     ],
                     "temperature": 0.2,
-                    "max_tokens": 2048
+                    "max_tokens": 1024
                 }).encode("utf-8")
                 
                 n_req = urllib.request.Request(
@@ -734,12 +768,12 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
                         "Content-Type": "application/json"
                     }
                 )
-                with urllib.request.urlopen(n_req, timeout=80) as n_resp:
+                with urllib.request.urlopen(n_req, timeout=75) as n_resp:
                     n_data = json.loads(n_resp.read().decode("utf-8"))
                     content = n_data["choices"][0]["message"]["content"]
                     parsed = parse_llm_json(content)
                     if parsed and "start_seconds" in parsed and "end_seconds" in parsed:
-                        log(f"✅ NVIDIA Nemotron selected viral clip: {parsed['start_seconds']}s -> {parsed['end_seconds']}s")
+                        log(f"✅ NVIDIA Nemotron selected clip (Part {part_number}): {parsed['start_seconds']}s -> {parsed['end_seconds']}s")
                         return parsed
             except Exception as ne:
                 log(f"⚠️ NVIDIA Nemotron notice (attempt {attempt}): {ne}")
@@ -750,59 +784,43 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
 
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
-        log("⚠️ Notice: Neither NVIDIA_API_KEY nor GROQ_API_KEY set. Using default highlight segment (30s to 75s).")
+        default_start = continuation_start_sec if continuation_start_sec else 30.0
         return {
-            "start_seconds": 30.0,
-            "end_seconds": 75.0,
+            "start_seconds": default_start,
+            "end_seconds": default_start + 45.0,
             "duration": 45.0,
-            "viral_title": f"{podcast_entry.get('name', 'Podcast')} Insight! 💡 #shorts",
+            "topic_title": f"{podcast_entry.get('name', 'Podcast')} Masterclass",
+            "viral_title": f"{podcast_entry.get('name', 'Podcast')} Insight [Part {part_number}] 💡 #Shorts",
             "hook_reason": "Curated insightful discussion",
             "tags": ["podcast", "wisdom", "mindset", "success", "shorts"],
             "speaker_badge": podcast_entry.get("name", "Podcast")
         }
         
     client = Groq(api_key=groq_api_key)
-    chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
-    sample_chunks = chunks[:12]
-    
-    formatted_transcript = "\n".join([
-        f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
-        for c in sample_chunks
-    ])
-    
     system_prompt = (
         "You are an expert viral YouTube Shorts content strategist specializing in "
-        "podcasts, philosophy, science, and high-impact discussions.\n"
-        "Your task: Identify the single most mind-blowing, insightful, or emotional 30-55 second clip "
-        "from the provided transcript that will captivate viewers within the first 3 seconds."
+        "podcasts, philosophy, science, and high-impact discussions."
     )
-    
     user_prompt = f"""
 Podcast: {podcast_entry.get('name', 'Podcast')}
 Episode Title: {video_meta.get('title', 'Episode')}
-Category: {podcast_entry.get('category', 'Talk / Interview')}
+Goal: {goal_instruction}
 
-Here are candidate segments from the transcript with timestamps:
+Transcript:
 {formatted_transcript}
 
-Requirements:
-1. Select a CONTINUOUS segment between 30 and 55 seconds long (e.g. start: 125.0, end: 168.0).
-2. The segment MUST start with a strong hook or surprising statement.
-3. It must deliver a complete, satisfying thought or insight.
-4. Output MUST be valid JSON only.
-
-JSON Format:
+JSON Schema:
 {{
   "start_seconds": <float>,
   "end_seconds": <float>,
-  "viral_title": "<Punchy title under 65 chars with 1 emoji and #Shorts>",
+  "topic_title": "<Core 3-5 word topic title>",
+  "viral_title": "<Punchy title under 60 chars with 1 emoji and #Shorts>",
   "hook_reason": "<Why this clip has high viewer retention>",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "speaker_badge": "<Short 2-3 word speaker or topic label for top banner, e.g. 'Andrew Huberman' or 'Lex Fridman Wisdom'>"
+  "speaker_badge": "<Short speaker name, e.g. 'Andrew Huberman' or 'Tom Bilyeu'>"
 }}
 """
-    log("Sending transcript to Groq for viral highlight detection...")
-    
+    log(f"Sending transcript to Groq for highlight detection (Part {part_number})...")
     for model_name in [DEFAULT_GROQ_MODEL, FALLBACK_GROQ_MODEL]:
         try:
             resp = client.chat.completions.create(
@@ -812,7 +830,7 @@ JSON Format:
                     {"role": "user", "content": user_prompt}
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.4,
+                temperature=0.3,
                 max_tokens=600
             )
             raw_content = resp.choices[0].message.content
@@ -824,26 +842,27 @@ JSON Format:
             
             if duration < 20 or duration > 65:
                 if duration <= 0 or start_sec < 0:
-                    start_sec = 30.0
-                    end_sec = 75.0
+                    start_sec = continuation_start_sec if continuation_start_sec else 30.0
+                    end_sec = start_sec + 45.0
                 elif duration > 65:
                     end_sec = start_sec + 50.0
             
             clip_data["start_seconds"] = max(0.0, start_sec)
             clip_data["end_seconds"] = max(start_sec + 20.0, end_sec)
             clip_data["duration"] = round(clip_data["end_seconds"] - clip_data["start_seconds"], 2)
-            log(f"Groq selected clip: {clip_data['start_seconds']:.1f}s -> {clip_data['end_seconds']:.1f}s ({clip_data['duration']}s)")
-            log(f"Title: {clip_data.get('viral_title')}")
+            log(f"Groq selected clip (Part {part_number}): {clip_data['start_seconds']:.1f}s -> {clip_data['end_seconds']:.1f}s ({clip_data['duration']}s)")
             return clip_data
         except Exception as e:
             log(f"Groq model {model_name} notice: {e}. Trying fallback...")
             time.sleep(1.5)
             
+    default_start = continuation_start_sec if continuation_start_sec else 30.0
     return {
-        "start_seconds": 30.0,
-        "end_seconds": 75.0,
+        "start_seconds": default_start,
+        "end_seconds": default_start + 45.0,
         "duration": 45.0,
-        "viral_title": f"Mind-Blowing Advice You Need To Hear! 💡 #shorts",
+        "topic_title": f"{podcast_entry.get('name', 'Podcast')} Masterclass",
+        "viral_title": f"{podcast_entry.get('name', 'Podcast')} Insight [Part {part_number}] 💡 #Shorts",
         "hook_reason": "High emotional resonance",
         "tags": ["podcast", "wisdom", "mindset", "success", "shorts"],
         "speaker_badge": podcast_entry.get("name", "Insight")
@@ -873,7 +892,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,DejaVu Sans,64,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,2,2,40,40,190,1
+Style: Default,DejaVu Sans,68,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,2,2,40,40,290,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -1106,7 +1125,7 @@ def render_vertical_916_short(
         "boxblur=25:5,eq=brightness=-0.08:contrast=1.05[bg];"
         "[0:v]scale=1040:-2[fg];"
         "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 50[comp1];"
-        f"[comp1]drawbox=y=160:color=black@0.65:width=iw:height=90:t=fill,"
+        f"[comp1]drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
         f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182[comp2];"
         f"[comp2]ass='{ass_filter_path}'[v]"
     )
@@ -1199,6 +1218,7 @@ def render_studio_visualizer_short(
         "[bg][wave]overlay=(W-w)/2:(H-h)/2 - 50,"
         f"drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
         f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
+        f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
         f"ass='{ass_filter_path}'[v]"
     )
     
@@ -1344,30 +1364,71 @@ def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, or
 
 def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool = False):
     log("=======================================================")
-    log(" Starting Auto-Clipper Shorts Pipeline")
+    log(" Starting Auto-Clipper Shorts Pipeline (Episodic Series)")
     log("=======================================================")
     
     catalog = load_json(CATALOG_PATH)
-    history = load_json(HISTORY_PATH, {"last_channel_index": 0, "processed_videos": [], "processed_clips": []})
+    history = load_json(HISTORY_PATH, {"last_channel_index": 0, "processed_videos": [], "processed_clips": [], "active_series": None})
 
-    # 1. Pick Channel & Video
-    podcast_entry, next_idx = pick_next_channel(catalog, history, force_channel)
-    log(f"Selected Podcast Channel: {podcast_entry['name']} ({podcast_entry['category']})")
+    active_series = history.get("active_series")
     
-    target_video = select_target_video(podcast_entry, history, direct_url=force_url)
-    log(f"Selected Video: {target_video['title']} [{target_video['id']}]")
+    # 1. Determine if we are continuing an episodic series or starting a fresh topic
+    if active_series and active_series.get("current_part", 1) < active_series.get("max_parts", 3) and not force_url and not force_channel:
+        podcast_entry = next((p for p in catalog["podcasts"] if p["id"] == active_series.get("podcast_id")), None)
+        if not podcast_entry:
+            podcast_entry = catalog["podcasts"][0]
+            
+        target_video = {
+            "id": active_series["video_id"],
+            "url": f"https://www.youtube.com/watch?v={active_series['video_id']}",
+            "title": active_series.get("episode_title", "Podcast Episode"),
+            "uploader": podcast_entry["name"]
+        }
+        part_number = active_series["current_part"] + 1
+        continuation_start = active_series.get("last_clip_end_sec", 0.0)
+        topic_title = active_series.get("topic_title", "Podcast Insight")
+        log(f"🎬 Continuing Episodic Series: Part {part_number}/{active_series.get('max_parts', 3)} on '{topic_title}' from {continuation_start:.1f}s...")
+    else:
+        podcast_entry, next_idx = pick_next_channel(catalog, history, force_channel)
+        log(f"Selected Podcast Channel: {podcast_entry['name']} ({podcast_entry['category']})")
+        
+        target_video = select_target_video(podcast_entry, history, direct_url=force_url)
+        log(f"Selected Video: {target_video['title']} [{target_video['id']}]")
+        part_number = 1
+        continuation_start = None
+        topic_title = None
+        log(f"🎬 Starting New Episodic Topic Series: Part 1 for {podcast_entry['name']}...")
 
     # 2. Extract Subtitles/Transcript (Direct RSS Audio + Whisper AI / Instant Subs)
     transcript_segments = fetch_youtube_subtitles_or_whisper(target_video["url"], OUTPUT_DIR, podcast_entry=podcast_entry)
     if not transcript_segments:
         raise RuntimeError(f"Failed to obtain transcript for video {target_video['id']}")
     
-    # 3. AI Highlight Detection (Groq)
-    clip_info = select_viral_clip_with_groq(transcript_segments, target_video, podcast_entry)
+    # 3. AI Highlight / Continuation Detection
+    clip_info = select_viral_clip_with_groq(
+        transcript_segments=transcript_segments,
+        video_meta=target_video,
+        podcast_entry=podcast_entry,
+        continuation_start_sec=continuation_start,
+        part_number=part_number,
+        topic_title=topic_title
+    )
     start_sec = clip_info["start_seconds"]
     end_sec = clip_info["end_seconds"]
+    resolved_topic = clip_info.get("topic_title") or topic_title or clip_info.get("viral_title", "Podcast Insight")
+    resolved_topic = re.sub(r"\s*\[Part\s*\d+\]", "", resolved_topic).strip()
     
-    # 4. Generate Karaoke ASS Subtitles
+    # Format Title & Speaker Badge for Episodic Continuity
+    part_badge = f"[Part {part_number}]"
+    base_title = clip_info.get("viral_title", f"{resolved_topic} {part_badge} 💡 #Shorts")
+    if part_badge not in base_title:
+        base_title = f"{resolved_topic} {part_badge} 🧠 #Shorts"
+    clip_info["viral_title"] = base_title
+    
+    badge_name = clip_info.get("speaker_badge", podcast_entry["name"])
+    composed_badge = f"{badge_name} • PART {part_number}"
+    
+    # 4. Generate Karaoke ASS Subtitles (Safe Zone MarginV = 290)
     ass_sub_path = OUTPUT_DIR / f"subtitles_{target_video['id']}.ass"
     generate_karaoke_ass_subtitles(transcript_segments, start_sec, end_sec, ass_sub_path)
     
@@ -1382,7 +1443,7 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
             end_sec=end_sec,
             ass_subtitle_path=ass_sub_path,
             output_final_path=final_render_path,
-            speaker_badge=clip_info.get("speaker_badge", podcast_entry["name"])
+            speaker_badge=composed_badge
         )
     else:
         raw_slice_path = OUTPUT_DIR / f"raw_slice_{target_video['id']}.mp4"
@@ -1391,7 +1452,7 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
             raw_slice_path,
             ass_sub_path,
             final_render_path,
-            speaker_badge=clip_info.get("speaker_badge", podcast_entry["name"])
+            speaker_badge=composed_badge
         )
 
     # 6. Upload to YouTube
@@ -1401,15 +1462,32 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     else:
         log("Dry run active: Skipping YouTube upload.")
 
-    # 7. Update History & State
-    history["last_channel_index"] = next_idx
-    if target_video["id"] not in history.get("processed_videos", []):
-        history["processed_videos"].append(target_video["id"])
+    # 7. Update History & Multi-Part Series State
+    MAX_SERIES_PARTS = 3
+    if part_number < MAX_SERIES_PARTS:
+        history["active_series"] = {
+            "video_id": target_video["id"],
+            "podcast_id": podcast_entry["id"],
+            "episode_title": target_video["title"],
+            "topic_title": resolved_topic,
+            "speaker_badge": badge_name,
+            "current_part": part_number,
+            "max_parts": MAX_SERIES_PARTS,
+            "last_clip_end_sec": end_sec
+        }
+        log(f"📌 Multi-Part Series Progressed: Part {part_number}/{MAX_SERIES_PARTS} completed. Next run will clip Part {part_number + 1}.")
+    else:
+        history["active_series"] = None
+        if target_video["id"] not in history.get("processed_videos", []):
+            history.setdefault("processed_videos", []).append(target_video["id"])
+        history["last_channel_index"] = (history.get("last_channel_index", 0) + 1) % len(catalog["podcasts"])
+        log(f"🎉 Multi-Part Series Finished! (All {MAX_SERIES_PARTS} parts completed). Rotated to next podcast channel.")
         
-    history["processed_clips"].append({
+    history.setdefault("processed_clips", []).append({
         "video_id": target_video["id"],
         "title": clip_info.get("viral_title"),
         "channel": podcast_entry["name"],
+        "part": part_number,
         "start": start_sec,
         "end": end_sec,
         "uploaded_youtube_id": uploaded_id,
