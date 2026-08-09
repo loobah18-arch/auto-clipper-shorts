@@ -1,31 +1,130 @@
-[2026-08-09 13:46:42] [AutoClipper] =======================================================
-[2026-08-09 13:46:42] [AutoClipper]  Starting Auto-Clipper Shorts Pipeline (Episodic Series)
-[2026-08-09 13:46:42] [AutoClipper] =======================================================
-[2026-08-09 13:46:42] [AutoClipper] 🎬 Continuing Episodic Series: Part 2/3 on 'Impact Theory (Tom Bilyeu) Masterclass' from 75.0s...
-[2026-08-09 13:46:42] [AutoClipper] 🎙️ Querying podcast RSS feed for direct audio: https://rss.art19.com/tom-bilyeus-impact-theory
-[2026-08-09 13:46:43] [AutoClipper] 📥 Downloading direct podcast audio from CDN: https://pscrb.fm/rss/p/pdrl.fm/02d1c6/tracking.swap.fm/track/2TbQRMLORjx6LK...
-[2026-08-09 13:46:47] [AutoClipper] ✅ Successfully downloaded clean RSS podcast audio (55.3 MB) -> rss_podcast_audio.mp3
-[2026-08-09 13:46:47] [AutoClipper] Transcribing clean RSS podcast audio with Whisper AI...
-[2026-08-09 13:46:47] [AutoClipper] Loading Whisper model 'base.en' (CPU / int8 for fast inference)...
+[2026-08-09 14:36:49] [AutoClipper] =======================================================
+[2026-08-09 14:36:49] [AutoClipper]  Starting Auto-Clipper Shorts Pipeline (Episodic Series)
+[2026-08-09 14:36:49] [AutoClipper] =======================================================
+[2026-08-09 14:36:49] [AutoClipper] 🎬 Continuing Episodic Series: Part 2/3 on 'Impact Theory (Tom Bilyeu) Masterclass' from 75.0s...
+[2026-08-09 14:36:49] [AutoClipper] 🎙️ Querying podcast RSS feed for direct audio: https://rss.art19.com/tom-bilyeus-impact-theory
+[2026-08-09 14:36:50] [AutoClipper] 📥 Downloading direct podcast audio from CDN: https://pscrb.fm/rss/p/pdrl.fm/02d1c6/tracking.swap.fm/track/2TbQRMLORjx6LK...
+[2026-08-09 14:36:54] [AutoClipper] ✅ Successfully downloaded clean RSS podcast audio (55.9 MB) -> rss_podcast_audio.mp3
+[2026-08-09 14:36:54] [AutoClipper] Transcribing clean RSS podcast audio with Whisper AI...
+[2026-08-09 14:36:54] [AutoClipper] Loading Whisper model 'base.en' (CPU / int8 for fast inference)...
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-[2026-08-09 13:46:49] [AutoClipper] Transcribing audio file (rss_podcast_audio.mp3)...
-[0;93m2026-08-09 13:46:52.929961573 [W:onnxruntime:Default, device_discovery.cc:134 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
-[2026-08-09 13:49:27] [AutoClipper] Transcription complete! Generated 600 segments.
-[2026-08-09 13:49:27] [AutoClipper] 🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part 2, attempt 1)...
-[2026-08-09 13:50:03] [AutoClipper] ⚠️ NVIDIA Nemotron notice (attempt 1): Could not parse JSON from LLM output: The user wants me to find a 35-55 second insight continuation starting around timestamp 01:15 from the transcript. However, looking at the transcript, it seems to be about a political discussion regar
-[2026-08-09 13:50:05] [AutoClipper] 🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part 2, attempt 2)...
-[2026-08-09 13:51:11] [AutoClipper] ⚠️ NVIDIA Nemotron notice (attempt 2): Could not parse JSON from LLM output: The user wants me to find a 35-55 second insight continuation starting around timestamp 01:15 from the provided transcript. However, looking at the transcript, it appears to be a political discussion 
-[2026-08-09 13:51:11] [AutoClipper] Falling back to Groq...
-[2026-08-09 13:51:11] [AutoClipper] Sending transcript to Groq for highlight detection (Part 2)...
-[2026-08-09 13:51:11] [AutoClipper] Groq selected clip (Part 2): 35.0s -> 55.0s (20.0s)
-[2026-08-09 13:51:11] [AutoClipper] Generated dynamic karaoke subtitles with 67 events.
-[2026-08-09 13:51:11] [AutoClipper] 🎨 Rendering Short (20.0s) with Subway Surfers gameplay background...
+[2026-08-09 14:36:56] [AutoClipper] Transcribing audio file (rss_podcast_audio.mp3)...
+[0;93m2026-08-09 14:37:00.313594805 [W:onnxruntime:Default, device_discovery.cc:134 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+[2026-08-09 14:40:35] [AutoClipper] Transcription complete! Generated 705 segments.
+[2026-08-09 14:40:35] [AutoClipper] 🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part 2, attempt 1)...
+[2026-08-09 14:41:18] [AutoClipper] ⚠️ NVIDIA Nemotron notice (attempt 1): Could not parse JSON from LLM output: The user wants me to find a 35-55 second insight continuation starting around timestamp 01:15 (which is 75 seconds) from the transcript provided. The transcript appears to be from a podcast episode, b
+[2026-08-09 14:41:20] [AutoClipper] 🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part 2, attempt 2)...
+[2026-08-09 14:41:21] [AutoClipper] ⚠️ NVIDIA Nemotron notice (attempt 2): HTTP Error 503: Service Unavailable
+[2026-08-09 14:41:21] [AutoClipper] Falling back to Groq...
+[2026-08-09 14:41:21] [AutoClipper] Sending transcript to Groq for highlight detection (Part 2)...
+[2026-08-09 14:41:21] [AutoClipper] Groq selected clip (Part 2): 35.0s -> 55.0s (20.0s)
+[2026-08-09 14:41:21] [AutoClipper] Generated dynamic karaoke subtitles with 74 events.
+[2026-08-09 14:41:21] [AutoClipper] 🎨 Rendering Short (20.0s) with Subway Surfers gameplay background...
+[2026-08-09 14:41:32] [AutoClipper] 🎮 Using Subway Surfers background from subway_surfers_part2.mp4 (offset 34.2s)...
+ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+  built with gcc 13 (Ubuntu 13.2.0-23ubuntu3)
+  configuration: --prefix=/usr --extra-version=3ubuntu5 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --disable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+[Parsed_ass_6 @ 0x561ab1f9a7c0] libass API version: 0x1701000
+[Parsed_ass_6 @ 0x561ab1f9a7c0] libass source: tarball: 0.17.1
+[Parsed_ass_6 @ 0x561ab1f9a7c0] Shaper: FriBidi 1.0.13 (SIMPLE) HarfBuzz-ng 8.3.0 (COMPLEX)
+[Parsed_ass_6 @ 0x561ab1f9a7c0] Using font provider fontconfig
+[Parsed_ass_6 @ 0x561ab1f9a7c0] Added subtitle file: '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/subtitles_BI1P14gjqKI.ass' (2 styles, 74 events)
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/assets/backgrounds/subway_surfers_part2.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf62.12.102
+  Duration: 00:01:00.03, start: 0.000000, bitrate: 2220 kb/s
+  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1280x720 [SAR 1:1 DAR 16:9], 1978 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+    Metadata:
+      handler_name    : ISO Media file produced by Google Inc.
+      vendor_id       : [0][0][0][0]
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s (default)
+    Metadata:
+      handler_name    : ISO Media file produced by Google Inc.
+      vendor_id       : [0][0][0][0]
+Input #1, mp3, from '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/audio_slice_clip_BI1P14gjqKI_final.mp3':
+  Metadata:
+    title           : Why the US Just Bought Yen for the First Time Since 1998, Mamdani Just Learned People Abuse Systems, Democrats Are About to Start Sounding Like the DSA | Weekly Recap
+    artist          : Tom Bilyeu's Impact Theory
+    album           : Tom Bilyeu's Impact Theory
+    genre           : Business
+    copyright       : Copyright Impact Theory
+    publisher       : Impact Theory
+    encoded_by      : ART19, an Amazon company
+    encoder         : Lavf60.16.100
+  Duration: 00:00:20.04, start: 0.025057, bitrate: 192 kb/s
+  Stream #1:0: Audio: mp3, 44100 Hz, stereo, fltp, 192 kb/s
+    Metadata:
+      encoder         : Lavc60.31
+Stream mapping:
+  Stream #0:0 (h264) -> scale:default (graph 0)
+  ass:default (graph 0) -> Stream #0:0 (libx264)
+  Stream #1:0 -> #0:1 (mp3 (mp3float) -> aac (native))
+Press [q] to stop, [?] for help
+[Parsed_ass_6 @ 0x561ab22a2580] libass API version: 0x1701000
+[Parsed_ass_6 @ 0x561ab22a2580] libass source: tarball: 0.17.1
+[Parsed_ass_6 @ 0x561ab22a2580] Shaper: FriBidi 1.0.13 (SIMPLE) HarfBuzz-ng 8.3.0 (COMPLEX)
+[Parsed_ass_6 @ 0x561ab22a2580] Using font provider fontconfig
+[Parsed_ass_6 @ 0x561ab22a2580] Added subtitle file: '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/subtitles_BI1P14gjqKI.ass' (2 styles, 74 events)
+[Parsed_ass_6 @ 0x561ab22a2580] fontselect: (DejaVu Sans, 700, 0) -> /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf, 0, DejaVuSans-Bold
+[libx264 @ 0x561ab2299fc0] using SAR=1/1
+[libx264 @ 0x561ab2299fc0] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 0x561ab2299fc0] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 0x561ab2299fc0] 264 - core 164 r3108 31e19f9 - H.264/MPEG-4 AVC codec - Copyleft 2003-2023 - http://www.videolan.org/x264.html - options: cabac=1 ref=1 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=2 psy=1 psy_rd=1.00:0.00 mixed_ref=0 me_range=16 chroma_me=1 trellis=0 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=0 threads=6 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=1 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=10 rc=crf mbtree=1 crf=20.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/clip_BI1P14gjqKI_final.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf60.16.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1080x1920 [SAR 10240:10239 DAR 1920:3413], q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc60.31.102 libx264
+    Side data:
+      cpb: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+  Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 96000 Hz, stereo, fltp, 192 kb/s
+    Metadata:
+      encoder         : Lavc60.31.102 aac
+frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=   0x    frame=    5 fps=0.0 q=26.0 size=     256kB time=00:00:00.80 bitrate=2621.9kbits/s speed=1.15x    frame=   23 fps= 19 q=26.0 size=    1280kB time=00:00:01.30 bitrate=8058.0kbits/s speed=1.08x    frame=   40 fps= 23 q=26.0 size=    2304kB time=00:00:01.89 bitrate=9941.1kbits/s speed=1.12x    frame=   58 fps= 26 q=26.0 size=    3072kB time=00:00:02.49 bitrate=10082.6kbits/s speed=1.13x    frame=   74 fps= 27 q=26.0 size=    3840kB time=00:00:02.99 bitrate=10495.2kbits/s speed= 1.1x    frame=   91 fps= 28 q=26.0 size=    4864kB time=00:00:03.59 bitrate=11084.8kbits/s speed=1.11x    frame=  110 fps= 29 q=26.0 size=    5632kB time=00:00:04.19 bitrate=11006.1kbits/s speed=1.12x    frame=  131 fps= 31 q=26.0 size=    6144kB time=00:00:04.89 bitrate=10280.2kbits/s speed=1.15x    frame=  150 fps= 31 q=26.0 size=    6912kB time=00:00:05.60 bitrate=10111.3kbits/s speed=1.17x    frame=  169 fps= 32 q=26.0 size=    7936kB time=00:00:06.19 bitrate=10490.3kbits/s speed=1.17x    frame=  186 fps= 32 q=26.0 size=    8704kB time=00:00:06.79 bitrate=10494.0kbits/s speed=1.17x    frame=  203 fps= 32 q=26.0 size=    9728kB time=00:00:07.39 bitrate=10780.9kbits/s speed=1.17x    frame=  221 fps= 33 q=26.0 size=   10752kB time=00:00:07.89 bitrate=11158.9kbits/s speed=1.16x    frame=  239 fps= 33 q=26.0 size=   11520kB time=00:00:08.50 bitrate=11100.9kbits/s speed=1.16x    frame=  259 fps= 33 q=26.0 size=   12288kB time=00:00:09.19 bitrate=10948.1kbits/s speed=1.18x    frame=  277 fps= 33 q=26.0 size=   13312kB time=00:00:09.79 bitrate=11136.9kbits/s speed=1.18x    frame=  296 fps= 34 q=26.0 size=   14080kB time=00:00:10.49 bitrate=10989.3kbits/s speed=1.19x    frame=  314 fps= 34 q=26.0 size=   14848kB time=00:00:11.09 bitrate=10964.7kbits/s speed=1.19x    frame=  333 fps= 34 q=26.0 size=   15616kB time=00:00:11.70 bitrate=10932.7kbits/s speed=1.19x    frame=  352 fps= 34 q=26.0 size=   16384kB time=00:00:12.29 bitrate=10913.2kbits/s speed=1.19x    frame=  371 fps= 34 q=26.0 size=   17408kB time=00:00:12.89 bitrate=11058.2kbits/s speed=1.19x    frame=  389 fps= 34 q=26.0 size=   18176kB time=00:00:13.49 bitrate=11034.9kbits/s speed=1.19x    frame=  404 fps= 34 q=26.0 size=   19200kB time=00:00:14.10 bitrate=11154.0kbits/s speed=1.19x    frame=  422 fps= 34 q=26.0 size=   19968kB time=00:00:14.59 bitrate=11210.1kbits/s speed=1.18x    frame=  440 fps= 34 q=26.0 size=   20736kB time=00:00:15.20 bitrate=11175.6kbits/s speed=1.18x    frame=  459 fps= 34 q=26.0 size=   21760kB time=00:00:15.89 bitrate=11215.9kbits/s speed=1.19x    frame=  477 fps= 34 q=26.0 size=   22528kB time=00:00:16.50 bitrate=11183.9kbits/s speed=1.18x    frame=  494 fps= 34 q=26.0 size=   23040kB time=00:00:17.09 bitrate=11038.5kbits/s speed=1.18x    frame=  514 fps= 34 q=26.0 size=   24064kB time=00:00:17.09 bitrate=11529.1kbits/s speed=1.14x    frame=  535 fps= 35 q=26.0 size=   24064kB time=00:00:17.73 bitrate=11116.5kbits/s speed=1.15x    frame=  554 fps= 35 q=26.0 size=   24064kB time=00:00:18.40 bitrate=10713.7kbits/s speed=1.15x    frame=  575 fps= 35 q=26.0 size=   24064kB time=00:00:19.06 bitrate=10339.1kbits/s speed=1.16x    [out#0/mp4 @ 0x561ab2298e80] video:27126kB audio:468kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.075382%
+frame=  600 fps= 35 q=-1.0 Lsize=   27615kB time=00:00:19.98 bitrate=11317.0kbits/s speed=1.17x    
+[libx264 @ 0x561ab2299fc0] frame I:3     Avg QP:21.17  size:104593
+[libx264 @ 0x561ab2299fc0] frame P:358   Avg QP:22.09  size: 52594
+[libx264 @ 0x561ab2299fc0] frame B:239   Avg QP:23.31  size: 36124
+[libx264 @ 0x561ab2299fc0] consecutive B-frames: 34.0% 31.7% 21.0% 13.3%
+[libx264 @ 0x561ab2299fc0] mb I  I16..4: 22.4% 44.2% 33.5%
+[libx264 @ 0x561ab2299fc0] mb P  I16..4: 21.8% 33.8%  7.4%  P16..4: 13.7%  8.3%  3.7%  0.0%  0.0%    skip:11.3%
+[libx264 @ 0x561ab2299fc0] mb B  I16..4: 10.5% 17.3%  2.4%  B16..8: 23.2% 12.6%  1.6%  direct: 8.5%  skip:23.9%  L0:43.5% L1:48.2% BI: 8.3%
+[libx264 @ 0x561ab2299fc0] 8x8 transform intra:54.4% inter:35.2%
+[libx264 @ 0x561ab2299fc0] coded y,uvDC,uvAC intra: 41.0% 56.9% 22.4% inter: 16.5% 32.8% 3.4%
+[libx264 @ 0x561ab2299fc0] i16 v,h,dc,p: 45% 37%  9%  9%
+[libx264 @ 0x561ab2299fc0] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 32% 27% 15%  3%  5%  6%  4%  5%  3%
+[libx264 @ 0x561ab2299fc0] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 34% 21% 11%  4%  6%  8%  5%  7%  4%
+[libx264 @ 0x561ab2299fc0] i8c dc,h,v,p: 40% 24% 25% 11%
+[libx264 @ 0x561ab2299fc0] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 0x561ab2299fc0] kb/s:11110.42
+[aac @ 0x561ab229b9c0] Qavg: 827.428
+[2026-08-09 14:41:50] [AutoClipper] ✅ Subway Surfers Short render complete: clip_BI1P14gjqKI_final.mp4 (26.97 MB)
+[2026-08-09 14:41:50] [AutoClipper] 📸 Thumbnail generated: thumb_clip_BI1P14gjqKI_final.jpg
+[2026-08-09 14:41:50] [AutoClipper] Authenticating with YouTube Data API...
+[2026-08-09 14:41:50] [AutoClipper] Uploading to YouTube as 'public': Incentive Structure Abuse [Part 2] 🧠 #Shorts...
+[2026-08-09 14:41:52] [AutoClipper] 🎉 Successfully uploaded! Video URL: https://youtube.com/shorts/bBZ-c38ntJ8
+[2026-08-09 14:41:52] [AutoClipper] Uploading high-definition custom thumbnail for bBZ-c38ntJ8...
+[2026-08-09 14:41:55] [AutoClipper] ✅ Custom thumbnail uploaded successfully!
+[2026-08-09 14:41:55] [AutoClipper] 📌 Multi-Part Series Progressed: Part 2/3 completed. Next run will clip Part 3.
 Traceback (most recent call last):
-  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1583, in <module>
+  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1576, in <module>
     run_pipeline(force_url=args.url, force_channel=args.channel, dry_run=args.dry_run)
-  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1505, in run_pipeline
-    render_studio_visualizer_short(
-  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1251, in render_studio_visualizer_short
-    bg_start = random.uniform(5.0, max(5.0, bg_dur - duration - 5.0))
-               ^^^^^^
-NameError: name 'random' is not defined
+  File "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/main.py", line 1557, in run_pipeline
+    for temp_f in [raw_slice_path, ass_sub_path]:
+                   ^^^^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'raw_slice_path' where it is not associated with a value
