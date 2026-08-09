@@ -703,11 +703,10 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
         for attempt in range(1, 3):
             try:
                 log(f"🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight detection (attempt {attempt})...")
-                chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
-                # Nemotron supports 1M context: send full transcript!
+                # Send first 25 high-energy chunks (~35 mins) for rapid 20s reasoning
                 formatted_transcript = "\n".join([
                     f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
-                    for c in chunks[:50]
+                    for c in chunks[:25]
                 ])
                 n_sys = "You are an expert viral YouTube Shorts content strategist. You MUST return ONLY a single JSON object. No conversational text, no markdown wrapper."
                 n_user = (
@@ -995,17 +994,18 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     
     # 1. Ultra-fast direct stream slicing via FFmpeg (Dual 1080p Video + Audio)
     client_profiles = [
-        ("android_vr", []),
+        ("ios,mweb", []),
+        ("mweb,ios", []),
         ("mweb", []),
         ("web", []),
-        ("tv,web", []),
-        ("mweb", ytdlp_cookies_args()),
+        ("tv", []),
+        ("mweb,default", ytdlp_cookies_args()),
         ("web", ytdlp_cookies_args()),
     ]
     formats_to_try = [
-        "137+140/bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
-        "bestvideo+bestaudio/best",
-        "18/22/b/best"
+        "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best/18/22",
+        "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
+        "b/best/bv*+ba"
     ]
     for client_name, cookie_args in client_profiles:
         for fmt in formats_to_try:
@@ -1053,8 +1053,8 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
                 log(f"Direct stream [{client_name}] notice: {ge}. Trying next profile...")
 
     # 2. Fallback to yt-dlp section downloader
-    for fb_client, fb_cookies in [("android_vr", []), ("mweb", []), ("web", []), ("mweb,default", ytdlp_cookies_args()), ("web", ytdlp_cookies_args())]:
-        for fb_fmt in ["137+140/bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best", "bestvideo+bestaudio/best"]:
+    for fb_client, fb_cookies in [("ios,mweb", []), ("mweb,ios", []), ("mweb", []), ("web", []), ("mweb,default", ytdlp_cookies_args()), ("web", ytdlp_cookies_args())]:
+        for fb_fmt in ["bestvideo[height<=1080]+bestaudio/best[height<=1080]/best/18/22", "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best", "b/best"]:
             try:
                 log(f"Downloading video slice via yt-dlp fallback [{fb_client}]: {start_str} to {end_str}...")
                 cmd = [
