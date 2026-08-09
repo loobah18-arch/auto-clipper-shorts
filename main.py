@@ -980,12 +980,40 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     if download_video_via_cobalt(video_url, start_sec, end_sec, output_raw_path):
         return
 
+    # 1. Ultra-fast direct stream slicing via FFmpeg (No DASH merging errors)
+    try:
+        log(f"Resolving direct video stream URL for slice {start_str} to {end_str}...")
+        g_cmd = [
+            "yt-dlp",
+            "-g",
+            "-f", "18/b/best",
+            "--extractor-args", "youtube:player_client=mweb,default",
+        ] + ytdlp_cookies_args() + [video_url]
+        res = subprocess.run(g_cmd, capture_output=True, text=True, check=True)
+        stream_url = res.stdout.strip().split("\n")[0]
+        if stream_url.startswith("http"):
+            log("Direct stream URL resolved. Slicing with FFmpeg...")
+            ff_slice_cmd = [
+                "ffmpeg", "-y",
+                "-ss", start_str,
+                "-to", end_str,
+                "-i", stream_url,
+                "-c", "copy",
+                str(output_raw_path)
+            ]
+            subprocess.run(ff_slice_cmd, check=True, capture_output=True)
+            if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
+                log(f"✅ Video slice created via direct FFmpeg stream ({output_raw_path.stat().st_size / 1024:.1f} KB)")
+                return
+    except Exception as ge:
+        log(f"Direct stream slice notice: {ge}. Trying fallback...")
+
     # 2. Fallback to yt-dlp section downloader
-    log(f"Downloading video slice via yt-dlp: {start_str} to {end_str}...")
+    log(f"Downloading video slice via yt-dlp fallback: {start_str} to {end_str}...")
     cmd = [
         "yt-dlp",
         "--download-sections", f"*{start_str}-{end_str}",
-        "-f", "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b",
+        "-f", "b/best/18",
         "--merge-output-format", "mp4",
         "--force-keyframes-at-cuts",
         "--no-playlist",
