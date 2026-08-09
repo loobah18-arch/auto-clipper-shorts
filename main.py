@@ -10,6 +10,7 @@ import sys
 import re
 import json
 import time
+import random
 import base64
 import shutil
 import tempfile
@@ -745,16 +746,16 @@ def select_viral_clip_with_groq(
         for attempt in range(1, 3):
             try:
                 log(f"🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part {part_number}, attempt {attempt})...")
-                n_sys = "You are an expert viral YouTube Shorts content strategist. You MUST return ONLY a single JSON object. No conversational text, no markdown wrapper."
+                n_sys = "You are an expert viral YouTube Shorts content strategist. You MUST return ONLY a single JSON object. Absolutely NO conversational text, reasoning explanation, or markdown wrapper."
                 n_user = (
                     f"Podcast: {podcast_entry.get('name', 'Podcast')}\n"
                     f"Episode: {video_meta.get('title', 'Episode')}\n"
                     f"Goal: {goal_instruction}\n\n"
                     f"Transcript:\n{formatted_transcript}\n\n"
-                    f"JSON Schema:\n{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"topic_title\": \"<Core 3-5 word topic title>\", "
+                    f"Output ONLY valid raw JSON with this exact schema:\n"
+                    f"{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"topic_title\": \"<Core 3-5 word topic title>\", "
                     f"\"viral_title\": \"<Punchy title under 60 chars with 1 emoji and #Shorts>\", \"hook_reason\": \"<string>\", "
-                    f"\"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<Speaker Name>\"}}\n\n"
-                    f"Return ONLY the JSON object."
+                    f"\"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<Speaker Name>\"}}"
                 )
                 
                 n_payload = json.dumps({
@@ -763,7 +764,7 @@ def select_viral_clip_with_groq(
                         {"role": "system", "content": n_sys},
                         {"role": "user", "content": n_user}
                     ],
-                    "temperature": 0.2,
+                    "temperature": 0.1,
                     "max_tokens": 1024
                 }).encode("utf-8")
                 
@@ -1177,25 +1178,17 @@ def render_vertical_916_short(
 
 def get_background_video_info() -> tuple:
     """
-    Finds the background gameplay video (Subway Surfers).
+    Finds one of the 3 one-minute Subway Surfers gameplay background videos in assets/backgrounds/.
     Returns (Path, duration_seconds) if found, else (None, 0.0).
     """
-    # 1. Check local full-length downloaded file
-    local_download = Path("/sdcard/Download/vidssave.com MEU NOVO RECORDE 30_14 NO COINS - TOP2 GLOBAL SUBWAY SURFERS 720p.mp4")
-    if local_download.exists() and local_download.stat().st_size > 1000000:
-        return (local_download, 1853.0)
-        
-    # 2. Check repository background asset
-    repo_asset = Path(__file__).resolve().parent / "assets" / "backgrounds" / "subway_surfers.mp4"
-    if repo_asset.exists() and repo_asset.stat().st_size > 1000000:
-        return (repo_asset, 200.0)
-        
-    # 3. Check any .mp4 in assets/backgrounds directory
     bg_dir = Path(__file__).resolve().parent / "assets" / "backgrounds"
     if bg_dir.exists():
-        mp4s = list(bg_dir.glob("*.mp4"))
-        if mp4s:
-            return (mp4s[0], 200.0)
+        candidates = sorted(list(bg_dir.glob("subway_surfers_part*.mp4")))
+        if not candidates:
+            candidates = sorted(list(bg_dir.glob("*.mp4")))
+        if candidates:
+            chosen = random.choice(candidates)
+            return (chosen, 60.0)
             
     return (None, 0.0)
 
