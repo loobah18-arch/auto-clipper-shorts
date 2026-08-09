@@ -735,7 +735,7 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
                         "Content-Type": "application/json"
                     }
                 )
-                with urllib.request.urlopen(n_req, timeout=35) as n_resp:
+                with urllib.request.urlopen(n_req, timeout=80) as n_resp:
                     n_data = json.loads(n_resp.read().decode("utf-8"))
                     content = n_data["choices"][0]["message"]["content"]
                     parsed = parse_llm_json(content)
@@ -995,77 +995,90 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     
     # 1. Ultra-fast direct stream slicing via FFmpeg (Dual 1080p Video + Audio)
     client_profiles = [
+        ("mweb", []),
+        ("web", []),
+        ("tv,web", []),
+        ("android_vr", []),
         ("mweb", ytdlp_cookies_args()),
-        ("android_vr,android", []),
-        ("android,ios", []),
-        ("web,tv", []),
+        ("web", ytdlp_cookies_args()),
+    ]
+    formats_to_try = [
+        "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
+        "bestvideo+bestaudio/best",
+        "18/22/b/best"
     ]
     for client_name, cookie_args in client_profiles:
-        try:
-            log(f"Resolving direct video stream URL via [{client_name}] for slice {start_str} to {end_str}...")
-            g_cmd = [
-                "yt-dlp",
-                "-g",
-                "-f", "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
-                "--extractor-args", f"youtube:player_client={client_name}",
-            ] + cookie_args + [video_url]
-            res = subprocess.run(g_cmd, capture_output=True, text=True, check=True)
-            stream_lines = [l.strip() for l in res.stdout.strip().split("\n") if l.strip().startswith("http")]
-            
-            if len(stream_lines) >= 2:
-                v_url, a_url = stream_lines[0], stream_lines[1]
-                log(f"Direct dual stream URLs resolved (video + audio). Slicing with FFmpeg...")
-                ff_slice_cmd = [
-                    "ffmpeg", "-y",
-                    "-ss", start_str, "-to", end_str, "-i", v_url,
-                    "-ss", start_str, "-to", end_str, "-i", a_url,
-                    "-c:v", "copy",
-                    "-c:a", "aac",
-                    "-b:a", "192k",
-                    str(output_raw_path)
-                ]
-                subprocess.run(ff_slice_cmd, check=True, capture_output=True)
-            elif len(stream_lines) == 1:
-                log("Direct single stream URL resolved. Slicing with FFmpeg...")
-                ff_slice_cmd = [
-                    "ffmpeg", "-y",
-                    "-ss", start_str,
-                    "-to", end_str,
-                    "-i", stream_lines[0],
-                    "-c", "copy",
-                    str(output_raw_path)
-                ]
-                subprocess.run(ff_slice_cmd, check=True, capture_output=True)
+        for fmt in formats_to_try:
+            try:
+                log(f"Resolving direct video stream URL via [{client_name}] format [{fmt[:25]}] for slice {start_str} to {end_str}...")
+                g_cmd = [
+                    "yt-dlp",
+                    "-g",
+                    "-f", fmt,
+                    "--no-warnings",
+                    "--extractor-args", f"youtube:player_client={client_name}",
+                ] + cookie_args + [video_url]
+                res = subprocess.run(g_cmd, capture_output=True, text=True, check=True)
+                stream_lines = [l.strip() for l in res.stdout.strip().split("\n") if l.strip().startswith("http")]
                 
-            if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
-                log(f"✅ Video slice created via direct FFmpeg stream ({output_raw_path.stat().st_size / 1024:.1f} KB)")
-                return
-        except Exception as ge:
-            log(f"Direct stream profile [{client_name}] notice: {ge}. Trying next profile...")
+                if len(stream_lines) >= 2:
+                    v_url, a_url = stream_lines[0], stream_lines[1]
+                    log(f"Direct dual stream URLs resolved (video + audio). Slicing with FFmpeg...")
+                    ff_slice_cmd = [
+                        "ffmpeg", "-y",
+                        "-ss", start_str, "-to", end_str, "-i", v_url,
+                        "-ss", start_str, "-to", end_str, "-i", a_url,
+                        "-c:v", "copy",
+                        "-c:a", "aac",
+                        "-b:a", "192k",
+                        str(output_raw_path)
+                    ]
+                    subprocess.run(ff_slice_cmd, check=True, capture_output=True)
+                elif len(stream_lines) == 1:
+                    log("Direct single stream URL resolved. Slicing with FFmpeg...")
+                    ff_slice_cmd = [
+                        "ffmpeg", "-y",
+                        "-ss", start_str,
+                        "-to", end_str,
+                        "-i", stream_lines[0],
+                        "-c", "copy",
+                        str(output_raw_path)
+                    ]
+                    subprocess.run(ff_slice_cmd, check=True, capture_output=True)
+                    
+                if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
+                    log(f"✅ Video slice created via direct FFmpeg stream ({output_raw_path.stat().st_size / 1024:.1f} KB)")
+                    return
+            except Exception as ge:
+                log(f"Direct stream [{client_name}] notice: {ge}. Trying next profile...")
 
-    # 3. Fallback to yt-dlp section downloader
-    for fb_client, fb_cookies in [("mweb,default", ytdlp_cookies_args()), ("android,ios", []), ("web", [])]:
-        try:
-            log(f"Downloading video slice via yt-dlp fallback [{fb_client}]: {start_str} to {end_str}...")
-            cmd = [
-                "yt-dlp",
-                "--download-sections", f"*{start_str}-{end_str}",
-                "-f", "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best",
-                "--merge-output-format", "mp4",
-                "--force-keyframes-at-cuts",
-                "--no-playlist",
-                "--no-warnings",
-                "--extractor-args", f"youtube:player_client={fb_client}",
-            ] + fb_cookies + [
-                "-o", str(output_raw_path),
-                video_url
-            ]
-            subprocess.run(cmd, check=True)
-            if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
-                log(f"✅ Video slice downloaded via yt-dlp fallback ({output_raw_path.stat().st_size / 1024:.1f} KB)")
-                return
-        except Exception as fb_err:
-            log(f"yt-dlp fallback profile [{fb_client}] failed: {fb_err}")
+    # 2. Fallback to yt-dlp section downloader
+    for fb_client, fb_cookies in [("mweb", []), ("web", []), ("mweb,default", ytdlp_cookies_args()), ("android_vr", []), ("web", ytdlp_cookies_args())]:
+        for fb_fmt in ["bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/best", "bestvideo+bestaudio/best"]:
+            try:
+                log(f"Downloading video slice via yt-dlp fallback [{fb_client}]: {start_str} to {end_str}...")
+                cmd = [
+                    "yt-dlp",
+                    "--download-sections", f"*{start_str}-{end_str}",
+                    "-f", fb_fmt,
+                    "--merge-output-format", "mp4",
+                    "--force-keyframes-at-cuts",
+                    "--no-playlist",
+                    "--no-warnings",
+                    "--extractor-args", f"youtube:player_client={fb_client}",
+                ] + fb_cookies + [
+                    "-o", str(output_raw_path),
+                    video_url
+                ]
+                subprocess.run(cmd, check=True)
+                if output_raw_path.exists() and output_raw_path.stat().st_size > 50000:
+                    log(f"✅ Video slice downloaded via yt-dlp fallback ({output_raw_path.stat().st_size / 1024:.1f} KB)")
+                    return
+            except Exception as fb_err:
+                log(f"yt-dlp fallback profile [{fb_client}] failed: {fb_err}")
+
+    if not output_raw_path.exists() or output_raw_path.stat().st_size < 50000:
+        raise RuntimeError(f"Failed to extract video slice for {video_url} from all client profiles.")
 
 
 def render_vertical_916_short(
