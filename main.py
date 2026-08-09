@@ -925,7 +925,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,DejaVu Sans,68,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,2,2,40,40,240,1
+Style: Default,DejaVu Sans,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,3,2,40,40,700,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -949,7 +949,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     })
 
     events = []
-    GROUP_SIZE = 4
+    GROUP_SIZE = 3
     for i in range(0, len(clip_words), GROUP_SIZE):
         group = clip_words[i:i + GROUP_SIZE]
         if not group:
@@ -962,8 +962,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             line_parts = []
             for idx, gw in enumerate(group):
                 if idx == active_idx:
-                    # Pop animation and glowing yellow highlight
-                    line_parts.append(r"{\c&H002BF5FF\fscx110\fscy110}" + gw["word"] + r"{\c&H00FFFFFF\fscx100\fscy100}")
+                    # Pop animation and glowing electric neon cyan highlight
+                    line_parts.append(r"{\c&H002BF5FF\fscx118\fscy118}" + gw["word"] + r"{\c&H00FFFFFF\fscx100\fscy100}")
                 else:
                     line_parts.append(r"{\c&H00FFFFFF\fscx100\fscy100}" + gw["word"])
                     
@@ -1469,6 +1469,18 @@ def render_studio_visualizer_short(
 # =====================================================================
 
 def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, original_video_url: str):
+    # Guard against duplicate uploads
+    history = load_json(HISTORY_PATH)
+    target_vid_id = clip_info.get("video_id")
+    part_num = clip_info.get("part")
+    if target_vid_id and part_num:
+        for past in history.get("processed_clips", []):
+            if (past.get("video_id") == target_vid_id and 
+                past.get("part") == part_num and 
+                past.get("uploaded_youtube_id")):
+                log(f"⚠️ Duplicate protection: Part {part_num} of video {target_vid_id} was already uploaded ({past.get('uploaded_youtube_id')}). Skipping duplicate upload.")
+                return past.get("uploaded_youtube_id")
+
     client_id = os.environ.get("CLIENT_ID")
     client_secret = os.environ.get("CLIENT_SECRET")
     refresh_token = os.environ.get("REFRESH_TOKEN")
@@ -1629,6 +1641,8 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     
     badge_name = clip_info.get("speaker_badge", podcast_entry["name"])
     composed_badge = f"{badge_name} • PART {part_number}"
+    clip_info["video_id"] = target_video["id"]
+    clip_info["part"] = part_number
     
     # 4. Generate Karaoke ASS Subtitles (Safe Zone MarginV = 290)
     ass_sub_path = OUTPUT_DIR / f"subtitles_{target_video['id']}.ass"
