@@ -1,29 +1,28 @@
-[2026-08-09 17:07:02] [AutoClipper] =======================================================
-[2026-08-09 17:07:02] [AutoClipper]  Starting Auto-Clipper Shorts Pipeline (Episodic Series)
-[2026-08-09 17:07:02] [AutoClipper] =======================================================
-[2026-08-09 17:07:02] [AutoClipper] 🎬 Continuing Episodic Series: Part 2/3 on 'The Tim Ferriss Show Masterclass' from 75.0s...
-[2026-08-09 17:07:02] [AutoClipper] 🎙️ Querying podcast RSS feed for direct audio: https://rss.art19.com/tim-ferriss-show
-[2026-08-09 17:07:02] [AutoClipper] 📥 Downloading direct podcast audio (#878: How to Start When You're Stuck, Finish What ...): https://rss.art19.com/episodes/9f261454-c4d9-46aa-91db-4f634...
-[2026-08-09 17:07:03] [AutoClipper] ✅ Successfully downloaded clean RSS audio (54.1 MB) -> rss_podcast_audio.mp3
-[2026-08-09 17:07:03] [AutoClipper] Transcribing clean RSS podcast audio with Whisper AI...
-[2026-08-09 17:07:03] [AutoClipper] Loading Whisper model 'base.en' (CPU / int8 for fast inference)...
-[2026-08-09 17:07:03] [AutoClipper] Transcribing audio file (rss_podcast_audio.mp3)...
-[0;93m2026-08-09 17:07:08.160721331 [W:onnxruntime:Default, device_discovery.cc:134 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
-[2026-08-09 17:10:27] [AutoClipper] Transcription complete! Generated 570 segments.
-[2026-08-09 17:10:27] [AutoClipper] 🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part 2, attempt 1)...
-[2026-08-09 17:10:55] [AutoClipper] ⚠️ NVIDIA Nemotron notice (attempt 1): Could not parse JSON from LLM output: {"start_seconds": 1050, "end_seconds": 1094, "topic_title": "Systemize Writing Sessions
-[2026-08-09 17:10:57] [AutoClipper] 🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part 2, attempt 2)...
-[2026-08-09 17:11:27] [AutoClipper] ⚠️ NVIDIA Nemotron notice (attempt 2): Could not parse JSON from LLM output: The user wants me to find a 38-55 second insight continuation starting strictly after timestamp 01:15 (which is 75 seconds) from the transcript provided. This is PART 2 of a multi-part series.
+[2026-08-09 21:17:55] [AutoClipper] =======================================================
+[2026-08-09 21:17:55] [AutoClipper]  Starting Auto-Clipper Shorts Pipeline (Episodic Series)
+[2026-08-09 21:17:55] [AutoClipper] =======================================================
+[2026-08-09 21:17:55] [AutoClipper] 🎬 Continuing Episodic Series: Part 3/3 on 'The Tim Ferriss Show Masterclass' from 121.0s...
+[2026-08-09 21:17:55] [AutoClipper] 🎙️ Querying podcast RSS feed for direct audio: https://rss.art19.com/tim-ferriss-show
+[2026-08-09 21:17:58] [AutoClipper] 📥 Downloading direct podcast audio (#878: How to Start When You're Stuck, Finish What ...): https://rss.art19.com/episodes/9f261454-c4d9-46aa-91db-4f634...
+[2026-08-09 21:17:58] [AutoClipper] ✅ Successfully downloaded clean RSS audio (54.1 MB) -> rss_podcast_audio.mp3
+[2026-08-09 21:17:58] [AutoClipper] Transcribing clean RSS podcast audio with Whisper AI...
+[2026-08-09 21:17:58] [AutoClipper] Loading Whisper model 'base.en' (CPU / int8 for fast inference)...
+[2026-08-09 21:17:59] [AutoClipper] Transcribing audio file (rss_podcast_audio.mp3)...
+[0;93m2026-08-09 21:18:03.723195190 [W:onnxruntime:Default, device_discovery.cc:134 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+[2026-08-09 21:21:21] [AutoClipper] Transcription complete! Generated 570 segments.
+[2026-08-09 21:21:21] [AutoClipper] 🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part 3, attempt 1)...
+[2026-08-09 21:21:49] [AutoClipper] ⚠️ NVIDIA Nemotron notice (attempt 1): Could not parse JSON from LLM output: The user wants me to find a 38-55 second insight continuation starting strictly after timestamp 02:01 from the transcript. This is PART 3 of a multi-part series on 'The Tim Ferriss Show Masterclass'.
 
-Lookin
-[2026-08-09 17:11:27] [AutoClipper] Falling back to Groq...
-[2026-08-09 17:11:27] [AutoClipper] Sending transcript to Groq for highlight detection (Part 2)...
-[2026-08-09 17:11:28] [AutoClipper] ⚠️ Groq highlight detection notice: Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01ksn2k2rtfyxswpbd4awqykgx` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 91195, Requested 9708. Please try again in 13m0.192s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
-[2026-08-09 17:11:28] [AutoClipper] ⚠️ Groq highlight detection notice: Error code: 413 - {'error': {'message': 'Request too large for model `llama-3.1-8b-instant` in organization `org_01ksn2k2rtfyxswpbd4awqykgx` service tier `on_demand` on tokens per minute (TPM): Limit 6000, Requested 9708, please reduce your message size and try again. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
-[2026-08-09 17:11:28] [AutoClipper] Generated dynamic karaoke subtitles with 115 events.
-[2026-08-09 17:11:28] [AutoClipper] 🎨 Rendering Split-Screen Short (45.0s) with cute animal + Subway Surfers...
-[2026-08-09 17:11:28] [AutoClipper] 🐱 Using cute animal: cute_red_panda.jpg & gameplay: subway_surfers_part1.mp4 (offset 11.4s)...
-[2026-08-09 17:11:28] [AutoClipper] 🎵 Mixing royalty-free BGM: ambient_chill.mp3...
+[2026-08-09 21:21:51] [AutoClipper] 🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part 3, attempt 2)...
+[2026-08-09 21:22:20] [AutoClipper] ⚠️ NVIDIA Nemotron notice (attempt 2): Could not parse JSON from LLM output: The user wants me to find a 38-55 second insight continuation starting strictly after timestamp 02:01 from the transcript. This is PART 3 of a multi-part series on 'The Tim Ferriss Show Masterclass'.
+
+[2026-08-09 21:22:20] [AutoClipper] Falling back to Groq...
+[2026-08-09 21:22:20] [AutoClipper] Sending transcript to Groq for highlight detection (Part 3)...
+[2026-08-09 21:22:21] [AutoClipper] ✅ Groq selected clip (Part 3): 121.5s -> 159.5s (38.0s)
+[2026-08-09 21:22:21] [AutoClipper] Generated dynamic karaoke subtitles with 116 events.
+[2026-08-09 21:22:21] [AutoClipper] 🎨 Rendering Split-Screen Short (38.0s) with cute animal + Subway Surfers...
+[2026-08-09 21:22:22] [AutoClipper] 🐱 Using cute animal: cute_red_panda.jpg & gameplay: subway_surfers_part3.mp4 (offset 10.0s)...
+[2026-08-09 21:22:22] [AutoClipper] 🎵 Mixing royalty-free BGM: ambient_chill.mp3...
 ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
   built with gcc 13 (Ubuntu 13.2.0-23ubuntu3)
   configuration: --prefix=/usr --extra-version=3ubuntu5 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --disable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared
@@ -35,30 +34,30 @@ ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
   libswscale      7.  5.100 /  7.  5.100
   libswresample   4. 12.100 /  4. 12.100
   libpostproc    57.  3.100 / 57.  3.100
-[Parsed_ass_11 @ 0x55dc14627880] libass API version: 0x1701000
-[Parsed_ass_11 @ 0x55dc14627880] libass source: tarball: 0.17.1
-[Parsed_ass_11 @ 0x55dc14627880] Shaper: FriBidi 1.0.13 (SIMPLE) HarfBuzz-ng 8.3.0 (COMPLEX)
-[Parsed_ass_11 @ 0x55dc14627880] Using font provider fontconfig
-[Parsed_ass_11 @ 0x55dc14627880] Added subtitle file: '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/subtitles_4AlZGl1o89s.ass' (2 styles, 115 events)
-Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/assets/backgrounds/subway_surfers_part1.mp4':
+[Parsed_ass_11 @ 0x55bf9a44f8c0] libass API version: 0x1701000
+[Parsed_ass_11 @ 0x55bf9a44f8c0] libass source: tarball: 0.17.1
+[Parsed_ass_11 @ 0x55bf9a44f8c0] Shaper: FriBidi 1.0.13 (SIMPLE) HarfBuzz-ng 8.3.0 (COMPLEX)
+[Parsed_ass_11 @ 0x55bf9a44f8c0] Using font provider fontconfig
+[Parsed_ass_11 @ 0x55bf9a44f8c0] Added subtitle file: '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/subtitles_4AlZGl1o89s.ass' (2 styles, 116 events)
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/assets/backgrounds/subway_surfers_part3.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
     compatible_brands: isomiso2avc1mp41
     encoder         : Lavf62.12.102
-  Duration: 00:01:00.07, start: 0.000000, bitrate: 2008 kb/s
-  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1280x720 [SAR 1:1 DAR 16:9], 1777 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+  Duration: 00:01:00.03, start: 0.000000, bitrate: 2318 kb/s
+  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1280x720 [SAR 1:1 DAR 16:9], 2106 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
     Metadata:
       handler_name    : ISO Media file produced by Google Inc.
       vendor_id       : [0][0][0][0]
-  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 127 kb/s (default)
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s (default)
     Metadata:
       handler_name    : ISO Media file produced by Google Inc.
       vendor_id       : [0][0][0][0]
 Input #1, image2, from '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/assets/images/animals/cute_red_panda.jpg':
   Duration: 00:00:00.04, start: 0.000000, bitrate: 173887 kb/s
   Stream #1:0: Video: mjpeg (Baseline), yuvj420p(pc, bt470bg/unknown/unknown), 1024x1024 [SAR 300:300 DAR 1:1], 25 fps, 25 tbr, 25 tbn
-[aist#2:0/pcm_s16le @ 0x55dc14641ac0] Guessed Channel Layout: stereo
+[aist#2:0/pcm_s16le @ 0x55bf9a469a80] Guessed Channel Layout: stereo
 Input #2, wav, from '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/audio_slice_clip_4AlZGl1o89s_final.wav':
   Metadata:
     artist          : The Tim Ferriss Show
@@ -68,9 +67,9 @@ Input #2, wav, from '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/o
     album           : The Tim Ferriss Show
     encoder         : Lavf60.16.100
     encoded_by      : ART19, an Amazon company
-  Duration: 00:00:45.00, bitrate: 1411 kb/s
+  Duration: 00:00:38.00, bitrate: 1411 kb/s
   Stream #2:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, 2 channels, s16, 1411 kb/s
-[mp3 @ 0x55dc14628940] Estimating duration from bitrate, this may be inaccurate
+[mp3 @ 0x55bf9a45dd00] Estimating duration from bitrate, this may be inaccurate
 Input #3, mp3, from '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/assets/bgm/ambient_chill.mp3':
   Duration: 00:02:27.23, start: 0.000000, bitrate: 255 kb/s
   Stream #3:0: Audio: mp3, 44100 Hz, stereo, fltp, 256 kb/s
@@ -82,20 +81,20 @@ Stream mapping:
   ass:default -> Stream #0:0 (libx264)
   amix:default -> Stream #0:1 (aac)
 Press [q] to stop, [?] for help
-[Parsed_ass_11 @ 0x55dc148d3240] libass API version: 0x1701000
-[Parsed_ass_11 @ 0x55dc148d3240] libass source: tarball: 0.17.1
-[Parsed_ass_11 @ 0x55dc148d3240] Shaper: FriBidi 1.0.13 (SIMPLE) HarfBuzz-ng 8.3.0 (COMPLEX)
-[Parsed_ass_11 @ 0x55dc148d3240] Using font provider fontconfig
-[Parsed_ass_11 @ 0x55dc148d3240] Added subtitle file: '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/subtitles_4AlZGl1o89s.ass' (2 styles, 115 events)
-[swscaler @ 0x55dc14825900] deprecated pixel format used, make sure you did set range correctly
-[swscaler @ 0x55dc15121cc0] deprecated pixel format used, make sure you did set range correctly
+[Parsed_ass_11 @ 0x55bf9a5a3340] libass API version: 0x1701000
+[Parsed_ass_11 @ 0x55bf9a5a3340] libass source: tarball: 0.17.1
+[Parsed_ass_11 @ 0x55bf9a5a3340] Shaper: FriBidi 1.0.13 (SIMPLE) HarfBuzz-ng 8.3.0 (COMPLEX)
+[Parsed_ass_11 @ 0x55bf9a5a3340] Using font provider fontconfig
+[Parsed_ass_11 @ 0x55bf9a5a3340] Added subtitle file: '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/subtitles_4AlZGl1o89s.ass' (2 styles, 116 events)
+[swscaler @ 0x55bf9ae2ce00] deprecated pixel format used, make sure you did set range correctly
+[swscaler @ 0x55bf9af48540] deprecated pixel format used, make sure you did set range correctly
     Last message repeated 2 times
-[Parsed_ass_11 @ 0x55dc148d3240] fontselect: (DejaVu Sans, 700, 0) -> /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf, 0, DejaVuSans-Bold
-[vost#0:0/libx264 @ 0x55dc1488a8c0] No information about the input framerate is available. Falling back to a default value of 25fps. Use the -r option if you want a different framerate.
-[libx264 @ 0x55dc1488acc0] using SAR=1/1
-[libx264 @ 0x55dc1488acc0] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
-[libx264 @ 0x55dc1488acc0] profile High, level 4.0, 4:2:0, 8-bit
-[libx264 @ 0x55dc1488acc0] 264 - core 164 r3108 31e19f9 - H.264/MPEG-4 AVC codec - Copyleft 2003-2023 - http://www.videolan.org/x264.html - options: cabac=1 ref=1 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=2 psy=1 psy_rd=1.00:0.00 mixed_ref=0 me_range=16 chroma_me=1 trellis=0 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=0 threads=6 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=1 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=10 rc=crf mbtree=1 crf=20.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+[Parsed_ass_11 @ 0x55bf9a5a3340] fontselect: (DejaVu Sans, 700, 0) -> /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf, 0, DejaVuSans-Bold
+[vost#0:0/libx264 @ 0x55bf9aac06c0] No information about the input framerate is available. Falling back to a default value of 25fps. Use the -r option if you want a different framerate.
+[libx264 @ 0x55bf9aac0a80] using SAR=1/1
+[libx264 @ 0x55bf9aac0a80] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 0x55bf9aac0a80] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 0x55bf9aac0a80] 264 - core 164 r3108 31e19f9 - H.264/MPEG-4 AVC codec - Copyleft 2003-2023 - http://www.videolan.org/x264.html - options: cabac=1 ref=1 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=2 psy=1 psy_rd=1.00:0.00 mixed_ref=0 me_range=16 chroma_me=1 trellis=0 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=0 threads=6 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=1 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=10 rc=crf mbtree=1 crf=20.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
 Output #0, mp4, to '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/clip_4AlZGl1o89s_final.mp4':
   Metadata:
     major_brand     : isom
@@ -110,32 +109,32 @@ Output #0, mp4, to '/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/ou
   Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 96000 Hz, stereo, fltp, 192 kb/s
     Metadata:
       encoder         : Lavc60.31.102 aac
-frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.06 bitrate=   6.0kbits/s speed=0.293x    frame=    8 fps=0.0 q=25.0 size=     256kB time=00:00:01.16 bitrate=1804.1kbits/s dup=0 drop=29 speed=1.61x    frame=   29 fps= 24 q=25.0 size=    1024kB time=00:00:02.05 bitrate=4075.0kbits/s dup=0 drop=56 speed=1.68x    frame=   53 fps= 31 q=25.0 size=    1792kB time=00:00:02.96 bitrate=4950.7kbits/s dup=0 drop=84 speed=1.72x    frame=   77 fps= 35 q=25.0 size=    2304kB time=00:00:03.95 bitrate=4769.6kbits/s dup=0 drop=112 speed=1.78x    frame=  102 fps= 37 q=25.0 size=    3072kB time=00:00:04.86 bitrate=5174.0kbits/s dup=0 drop=142 speed=1.78x    frame=  126 fps= 39 q=25.0 size=    3840kB time=00:00:05.86 bitrate=5362.1kbits/s dup=0 drop=171 speed=1.81x    frame=  149 fps= 40 q=25.0 size=    4864kB time=00:00:06.85 bitrate=5809.6kbits/s dup=0 drop=200 speed=1.83x    frame=  174 fps= 41 q=25.0 size=    5632kB time=00:00:07.76 bitrate=5941.5kbits/s dup=0 drop=229 speed=1.82x    frame=  197 fps= 41 q=25.0 size=    6656kB time=00:00:08.75 bitrate=6226.4kbits/s dup=0 drop=257 speed=1.83x    frame=  220 fps= 42 q=25.0 size=    7424kB time=00:00:09.66 bitrate=6293.2kbits/s dup=0 drop=284 speed=1.83x    frame=  244 fps= 42 q=25.0 size=    8448kB time=00:00:10.56 bitrate=6553.6kbits/s dup=0 drop=313 speed=1.82x    frame=  267 fps= 42 q=25.0 size=    9728kB time=00:00:11.56 bitrate=6892.2kbits/s dup=0 drop=340 speed=1.83x    frame=  292 fps= 43 q=25.0 size=   10752kB time=00:00:12.56 bitrate=7009.8kbits/s dup=0 drop=370 speed=1.84x    frame=  316 fps= 43 q=25.0 size=   11520kB time=00:00:13.46 bitrate=7010.6kbits/s dup=0 drop=399 speed=1.84x    frame=  339 fps= 43 q=25.0 size=   12288kB time=00:00:14.35 bitrate=7011.3kbits/s dup=0 drop=427 speed=1.83x    frame=  363 fps= 44 q=25.0 size=   13312kB time=00:00:15.36 bitrate=7099.8kbits/s dup=0 drop=455 speed=1.84x    frame=  388 fps= 44 q=25.0 size=   14080kB time=00:00:16.36 bitrate=7049.2kbits/s dup=0 drop=485 speed=1.85x    frame=  413 fps= 44 q=25.0 size=   14848kB time=00:00:17.36 bitrate=7004.5kbits/s dup=0 drop=517 speed=1.86x    frame=  440 fps= 45 q=25.0 size=   15360kB time=00:00:18.46 bitrate=6814.9kbits/s dup=0 drop=549 speed=1.87x    frame=  466 fps= 45 q=25.0 size=   16128kB time=00:00:19.46 bitrate=6787.0kbits/s dup=0 drop=579 speed=1.88x    frame=  492 fps= 45 q=25.0 size=   16640kB time=00:00:20.56 bitrate=6628.4kbits/s dup=0 drop=610 speed=1.89x    frame=  518 fps= 46 q=25.0 size=   17664kB time=00:00:21.55 bitrate=6712.5kbits/s dup=0 drop=641 speed=1.89x    frame=  543 fps= 46 q=25.0 size=   18176kB time=00:00:22.56 bitrate=6600.1kbits/s dup=0 drop=673 speed= 1.9x    frame=  567 fps= 46 q=25.0 size=   18944kB time=00:00:23.56 bitrate=6586.3kbits/s dup=0 drop=700 speed= 1.9x    frame=  592 fps= 46 q=25.0 size=   19968kB time=00:00:24.45 bitrate=6687.9kbits/s dup=0 drop=730 speed= 1.9x    frame=  614 fps= 46 q=25.0 size=   20736kB time=00:00:25.46 bitrate=6671.7kbits/s dup=0 drop=758 speed= 1.9x    frame=  639 fps= 46 q=25.0 size=   21504kB time=00:00:26.35 bitrate=6683.6kbits/s dup=0 drop=787 speed= 1.9x    frame=  662 fps= 46 q=25.0 size=   22272kB time=00:00:27.36 bitrate=6668.6kbits/s dup=0 drop=814 speed= 1.9x    frame=  686 fps= 46 q=25.0 size=   23296kB time=00:00:28.26 bitrate=6751.5kbits/s dup=0 drop=844 speed= 1.9x    frame=  709 fps= 46 q=25.0 size=   24064kB time=00:00:29.16 bitrate=6759.8kbits/s dup=0 drop=871 speed=1.89x    frame=  733 fps= 46 q=25.0 size=   24832kB time=00:00:30.16 bitrate=6743.6kbits/s dup=0 drop=901 speed= 1.9x    frame=  757 fps= 46 q=25.0 size=   26112kB time=00:00:31.15 bitrate=6865.5kbits/s dup=0 drop=928 speed= 1.9x    frame=  781 fps= 46 q=25.0 size=   27136kB time=00:00:32.06 bitrate=6933.0kbits/s dup=0 drop=957 speed=1.89x    frame=  805 fps= 46 q=25.0 size=   28160kB time=00:00:33.06 bitrate=6976.4kbits/s dup=0 drop=986 speed= 1.9x    frame=  832 fps= 46 q=25.0 size=   29184kB time=00:00:34.05 bitrate=7019.5kbits/s dup=0 drop=1018 speed= 1.9x    frame=  858 fps= 46 q=25.0 size=   29952kB time=00:00:35.15 bitrate=6979.1kbits/s dup=0 drop=1051 speed=1.91x    frame=  884 fps= 47 q=25.0 size=   30976kB time=00:00:36.16 bitrate=7017.6kbits/s dup=0 drop=1081 speed=1.91x    frame=  909 fps= 47 q=25.0 size=   31744kB time=00:00:37.16 bitrate=6997.5kbits/s dup=0 drop=1111 speed=1.91x    frame=  934 fps= 47 q=25.0 size=   32512kB time=00:00:38.16 bitrate=6978.6kbits/s dup=0 drop=1141 speed=1.91x    frame=  960 fps= 47 q=25.0 size=   33280kB time=00:00:39.26 bitrate=6943.5kbits/s dup=0 drop=1172 speed=1.92x    frame=  984 fps= 47 q=25.0 size=   34048kB time=00:00:40.16 bitrate=6945.3kbits/s dup=0 drop=1201 speed=1.91x    frame= 1009 fps= 47 q=25.0 size=   35328kB time=00:00:41.16 bitrate=7030.8kbits/s dup=0 drop=1231 speed=1.92x    frame= 1032 fps= 47 q=25.0 size=   36096kB time=00:00:42.05 bitrate=7030.6kbits/s dup=0 drop=1258 speed=1.91x    frame= 1060 fps= 47 q=25.0 size=   36864kB time=00:00:42.28 bitrate=7142.6kbits/s dup=0 drop=1292 speed=1.88x    frame= 1087 fps= 47 q=25.0 size=   36864kB time=00:00:43.36 bitrate=6964.7kbits/s dup=0 drop=1324 speed=1.88x    [out#0/mp4 @ 0x55dc14889b40] video:38048kB audio:1021kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.111216%
-frame= 1125 fps= 48 q=-1.0 Lsize=   39113kB time=00:00:44.88 bitrate=7139.3kbits/s dup=0 drop=1347 speed= 1.9x    
-[libx264 @ 0x55dc1488acc0] frame I:5     Avg QP:18.62  size:319323
-[libx264 @ 0x55dc1488acc0] frame P:436   Avg QP:19.65  size: 46467
-[libx264 @ 0x55dc1488acc0] frame B:684   Avg QP:22.26  size: 25006
-[libx264 @ 0x55dc1488acc0] consecutive B-frames: 10.7% 17.2% 22.7% 49.4%
-[libx264 @ 0x55dc1488acc0] mb I  I16..4: 11.2% 22.3% 66.6%
-[libx264 @ 0x55dc1488acc0] mb P  I16..4:  7.6% 12.7%  6.1%  P16..4:  8.6%  7.0%  4.6%  0.0%  0.0%    skip:53.3%
-[libx264 @ 0x55dc1488acc0] mb B  I16..4:  3.2%  5.0%  1.2%  B16..8: 14.1% 10.0%  1.9%  direct: 4.0%  skip:60.6%  L0:42.1% L1:45.2% BI:12.8%
-[libx264 @ 0x55dc1488acc0] 8x8 transform intra:49.0% inter:17.0%
-[libx264 @ 0x55dc1488acc0] coded y,uvDC,uvAC intra: 49.9% 68.1% 38.4% inter: 9.0% 14.9% 3.3%
-[libx264 @ 0x55dc1488acc0] i16 v,h,dc,p: 35% 44% 12%  9%
-[libx264 @ 0x55dc1488acc0] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 26% 26% 17%  4%  5%  7%  5%  6%  4%
-[libx264 @ 0x55dc1488acc0] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 31% 22% 12%  5%  6%  8%  5%  7%  4%
-[libx264 @ 0x55dc1488acc0] i8c dc,h,v,p: 39% 26% 26%  9%
-[libx264 @ 0x55dc1488acc0] Weighted P-Frames: Y:0.0% UV:0.0%
-[libx264 @ 0x55dc1488acc0] kb/s:6926.30
-[aac @ 0x55dc1488c800] Qavg: 687.787
-[2026-08-09 17:11:52] [AutoClipper] ✅ Short render complete: clip_4AlZGl1o89s_final.mp4 (38.20 MB)
-[2026-08-09 17:11:52] [AutoClipper] 📸 Thumbnail generated: thumb_clip_4AlZGl1o89s_final.jpg
-[2026-08-09 17:11:52] [AutoClipper] Authenticating with YouTube Data API...
-[2026-08-09 17:11:52] [AutoClipper] Uploading to YouTube as 'public': The Tim Ferriss Show Insight [Part 2] 💡 #Shorts...
-[2026-08-09 17:11:54] [AutoClipper] 🎉 Successfully uploaded! Video URL: https://youtube.com/shorts/WtyP3KKuSqQ
-[2026-08-09 17:11:54] [AutoClipper] Uploading high-definition custom thumbnail for WtyP3KKuSqQ...
-[2026-08-09 17:11:55] [AutoClipper] Thumbnail upload notice: <HttpError 429 when requesting https://youtube.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=WtyP3KKuSqQ&alt=json&uploadType=media returned "The user has uploaded too many thumbnails recently. Please try the request again later.". Details: "[{'message': 'The user has uploaded too many thumbnails recently. Please try the request again later.', 'domain': 'youtube.thumbnail', 'reason': 'uploadRateLimitExceeded'}]">
-[2026-08-09 17:11:55] [AutoClipper] 📌 Multi-Part Series Progressed: Part 2/3 completed. Next run will clip Part 3.
-[2026-08-09 17:11:55] [AutoClipper] =======================================================
-[2026-08-09 17:11:55] [AutoClipper]  Pipeline Finished Successfully! 🎉
-[2026-08-09 17:11:55] [AutoClipper] =======================================================
+frame=    0 fps=0.0 q=0.0 size=       0kB time=00:00:00.06 bitrate=   6.0kbits/s speed=0.169x    frame=    9 fps=0.0 q=25.0 size=     256kB time=00:00:01.16 bitrate=1804.1kbits/s dup=0 drop=30 speed=1.31x    frame=   29 fps= 21 q=25.0 size=    1280kB time=00:00:01.96 bitrate=5342.8kbits/s dup=0 drop=55 speed=1.42x    frame=   54 fps= 28 q=25.0 size=    2048kB time=00:00:02.96 bitrate=5657.9kbits/s dup=0 drop=84 speed=1.56x    frame=   79 fps= 33 q=25.0 size=    3072kB time=00:00:03.95 bitrate=6359.4kbits/s dup=0 drop=114 speed=1.64x    frame=  102 fps= 35 q=25.0 size=    4352kB time=00:00:04.96 bitrate=7187.9kbits/s dup=0 drop=142 speed= 1.7x    frame=  125 fps= 37 q=25.0 size=    5376kB time=00:00:05.86 bitrate=7506.9kbits/s dup=0 drop=170 speed=1.72x    frame=  148 fps= 38 q=25.0 size=    6400kB time=00:00:06.76 bitrate=7752.7kbits/s dup=0 drop=198 speed=1.72x    frame=  172 fps= 39 q=25.0 size=    7424kB time=00:00:07.65 bitrate=7941.0kbits/s dup=0 drop=226 speed=1.73x    frame=  194 fps= 39 q=25.0 size=    8192kB time=00:00:08.66 bitrate=7748.1kbits/s dup=0 drop=254 speed=1.76x    frame=  219 fps= 40 q=25.0 size=    8704kB time=00:00:09.55 bitrate=7460.6kbits/s dup=0 drop=283 speed=1.76x    frame=  243 fps= 41 q=25.0 size=    9728kB time=00:00:10.56 bitrate=7546.6kbits/s dup=0 drop=311 speed=1.78x    frame=  263 fps= 41 q=25.0 size=   10752kB time=00:00:11.36 bitrate=7753.6kbits/s dup=0 drop=335 speed=1.76x    frame=  287 fps= 41 q=25.0 size=   11520kB time=00:00:12.36 bitrate=7633.6kbits/s dup=0 drop=364 speed=1.78x    frame=  311 fps= 42 q=25.0 size=   12544kB time=00:00:13.25 bitrate=7750.5kbits/s dup=0 drop=393 speed=1.78x    frame=  334 fps= 42 q=25.0 size=   13312kB time=00:00:14.16 bitrate=7698.5kbits/s dup=0 drop=421 speed=1.78x    frame=  358 fps= 42 q=25.0 size=   14336kB time=00:00:15.15 bitrate=7748.1kbits/s dup=0 drop=449 speed=1.79x    frame=  382 fps= 43 q=25.0 size=   15104kB time=00:00:16.06 bitrate=7702.5kbits/s dup=0 drop=478 speed=1.79x    frame=  407 fps= 43 q=25.0 size=   16128kB time=00:00:17.06 bitrate=7741.5kbits/s dup=0 drop=508 speed= 1.8x    frame=  429 fps= 43 q=25.0 size=   16896kB time=00:00:18.05 bitrate=7664.6kbits/s dup=0 drop=536 speed=1.81x    frame=  453 fps= 43 q=25.0 size=   17920kB time=00:00:18.96 bitrate=7740.5kbits/s dup=0 drop=563 speed=1.81x    frame=  478 fps= 44 q=25.0 size=   18688kB time=00:00:19.95 bitrate=7671.0kbits/s dup=0 drop=593 speed=1.82x    frame=  500 fps= 44 q=25.0 size=   19712kB time=00:00:20.86 bitrate=7739.7kbits/s dup=0 drop=621 speed=1.82x    frame=  524 fps= 44 q=25.0 size=   20992kB time=00:00:21.76 bitrate=7902.9kbits/s dup=0 drop=648 speed=1.81x    frame=  547 fps= 44 q=25.0 size=   22016kB time=00:00:22.76 bitrate=7923.3kbits/s dup=0 drop=676 speed=1.82x    frame=  571 fps= 44 q=25.0 size=   22784kB time=00:00:23.65 bitrate=7889.2kbits/s dup=0 drop=706 speed=1.82x    frame=  593 fps= 44 q=25.0 size=   23808kB time=00:00:24.56 bitrate=7939.5kbits/s dup=0 drop=731 speed=1.82x    frame=  619 fps= 44 q=25.0 size=   24832kB time=00:00:25.55 bitrate=7959.5kbits/s dup=0 drop=763 speed=1.82x    frame=  641 fps= 44 q=25.0 size=   25856kB time=00:00:26.46 bitrate=8003.8kbits/s dup=0 drop=789 speed=1.82x    frame=  664 fps= 44 q=25.0 size=   26624kB time=00:00:27.36 bitrate=7971.6kbits/s dup=0 drop=817 speed=1.82x    frame=  687 fps= 44 q=25.0 size=   27648kB time=00:00:28.26 bitrate=8012.7kbits/s dup=0 drop=844 speed=1.82x    frame=  712 fps= 44 q=25.0 size=   28416kB time=00:00:29.25 bitrate=7956.1kbits/s dup=0 drop=874 speed=1.83x    frame=  737 fps= 45 q=25.0 size=   29184kB time=00:00:30.35 bitrate=7875.4kbits/s dup=0 drop=904 speed=1.84x    frame=  761 fps= 45 q=25.0 size=   30208kB time=00:00:31.26 bitrate=7915.3kbits/s dup=0 drop=934 speed=1.83x    frame=  784 fps= 45 q=25.0 size=   30976kB time=00:00:32.16 bitrate=7890.4kbits/s dup=0 drop=961 speed=1.83x    frame=  808 fps= 45 q=25.0 size=   32000kB time=00:00:33.16 bitrate=7904.8kbits/s dup=0 drop=990 speed=1.84x    frame=  832 fps= 45 q=25.0 size=   33024kB time=00:00:34.16 bitrate=7918.3kbits/s dup=0 drop=1018 speed=1.84x    frame=  857 fps= 45 q=25.0 size=   34048kB time=00:00:35.06 bitrate=7955.2kbits/s dup=0 drop=1048 speed=1.84x    frame=  884 fps= 45 q=25.0 size=   34816kB time=00:00:35.24 bitrate=8093.4kbits/s dup=0 drop=1080 speed= 1.8x    frame=  910 fps= 45 q=25.0 size=   34816kB time=00:00:36.32 bitrate=7852.8kbits/s dup=0 drop=1113 speed=1.81x    [out#0/mp4 @ 0x55bf9aabf940] video:36631kB audio:864kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.097424%
+frame=  950 fps= 46 q=-1.0 Lsize=   37532kB time=00:00:37.88 bitrate=8116.7kbits/s dup=0 drop=1137 speed=1.83x    
+[libx264 @ 0x55bf9aac0a80] frame I:4     Avg QP:18.88  size:319454
+[libx264 @ 0x55bf9aac0a80] frame P:394   Avg QP:19.87  size: 49879
+[libx264 @ 0x55bf9aac0a80] frame B:552   Avg QP:22.56  size: 30035
+[libx264 @ 0x55bf9aac0a80] consecutive B-frames: 12.9% 21.3% 22.4% 43.4%
+[libx264 @ 0x55bf9aac0a80] mb I  I16..4:  9.9% 21.0% 69.1%
+[libx264 @ 0x55bf9aac0a80] mb P  I16..4:  8.5% 14.6%  7.9%  P16..4:  7.0%  6.1%  4.1%  0.0%  0.0%    skip:51.8%
+[libx264 @ 0x55bf9aac0a80] mb B  I16..4:  3.9%  6.3%  1.7%  B16..8: 13.4% 10.7%  2.2%  direct: 3.8%  skip:57.8%  L0:42.4% L1:45.4% BI:12.2%
+[libx264 @ 0x55bf9aac0a80] 8x8 transform intra:48.5% inter:17.3%
+[libx264 @ 0x55bf9aac0a80] coded y,uvDC,uvAC intra: 50.9% 68.4% 40.8% inter: 9.8% 16.0% 4.1%
+[libx264 @ 0x55bf9aac0a80] i16 v,h,dc,p: 38% 43% 11%  9%
+[libx264 @ 0x55bf9aac0a80] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 27% 27% 16%  4%  5%  7%  4%  6%  4%
+[libx264 @ 0x55bf9aac0a80] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 31% 22% 12%  5%  6%  8%  5%  7%  4%
+[libx264 @ 0x55bf9aac0a80] i8c dc,h,v,p: 39% 26% 26%  9%
+[libx264 @ 0x55bf9aac0a80] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 0x55bf9aac0a80] kb/s:7896.71
+[aac @ 0x55bf9aac27c0] Qavg: 600.872
+[2026-08-09 21:22:43] [AutoClipper] ✅ Short render complete: clip_4AlZGl1o89s_final.mp4 (36.65 MB)
+[2026-08-09 21:22:43] [AutoClipper] 📸 Thumbnail generated: thumb_clip_4AlZGl1o89s_final.jpg
+[2026-08-09 21:22:43] [AutoClipper] Authenticating with YouTube Data API...
+[2026-08-09 21:22:43] [AutoClipper] Uploading to YouTube as 'public': Creative Project Management [Part 3] 🧠 #Shorts...
+[2026-08-09 21:22:45] [AutoClipper] 🎉 Successfully uploaded! Video URL: https://youtube.com/shorts/m9y4xTLbkSw
+[2026-08-09 21:22:45] [AutoClipper] Uploading high-definition custom thumbnail for m9y4xTLbkSw...
+[2026-08-09 21:22:45] [AutoClipper] Thumbnail upload notice: <HttpError 429 when requesting https://youtube.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=m9y4xTLbkSw&alt=json&uploadType=media returned "The user has uploaded too many thumbnails recently. Please try the request again later.". Details: "[{'message': 'The user has uploaded too many thumbnails recently. Please try the request again later.', 'domain': 'youtube.thumbnail', 'reason': 'uploadRateLimitExceeded'}]">
+[2026-08-09 21:22:45] [AutoClipper] 🎉 Multi-Part Series Finished! (All 3 parts completed). Rotated to next podcast channel.
+[2026-08-09 21:22:45] [AutoClipper] =======================================================
+[2026-08-09 21:22:45] [AutoClipper]  Pipeline Finished Successfully! 🎉
+[2026-08-09 21:22:45] [AutoClipper] =======================================================
