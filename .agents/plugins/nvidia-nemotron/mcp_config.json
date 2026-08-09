@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "nvidia-nemotron": {
+      "command": "python3",
+      "args": [
+        "/data/data/com.termux/files/home/antigravity/auto-clipper-shorts/.agents/plugins/nvidia-nemotron/mcp_server.py"
+      ],
+      "env": {
+        "NVIDIA_API_KEY": "${NVIDIA_API_KEY}"
+      }
+    }
+  }
+}
