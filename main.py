@@ -1149,6 +1149,99 @@ def render_vertical_916_short(
         log(f"Thumbnail frame notice: {te}")
 
 
+def render_studio_visualizer_short(
+    audio_full_path: Path,
+    start_sec: float,
+    end_sec: float,
+    ass_subtitle_path: Path,
+    output_final_path: Path,
+    speaker_badge: str = ""
+):
+    """
+    Renders a high-aesthetic 1080x1920 Studio Visualizer short using official podcast audio track,
+    dynamic neon audio waveforms, speaker badges, and kinetic karaoke subtitles.
+    100% immune to YouTube BotGuard / datacenter IP blocks.
+    """
+    if output_final_path.exists():
+        output_final_path.unlink()
+        
+    duration = max(10.0, end_sec - start_sec)
+    log(f"🎨 Rendering Studio Visualizer Short ({duration:.1f}s) with dynamic waveform...")
+    
+    # 1. Slice audio segment directly with FFmpeg
+    audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.mp3")
+    start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}"
+    dur_str = f"{duration:.2f}"
+    
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-ss", start_str,
+        "-i", str(audio_full_path),
+        "-t", dur_str,
+        "-c:a", "libmp3lame",
+        "-b:a", "192k",
+        str(audio_slice_path)
+    ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    # 2. Safe ASS escaping
+    ass_filter_path = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
+    badge_text = (speaker_badge or "PODCAST INSIGHT").replace(":", " ").replace("'", "").replace("%", "").replace("\\", "").upper()
+    
+    font_file = find_system_font()
+    if os.path.exists(font_file):
+        font_opt = f"fontfile='{font_file}'"
+    else:
+        font_opt = "font='DejaVu Sans'"
+
+    filtergraph = (
+        f"color=c=#0B0E14:s=1080x1920:d={dur_str}[bg];"
+        "[0:a]showwaves=s=920x240:mode=p2p:colors=#00D2FF@0.85[wave];"
+        "[bg][wave]overlay=(W-w)/2:(H-h)/2 - 50,"
+        f"drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
+        f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
+        f"ass='{ass_filter_path}'[v]"
+    )
+    
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(audio_slice_path),
+        "-filter_complex", filtergraph,
+        "-map", "[v]",
+        "-map", "0:a",
+        "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "19",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-pix_fmt", "yuv420p",
+        "-shortest",
+        str(output_final_path)
+    ]
+    
+    subprocess.run(cmd, check=True)
+    if audio_slice_path.exists():
+        audio_slice_path.unlink()
+        
+    log(f"✅ Studio Visualizer render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
+
+    # Thumbnail generation
+    thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
+    try:
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-ss", "00:00:03",
+            "-i", str(output_final_path),
+            "-vframes", "1",
+            "-q:v", "2",
+            str(thumb_path)
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if thumb_path.exists():
+            log(f"📸 Thumbnail generated: {thumb_path.name}")
+    except Exception:
+        pass
+
+
 # =====================================================================
 # 6. YouTube Upload (YouTube Data API v3)
 # =====================================================================
@@ -1278,17 +1371,28 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     ass_sub_path = OUTPUT_DIR / f"subtitles_{target_video['id']}.ass"
     generate_karaoke_ass_subtitles(transcript_segments, start_sec, end_sec, ass_sub_path)
     
-    # 5. Download Video Slice & Render 9:16 Short
-    raw_slice_path = OUTPUT_DIR / f"raw_slice_{target_video['id']}.mp4"
-    download_video_clip_segment(target_video["url"], start_sec, end_sec, raw_slice_path)
-    
+    # 5. Render Studio Visualizer Short (100% immune to YouTube BotGuard)
+    audio_full_path = OUTPUT_DIR / "rss_podcast_audio.mp3"
     final_render_path = OUTPUT_DIR / f"clip_{target_video['id']}_final.mp4"
-    render_vertical_916_short(
-        raw_slice_path,
-        ass_sub_path,
-        final_render_path,
-        speaker_badge=clip_info.get("speaker_badge", podcast_entry["name"])
-    )
+    
+    if audio_full_path.exists() and audio_full_path.stat().st_size > 500000:
+        render_studio_visualizer_short(
+            audio_full_path=audio_full_path,
+            start_sec=start_sec,
+            end_sec=end_sec,
+            ass_subtitle_path=ass_sub_path,
+            output_final_path=final_render_path,
+            speaker_badge=clip_info.get("speaker_badge", podcast_entry["name"])
+        )
+    else:
+        raw_slice_path = OUTPUT_DIR / f"raw_slice_{target_video['id']}.mp4"
+        download_video_clip_segment(target_video["url"], start_sec, end_sec, raw_slice_path)
+        render_vertical_916_short(
+            raw_slice_path,
+            ass_sub_path,
+            final_render_path,
+            speaker_badge=clip_info.get("speaker_badge", podcast_entry["name"])
+        )
 
     # 6. Upload to YouTube
     uploaded_id = None
