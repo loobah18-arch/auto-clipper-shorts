@@ -1469,6 +1469,18 @@ def render_studio_visualizer_short(
 # =====================================================================
 
 def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, original_video_url: str):
+    # Guard against duplicate uploads
+    history = load_json(HISTORY_PATH)
+    target_vid_id = clip_info.get("video_id")
+    part_num = clip_info.get("part")
+    if target_vid_id and part_num:
+        for past in history.get("processed_clips", []):
+            if (past.get("video_id") == target_vid_id and 
+                past.get("part") == part_num and 
+                past.get("uploaded_youtube_id")):
+                log(f"⚠️ Duplicate protection: Part {part_num} of video {target_vid_id} was already uploaded ({past.get('uploaded_youtube_id')}). Skipping duplicate upload.")
+                return past.get("uploaded_youtube_id")
+
     client_id = os.environ.get("CLIENT_ID")
     client_secret = os.environ.get("CLIENT_SECRET")
     refresh_token = os.environ.get("REFRESH_TOKEN")
@@ -1629,6 +1641,8 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     
     badge_name = clip_info.get("speaker_badge", podcast_entry["name"])
     composed_badge = f"{badge_name} • PART {part_number}"
+    clip_info["video_id"] = target_video["id"]
+    clip_info["part"] = part_number
     
     # 4. Generate Karaoke ASS Subtitles (Safe Zone MarginV = 290)
     ass_sub_path = OUTPUT_DIR / f"subtitles_{target_video['id']}.ass"

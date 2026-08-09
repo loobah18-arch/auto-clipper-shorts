@@ -1,9 +1,6 @@
 name: 🎬 Auto Podcast Clipper Shorts
 
 on:
-  push:
-    branches:
-      - main
   schedule:
     # Runs twice daily at 08:00 and 20:00 UTC (100% free runner minutes)
     - cron: '0 8,20 * * *'
@@ -22,6 +19,10 @@ on:
         required: false
         default: false
         type: boolean
+
+concurrency:
+  group: auto_clipper_pipeline
+  cancel-in-progress: false
 
 permissions:
   contents: write
