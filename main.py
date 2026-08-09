@@ -690,9 +690,51 @@ def select_viral_clip_with_groq(transcript_segments: list, video_meta: dict, pod
     """
     Prompts Groq Llama 3.3 to analyze transcript and select the single most engaging 30-55s clip.
     """
+    # 1. Check if NVIDIA Nemotron 3 Ultra is configured
+    nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
+    if nvidia_api_key:
+        try:
+            log("🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight detection...")
+            chunks = chunk_transcript(transcript_segments, max_duration_sec=90.0)
+            # Nemotron supports 1M context: send full transcript!
+            formatted_transcript = "\n".join([
+                f"[{format_seconds_to_min_sec(c['start'])} - {format_seconds_to_min_sec(c['end'])}] {c['text']}"
+                for c in chunks[:50]
+            ])
+            n_sys = "You are an expert viral YouTube Shorts strategist. Output valid JSON only."
+            n_user = f"Analyze transcript and pick the best 30-55s clip:\n{formatted_transcript}\n\nJSON Schema:\n{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"viral_title\": \"<string>\", \"hook_reason\": \"<string>\", \"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<string>\"}}"
+            
+            n_payload = json.dumps({
+                "model": "nvidia/nemotron-3-ultra-550b-a55b",
+                "messages": [
+                    {"role": "system", "content": n_sys},
+                    {"role": "user", "content": n_user}
+                ],
+                "temperature": 0.3,
+                "max_tokens": 600
+            }).encode("utf-8")
+            
+            n_req = urllib.request.Request(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                data=n_payload,
+                headers={
+                    "Authorization": f"Bearer {nvidia_api_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+            with urllib.request.urlopen(n_req, timeout=30) as n_resp:
+                n_data = json.loads(n_resp.read().decode("utf-8"))
+                content = n_data["choices"][0]["message"]["content"]
+                parsed = parse_llm_json(content)
+                if parsed and "start_seconds" in parsed and "end_seconds" in parsed:
+                    log(f"✅ NVIDIA Nemotron selected viral clip: {parsed['start_seconds']}s -> {parsed['end_seconds']}s")
+                    return parsed
+        except Exception as ne:
+            log(f"⚠️ NVIDIA Nemotron notice: {ne}. Falling back to Groq...")
+
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
-        log("⚠️ Notice: GROQ_API_KEY not set. Using default highlight segment (30s to 75s).")
+        log("⚠️ Notice: Neither NVIDIA_API_KEY nor GROQ_API_KEY set. Using default highlight segment (30s to 75s).")
         return {
             "start_seconds": 30.0,
             "end_seconds": 75.0,
