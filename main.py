@@ -993,11 +993,7 @@ def download_video_clip_segment(video_url: str, start_sec: float, end_sec: float
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}"
     end_str = f"{int(end_sec // 3600):02d}:{int((end_sec % 3600) // 60):02d}:{int(end_sec % 60):02d}"
     
-    # 1. Try Cobalt API stream proxy first (100% immune to YouTube IP blocks)
-    if download_video_via_cobalt(video_url, start_sec, end_sec, output_raw_path):
-        return
-
-    # 2. Ultra-fast direct stream slicing via FFmpeg (No DASH merging errors)
+    # 1. Ultra-fast direct stream slicing via FFmpeg (Dual 1080p Video + Audio)
     client_profiles = [
         ("mweb", ytdlp_cookies_args()),
         ("android_vr,android", []),

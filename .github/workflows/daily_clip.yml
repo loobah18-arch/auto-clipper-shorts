@@ -52,6 +52,12 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: 💾 Cache HuggingFace & Whisper Models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-whisper-base-en-v1
+
       - name: 🦕 Set up Deno (JS runtime for yt-dlp)
         uses: denoland/setup-deno@v2
         with:
