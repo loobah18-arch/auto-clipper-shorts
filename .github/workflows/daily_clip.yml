@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'
   schedule:
     # Runs twice daily at 08:00 and 20:00 UTC (100% free runner minutes)
     - cron: '0 8,20 * * *'

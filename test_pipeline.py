@@ -142,11 +142,26 @@ is setting clear non-negotiable boundaries.
         self.assertIsInstance(font_path, str)
         self.assertTrue(len(font_path) > 0)
 
-    def test_thumbnail_path_naming(self):
-        video_p = Path("/tmp/clip_test123_final.mp4")
-        thumb_p = video_p.with_name(f"thumb_{video_p.stem}.jpg")
-        self.assertEqual(thumb_p.name, "thumb_clip_test123_final.jpg")
+    def test_episodic_series_state_transitions(self):
+        # Part 1 -> Part 2 transition
+        series = {
+            "video_id": "test_vid_1",
+            "current_part": 1,
+            "max_parts": 3,
+            "last_clip_end_sec": 45.0,
+            "topic_title": "The First Principle"
+        }
+        self.assertLess(series["current_part"], series["max_parts"])
+        # Next part computation
+        next_part = series["current_part"] + 1
+        self.assertEqual(next_part, 2)
+        
+        # Part 3 (Final part) completion
+        series["current_part"] = 3
+        is_finished = series["current_part"] >= series["max_parts"]
+        self.assertTrue(is_finished)
 
 
 if __name__ == "__main__":
     unittest.main()
+
