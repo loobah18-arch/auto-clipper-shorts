@@ -1,13 +1,38 @@
-#!/usr/bin/env python3
+#!/data/data/com.termux/files/usr/bin/env python3
 """
-NVIDIA Nemotron MCP Server for Antigravity CLI.
-Exposes nvidia_nemotron_query tool to Antigravity CLI using the hosted NVIDIA NIM API.
+NVIDIA Nemotron 3 Ultra MCP Server for Antigravity.
+Exposes tools for deep reasoning, coding, and architectural planning via NVIDIA NIM.
 """
 
 import os
 import sys
 import json
 import urllib.request
+
+API_KEY = os.environ.get("NVIDIA_API_KEY", "")
+
+def call_nemotron(messages, max_tokens=4096, temperature=0.2):
+    if not API_KEY:
+        raise ValueError("NVIDIA_API_KEY is not set.")
+        
+    payload = json.dumps({
+        "model": "nvidia/nemotron-3-ultra-550b-a55b",
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens
+    }).encode("utf-8")
+    
+    req = urllib.request.Request(
+        "https://integrate.api.nvidia.com/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json"
+        }
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+        return data["choices"][0]["message"]["content"]
 
 def handle_request(req):
     method = req.get("method")
@@ -16,21 +41,39 @@ def handle_request(req):
         return {
             "tools": [
                 {
-                    "name": "nvidia_nemotron_query",
-                    "description": "Query NVIDIA Nemotron 3 Ultra (550B MoE, 1M context) for complex coding, deep reasoning, viral strategy, and large codebase planning.",
+                    "name": "nemotron_query",
+                    "description": "Send a reasoning or coding prompt directly to NVIDIA Nemotron 3 Ultra (550B MoE, 1M context).",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
                             "prompt": {
                                 "type": "string",
-                                "description": "The prompt or task for Nemotron 3 Ultra"
+                                "description": "The task, question, or code to analyze"
                             },
                             "system_prompt": {
                                 "type": "string",
-                                "description": "Optional system prompt to guide Nemotron's role"
+                                "description": "Optional system instructions (e.g. 'You are a senior systems architect')"
                             }
                         },
                         "required": ["prompt"]
+                    }
+                },
+                {
+                    "name": "nemotron_code_review",
+                    "description": "Have NVIDIA Nemotron 3 Ultra review and optimize code for performance, security, and edge cases.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "code": {
+                                "type": "string",
+                                "description": "The source code to review"
+                            },
+                            "focus": {
+                                "type": "string",
+                                "description": "Specific focus area: performance, security, refactoring, or bug finding"
+                            }
+                        },
+                        "required": ["code"]
                     }
                 }
             ]
@@ -41,62 +84,29 @@ def handle_request(req):
         name = params.get("name")
         args = params.get("arguments", {})
         
-        if name == "nvidia_nemotron_query":
-            prompt = args.get("prompt", "")
-            system_prompt = args.get("system_prompt", "You are NVIDIA Nemotron 3 Ultra, a premier coding and reasoning AI.")
-            api_key = os.environ.get("NVIDIA_API_KEY", "")
-            
-            if not api_key:
-                return {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "Error: NVIDIA_API_KEY environment variable is not set. Please obtain a free key from build.nvidia.com and export NVIDIA_API_KEY=nvapi-..."
-                        }
-                    ]
-                }
-                
-            payload = json.dumps({
-                "model": "nvidia/nemotron-3-ultra-550b-a55b",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
+        try:
+            if name == "nemotron_query":
+                prompt = args.get("prompt", "")
+                sys_prompt = args.get("system_prompt", "You are NVIDIA Nemotron 3 Ultra, a world-class reasoning and programming AI.")
+                msgs = [
+                    {"role": "system", "content": sys_prompt},
                     {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.2,
-                "max_tokens": 4096
-            }).encode("utf-8")
-            
-            req_obj = urllib.request.Request(
-                "https://integrate.api.nvidia.com/v1/chat/completions",
-                data=payload,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                }
-            )
-            
-            try:
-                with urllib.request.urlopen(req_obj, timeout=60) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    text_out = data["choices"][0]["message"]["content"]
-                    return {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": text_out
-                            }
-                        ]
-                    }
-            except Exception as e:
-                return {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": f"Error querying NVIDIA Nemotron API: {e}"
-                        }
-                    ]
-                }
+                ]
+                ans = call_nemotron(msgs)
+                return {"content": [{"type": "text", "text": ans}]}
                 
+            elif name == "nemotron_code_review":
+                code = args.get("code", "")
+                focus = args.get("focus", "general quality and performance")
+                msgs = [
+                    {"role": "system", "content": f"You are NVIDIA Nemotron 3 Ultra. Perform a thorough code review focusing on: {focus}."},
+                    {"role": "user", "content": f"Please review the following code:\n\n```\n{code}\n```"}
+                ]
+                ans = call_nemotron(msgs)
+                return {"content": [{"type": "text", "text": ans}]}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Error: {e}"}]}
+            
     return {}
 
 def main():
