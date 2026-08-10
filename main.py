@@ -1675,10 +1675,15 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     uploaded_id = None
     if not dry_run:
         uploaded_id = upload_to_youtube(final_render_path, clip_info, podcast_entry, target_video["url"])
+        if not uploaded_id:
+            log(f"⚠️ YouTube upload did not complete (e.g. daily quota limit reached or auth notice).")
+            log(f"📌 Preserving series state: Part {part_number} will be cleanly retried on the next scheduled run without losing continuation!")
+            return
     else:
-        log("Dry run active: Skipping YouTube upload.")
+        log("Dry run active: Skipping YouTube upload and preserving live series state.")
+        return
 
-    # 7. Update History & Multi-Part Series State
+    # 7. Update History & Multi-Part Series State (Only when upload succeeds!)
     MAX_SERIES_PARTS = 3
     if part_number < MAX_SERIES_PARTS:
         history["active_series"] = {
@@ -1691,13 +1696,13 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
             "max_parts": MAX_SERIES_PARTS,
             "last_clip_end_sec": end_sec
         }
-        log(f"📌 Multi-Part Series Progressed: Part {part_number}/{MAX_SERIES_PARTS} completed. Next run will clip Part {part_number + 1}.")
+        log(f"📌 Multi-Part Series Progressed: Part {part_number}/{MAX_SERIES_PARTS} uploaded. Next run will clip Part {part_number + 1}.")
     else:
         history["active_series"] = None
         if target_video["id"] not in history.get("processed_videos", []):
             history.setdefault("processed_videos", []).append(target_video["id"])
         history["last_channel_index"] = (history.get("last_channel_index", 0) + 1) % len(catalog["podcasts"])
-        log(f"🎉 Multi-Part Series Finished! (All {MAX_SERIES_PARTS} parts completed). Rotated to next podcast channel.")
+        log(f"🎉 Multi-Part Series Finished! (All {MAX_SERIES_PARTS} parts uploaded). Rotated to next podcast channel.")
         
     history.setdefault("processed_clips", []).append({
         "video_id": target_video["id"],
