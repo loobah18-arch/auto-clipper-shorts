@@ -92,7 +92,15 @@ PROVIDERS = {
 
 
 def send_chat_completion(provider_name: str, model_name: str, messages: list, max_tokens: int = 4096, temperature: float = 0.3) -> str:
-    provider = PROVIDERS.get(provider_name.lower())
+    p_name = provider_name.lower()
+    
+    # Auto route deepseek to openrouter if direct key not found but openrouter key is present
+    if p_name == "deepseek" and not get_key("DEEPSEEK_API_KEY") and get_key("OPENROUTER_API_KEY"):
+        p_name = "openrouter"
+        if not model_name or "deepseek" not in model_name:
+            model_name = "deepseek/deepseek-v4-flash"
+
+    provider = PROVIDERS.get(p_name)
     if not provider:
         raise ValueError(f"Unknown provider '{provider_name}'. Supported: {list(PROVIDERS.keys())}")
         
@@ -120,7 +128,9 @@ def send_chat_completion(provider_name: str, model_name: str, messages: list, ma
     req = urllib.request.Request(provider["url"], data=payload, headers=headers)
     with urllib.request.urlopen(req, timeout=90) as resp:
         data = json.loads(resp.read().decode("utf-8"))
-        return data["choices"][0]["message"]["content"]
+        msg = data["choices"][0]["message"]
+        return msg.get("content") or msg.get("reasoning") or ""
+
 
 
 def handle_request(req):
