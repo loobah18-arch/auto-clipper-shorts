@@ -23,8 +23,11 @@ from main import (
     format_ass_time,
     pick_next_channel,
     find_system_font,
+    generate_minimax_h3_avatar_gesture,
     OUTPUT_DIR
 )
+from unittest.mock import patch, MagicMock
+import io
 
 
 class TestAutoClipperPipeline(unittest.TestCase):
@@ -162,6 +165,56 @@ is setting clear non-negotiable boundaries.
         self.assertTrue(is_finished)
 
 
+    def test_minimax_h3_fallback_when_no_api_key(self):
+        with patch.dict(os.environ, {}, clear=True):
+            res = generate_minimax_h3_avatar_gesture(
+                avatar_image_path=Path("non_existent.jpg"),
+                topic_prompt="Mindset",
+                duration=30.0
+            )
+            self.assertIsNone(res)
+
+    def test_minimax_h3_mock_success(self):
+        # Create a temp dummy image
+        test_img = OUTPUT_DIR / "dummy_test_avatar.jpg"
+        with open(test_img, "wb") as f:
+            f.write(b"\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00\xFF\xDB\x00C\x00")
+            
+        test_out = OUTPUT_DIR / "test_minimax_out.mp4"
+        
+        create_resp_json = json.dumps({"task_id": "test_task_123"}).encode("utf-8")
+        poll_resp_json = json.dumps({"status": "Success", "video_url": "https://example.com/video.mp4"}).encode("utf-8")
+        dummy_mp4_bytes = b"fake mp4 video binary content with length greater than threshold" * 300
+        
+        def make_cm(data_bytes):
+            cm = MagicMock()
+            cm.__enter__.return_value.read.return_value = data_bytes
+            return cm
+
+        responses = [
+            make_cm(create_resp_json),
+            make_cm(poll_resp_json),
+            make_cm(dummy_mp4_bytes)
+        ]
+        
+        with patch.dict(os.environ, {"MINIMAX_API_KEY": "test_mm_key_abc"}):
+            with patch("urllib.request.urlopen", side_effect=responses), patch("time.sleep", return_value=None):
+                res = generate_minimax_h3_avatar_gesture(
+                    avatar_image_path=test_img,
+                    topic_prompt="Atomic Habits",
+                    duration=30.0,
+                    output_video_path=test_out
+                )
+                self.assertIsNotNone(res)
+                self.assertTrue(test_out.exists())
+                
+        if test_img.exists():
+            test_img.unlink()
+        if test_out.exists():
+            test_out.unlink()
+
+
 if __name__ == "__main__":
     unittest.main()
+
 

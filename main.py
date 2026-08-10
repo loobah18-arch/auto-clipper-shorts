@@ -1467,13 +1467,151 @@ def compute_audio_energy_timeline(wav_path: Path) -> tuple:
         return ("1", "0", False)
 
 
+def generate_minimax_h3_avatar_gesture(
+    avatar_image_path: Path,
+    topic_prompt: str = "",
+    duration: float = 45.0,
+    output_video_path: Path = None
+) -> Path:
+    """
+    Generates an expressive talking & gesturing video of the character avatar
+    using MiniMax H3 (Hailuo 3.0 / Video-01) reference-driven video generation.
+    
+    The model translates podcast speaker conversational gestures, hand movements,
+    head tilts, and facial performance directly onto the chosen avatar.
+    
+    Returns output_video_path on success, or None if MiniMax API key is not configured or generation fails.
+    """
+    raw_api_key = os.environ.get("MINIMAX_API_KEY", "")
+    if not raw_api_key:
+        env_file = WORKSPACE_DIR / ".env"
+        if env_file.exists():
+            try:
+                with open(env_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("MINIMAX_API_KEY="):
+                            raw_api_key = line.strip().split("=", 1)[1].strip("\"'").replace(" ", "")
+            except Exception:
+                pass
+                
+    api_key = raw_api_key.strip().replace(" ", "").strip("\"'") if raw_api_key else None
+    if not api_key:
+        log("ℹ️ MINIMAX_API_KEY not configured. Using pure-FFmpeg audio-reactive storytime gesture animation engine.")
+        return None
+        
+    if not avatar_image_path or not avatar_image_path.exists():
+        log("⚠️ MiniMax gesture notice: Avatar image path not found. Falling back to FFmpeg engine.")
+        return None
+        
+    base_host = os.environ.get("MINIMAX_API_HOST", "https://api.minimax.io").rstrip("/")
+    model_name = os.environ.get("MINIMAX_VIDEO_MODEL", "hailuo-h3")
+    
+    try:
+        # 1. Base64 encode the reference avatar image
+        with open(avatar_image_path, "rb") as img_f:
+            b64_data = base64.b64encode(img_f.read()).decode("utf-8")
+        ext = avatar_image_path.suffix.lower().lstrip(".")
+        mime = "image/png" if ext == "png" else "image/jpeg"
+        data_uri = f"data:{mime};base64,{b64_data}"
+        
+        # 2. Build gesture prompt
+        topic_clause = f" discussing {topic_prompt}" if topic_prompt else ""
+        prompt = (
+            f"Anime character podcast speaker{topic_clause}, passionate conversation, "
+            f"natural hand gestures, talking lip sync, expressive facial reactions, head tilts, "
+            f"active conversational energy, looking towards camera, vibrant anime aesthetic, 4k 60fps"
+        )
+        
+        log(f"🧠 Querying MiniMax H3 ({model_name}) for speaker gesture video ({duration:.1f}s)...")
+        payload = json.dumps({
+            "model": model_name,
+            "prompt": prompt,
+            "first_frame_image": data_uri,
+            "prompt_optimizer": True
+        }).encode("utf-8")
+        
+        req = urllib.request.Request(
+            f"{base_host}/v1/video_generation",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+        )
+        
+        task_id = None
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp_data = json.loads(resp.read().decode("utf-8"))
+            task_id = resp_data.get("task_id")
+            
+        if not task_id:
+            log(f"⚠️ MiniMax video creation response missing task_id: {resp_data}")
+            return None
+            
+        log(f"⏳ MiniMax H3 video task created (task_id: {task_id}). Polling status...")
+        
+        # 3. Poll task status (up to 180 seconds)
+        poll_url = f"{base_host}/v1/query/video_generation?task_id={task_id}"
+        start_poll = time.time()
+        file_id = None
+        direct_video_url = None
+        
+        while time.time() - start_poll < 180:
+            time.sleep(6)
+            q_req = urllib.request.Request(
+                poll_url,
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            with urllib.request.urlopen(q_req, timeout=20) as q_resp:
+                q_data = json.loads(q_resp.read().decode("utf-8"))
+                status = q_data.get("status", "").lower()
+                
+                if status in ["success", "succeeded", "finished"]:
+                    file_id = q_data.get("file_id")
+                    direct_video_url = q_data.get("video_url") or q_data.get("file_url")
+                    break
+                elif status in ["failed", "error"]:
+                    log(f"❌ MiniMax video task failed: {q_data.get('error', 'Unknown error')}")
+                    return None
+                else:
+                    log(f"⏳ MiniMax H3 generating gesture video... (status: {status})")
+                    
+        # 4. Download final video
+        if output_video_path is None:
+            output_video_path = OUTPUT_DIR / f"minimax_gesture_{int(time.time())}.mp4"
+            
+        download_target_url = direct_video_url
+        if not download_target_url and file_id:
+            download_target_url = f"{base_host}/v1/files/retrieve?file_id={file_id}"
+            
+        if download_target_url:
+            log(f"📥 Downloading MiniMax H3 gesture video -> {output_video_path.name}...")
+            dl_req = urllib.request.Request(
+                download_target_url,
+                headers={"Authorization": f"Bearer {api_key}"} if not download_target_url.startswith("http://") and not "storage" in download_target_url else {}
+            )
+            with urllib.request.urlopen(dl_req, timeout=60) as dl_resp, open(output_video_path, "wb") as out_f:
+                out_f.write(dl_resp.read())
+                
+            if output_video_path.exists() and output_video_path.stat().st_size > 10000:
+                log(f"✅ MiniMax H3 gesture video ready! ({output_video_path.stat().st_size / 1024:.1f} KB)")
+                return output_video_path
+                
+        log("⚠️ MiniMax video generation timed out or download link unavailable. Falling back to FFmpeg engine.")
+        return None
+        
+    except Exception as e:
+        log(f"⚠️ MiniMax H3 generation notice: {e}. Falling back to FFmpeg storytime engine.")
+        return None
+
+
 def get_character_mouth_quad(char_dir: Path, gender: str = "male") -> tuple:
     """
     Returns (mouth_closed_path, mouth_open_path, gesture_pose_path, shocked_pose_path) for a character.
     """
     if not char_dir or not char_dir.exists():
-        fallback = get_cute_animal_image_info(gender)
-        return (fallback, fallback, fallback, fallback)
+        fallback_single = get_cute_animal_image_info(gender)
+        return (fallback_single, fallback_single, fallback_single, fallback_single)
         
     closed = char_dir / "mouth_closed.jpg"
     open_p = char_dir / "mouth_open.jpg"
@@ -1595,6 +1733,9 @@ def render_studio_visualizer_short(
     """
     Renders a 1080x1920 split-screen animated viral short in the high-energy
     RG Bucket List & Not Your Type storytime anime animation style:
+    - MiniMax H3 / Hailuo Avatar Gesture Synthesis: Uses MiniMax H3 reference-driven
+      video generation to mirror the podcast speaker's lively gestures, hand motions,
+      and head performance directly onto the chosen avatar when configured.
     - Audio-Reactive Lip Sync: Analyzes uncompressed audio waveform to detect pauses
       (snaps mouth closed instantly with calm breathing sway) vs calm speech vs emphatic loudness.
     - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
@@ -1652,6 +1793,18 @@ def render_studio_visualizer_short(
     has_bgm = bool(bgm_path and bgm_path.exists())
     has_whoosh = bool(sfx_whoosh_path and sfx_whoosh_path.exists())
     
+    # 2.5 Optional MiniMax H3 Gesture Video Generation
+    minimax_gesture_video = None
+    minimax_video_out = output_final_path.with_name(f"minimax_gesture_{output_final_path.stem}.mp4")
+    if os.environ.get("MINIMAX_API_KEY") or (WORKSPACE_DIR / ".env").exists():
+        ref_avatar = guest_gesture if (guest_gesture and guest_gesture.exists()) else guest_closed
+        minimax_gesture_video = generate_minimax_h3_avatar_gesture(
+            avatar_image_path=ref_avatar,
+            topic_prompt=hook_clean,
+            duration=duration,
+            output_video_path=minimax_video_out
+        )
+    
     spk_guest = spk_active_audio
     spk_host = "0"
     
@@ -1683,9 +1836,10 @@ def render_studio_visualizer_short(
         f"0.8*sin(2*PI*t))"
     )
     
-    if bg_path and bg_path.exists() and host_closed and host_open and host_gesture and host_shocked and guest_closed and guest_open and guest_gesture and guest_shocked:
+    if bg_path and bg_path.exists() and host_closed and host_open and host_gesture and host_shocked and guest_closed:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🐱 Using Audio-Reactive Storytime Layout ({host_closed.parent.name} vs {guest_closed.parent.name})...")
+        layout_name = "MiniMax H3 Speaker Gesture Layout" if (minimax_gesture_video and minimax_gesture_video.exists()) else "Audio-Reactive Storytime Layout"
+        log(f"🐱 Using {layout_name} ({host_closed.parent.name} vs {guest_closed.parent.name})...")
         
         # Base input index offset:
         # 0: bg_video, 1: audio_slice
@@ -1706,10 +1860,7 @@ def render_studio_visualizer_short(
         ho_idx = curr_inp_idx + 1
         hg_idx = curr_inp_idx + 2
         hs_idx = curr_inp_idx + 3
-        gc_idx = curr_inp_idx + 4
-        go_idx = curr_inp_idx + 5
-        gg_idx = curr_inp_idx + 6
-        gs_idx = curr_inp_idx + 7
+        curr_inp_idx += 4
         
         # Left Host Avatar Filter (500x940) with inward hflip, mouth movement (hands down), gestures & active listening nods
         left_av_filter = (
@@ -1728,22 +1879,52 @@ def render_studio_visualizer_short(
             f"scale=500:940,setsar=1[left_av]"
         )
         
-        # Right Guest Avatar Filter (500x940) with Storytime Snap-Zooms, Shock Reactions, Gestures & Audio-Reactive Bounce
-        right_av_filter = (
-            f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gc];"
-            f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[go];"
-            f"[{gg_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg];"
-            f"[{gs_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gs];"
-            f"[gc][go]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.20),0.12), 0)'[g_talk];"
-            f"[g_talk][gg]overlay=0:0:enable='if({spk_guest}, {guest_gesture_cond}, 0)'[g_gesture];"
-            f"[g_gesture][gs]overlay=0:0:enable='if({spk_guest}, {guest_shocked_cond}, 0)'[g_comp];"
-            f"[g_comp]crop="
-            f"w='if({snap_zoom_cond}, 500/1.18, 500)':"
-            f"h='if({snap_zoom_cond}, 940/1.18, 940)':"
-            f"x='(560-out_w)/2 + if({spk_guest}, 3.5*sin(32*PI*t), 0)':"
-            f"y='(980-out_h)/2 + {guest_bounce_expr}',"
-            f"scale=500:940,setsar=1[right_av]"
-        )
+        # Right Guest Avatar Filter: MiniMax H3 Video or Pure-FFmpeg Multi-Pose Lip-Sync
+        cmd_avatar_inputs = [
+            "-i", str(host_closed),
+            "-i", str(host_open),
+            "-i", str(host_gesture),
+            "-i", str(host_shocked)
+        ]
+        
+        if minimax_gesture_video and minimax_gesture_video.exists():
+            minimax_idx = curr_inp_idx
+            cmd_avatar_inputs.extend(["-i", str(minimax_gesture_video)])
+            right_av_filter = (
+                f"[{minimax_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0,"
+                f"crop="
+                f"w='if({snap_zoom_cond}, 500/1.18, 500)':"
+                f"h='if({snap_zoom_cond}, 940/1.18, 940)':"
+                f"x='(560-out_w)/2':"
+                f"y='(980-out_h)/2',"
+                f"scale=500:940,setsar=1[right_av]"
+            )
+        else:
+            gc_idx = curr_inp_idx
+            go_idx = curr_inp_idx + 1
+            gg_idx = curr_inp_idx + 2
+            gs_idx = curr_inp_idx + 3
+            cmd_avatar_inputs.extend([
+                "-i", str(guest_closed),
+                "-i", str(guest_open),
+                "-i", str(guest_gesture),
+                "-i", str(guest_shocked)
+            ])
+            right_av_filter = (
+                f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gc];"
+                f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[go];"
+                f"[{gg_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg];"
+                f"[{gs_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gs];"
+                f"[gc][go]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.20),0.12), 0)'[g_talk];"
+                f"[g_talk][gg]overlay=0:0:enable='if({spk_guest}, {guest_gesture_cond}, 0)'[g_gesture];"
+                f"[g_gesture][gs]overlay=0:0:enable='if({spk_guest}, {guest_shocked_cond}, 0)'[g_comp];"
+                f"[g_comp]crop="
+                f"w='if({snap_zoom_cond}, 500/1.18, 500)':"
+                f"h='if({snap_zoom_cond}, 940/1.18, 940)':"
+                f"x='(560-out_w)/2 + if({spk_guest}, 3.5*sin(32*PI*t), 0)':"
+                f"y='(980-out_h)/2 + {guest_bounce_expr}',"
+                f"scale=500:940,setsar=1[right_av]"
+            )
         
         # Studio Top Canvas (#1A1C22) with 60px Center Spacing Gap & Spotlight Rim
         top_filter = (
@@ -1798,17 +1979,7 @@ def render_studio_visualizer_short(
             cmd.extend(["-i", str(sfx_whoosh_path)])
             audio_mix_inputs.append("[whoosh]")
             
-        # Add mouth-closed, mouth-open (hands down), gesture-pose, and shocked-pose avatar images
-        cmd.extend([
-            "-i", str(host_closed),
-            "-i", str(host_open),
-            "-i", str(host_gesture),
-            "-i", str(host_shocked),
-            "-i", str(guest_closed),
-            "-i", str(guest_open),
-            "-i", str(guest_gesture),
-            "-i", str(guest_shocked)
-        ])
+        cmd.extend(cmd_avatar_inputs)
             
         a_filter_parts = ["[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice]"]
         if has_bgm:
