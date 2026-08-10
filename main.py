@@ -1377,6 +1377,96 @@ def get_cute_animal_image_info(gender: str = "male") -> Path:
     return None
 
 
+def compute_audio_energy_timeline(wav_path: Path) -> tuple:
+    """
+    Analyzes uncompressed PCM WAV audio and computes exact sample-accurate:
+    - spk_active_expr: active speech intervals (excluding pauses > 0.12s)
+    - spk_loud_expr: high-energy emphatic speech intervals
+    - is_calm_speech: boolean if overall segment is calm vs loud/passionate
+    """
+    if not wav_path or not Path(wav_path).exists():
+        return ("1", "0", False)
+        
+    try:
+        with wave.open(str(wav_path), 'rb') as wf:
+            n_channels = wf.getnchannels()
+            sampwidth = wf.getsampwidth()
+            framerate = wf.getframerate()
+            n_frames = wf.getnframes()
+            raw_data = wf.readframes(n_frames)
+            
+        fmt = f"<{n_frames * n_channels}h" if sampwidth == 2 else f"<{n_frames * n_channels}b"
+        samples = struct.unpack(fmt, raw_data)
+        
+        if n_channels > 1:
+            mono_samples = [sum(samples[i:i+n_channels]) // n_channels for i in range(0, len(samples), n_channels)]
+        else:
+            mono_samples = samples
+            
+        slice_ms = 40
+        samples_per_slice = int(framerate * (slice_ms / 1000.0))
+        n_slices = len(mono_samples) // samples_per_slice
+        
+        rms_list = []
+        times = []
+        
+        for i in range(n_slices):
+            chunk = mono_samples[i * samples_per_slice : (i + 1) * samples_per_slice]
+            if not chunk:
+                continue
+            sum_sq = sum(s * s for s in chunk)
+            rms = math.sqrt(sum_sq / len(chunk))
+            rms_list.append(rms)
+            times.append(i * (slice_ms / 1000.0))
+            
+        avg_rms = sum(rms_list) / max(1, len(rms_list))
+        silence_thresh = avg_rms * 0.28
+        loud_thresh = avg_rms * 1.35
+        
+        active_intervals = []
+        loud_intervals = []
+        
+        curr_active_start = None
+        curr_loud_start = None
+        
+        for i, (t, r) in enumerate(zip(times, rms_list)):
+            is_active = (r >= silence_thresh)
+            is_loud = (r >= loud_thresh)
+            
+            if is_active:
+                if curr_active_start is None:
+                    curr_active_start = t
+            else:
+                if curr_active_start is not None:
+                    active_intervals.append((curr_active_start, t))
+                    curr_active_start = None
+                    
+            if is_loud:
+                if curr_loud_start is None:
+                    curr_loud_start = t
+            else:
+                if curr_loud_start is not None:
+                    loud_intervals.append((curr_loud_start, t))
+                    curr_loud_start = None
+                    
+        if curr_active_start is not None:
+            active_intervals.append((curr_active_start, times[-1]))
+        if curr_loud_start is not None:
+            loud_intervals.append((curr_loud_start, times[-1]))
+            
+        active_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in active_intervals if (e - s) >= 0.08]
+        loud_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in loud_intervals if (e - s) >= 0.08]
+        
+        spk_active_expr = "+".join(active_expr_parts[:80]) if active_expr_parts else "1"
+        spk_loud_expr = "+".join(loud_expr_parts[:60]) if loud_expr_parts else "0"
+        is_calm_speech = (len(loud_intervals) < len(active_intervals) * 0.25)
+        
+        return (spk_active_expr, spk_loud_expr, is_calm_speech)
+    except Exception as e:
+        log(f"Audio energy timeline notice: {e}")
+        return ("1", "0", False)
+
+
 def get_character_mouth_quad(char_dir: Path, gender: str = "male") -> tuple:
     """
     Returns (mouth_closed_path, mouth_open_path, gesture_pose_path, shocked_pose_path) for a character.
@@ -1505,11 +1595,13 @@ def render_studio_visualizer_short(
     """
     Renders a 1080x1920 split-screen animated viral short in the high-energy
     RG Bucket List & Not Your Type storytime anime animation style:
+    - Audio-Reactive Lip Sync: Analyzes uncompressed audio waveform to detect pauses
+      (snaps mouth closed instantly with calm breathing sway) vs calm speech vs emphatic loudness.
     - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
       with matching uniform studio grey background (#1A1C22) and 60px center spacing gap.
       Features dynamic camera snap-zooms (+18% zoom punches on hook and punchlines),
       reaction poses (explaining hand gesture & shocked mind-blown reaction),
-      anime pop-up reaction badges (💡 KEY INSIGHT, ⚡ MIND BLOWN!),
+      anime pop-up reaction badges (KEY INSIGHT, MIND BLOWN!),
       vocal squash & stretch dialogue bouncing, co-host active listening head nods,
       and sample-accurate mouth lip sync.
     - Bottom half (1080x960): Subway Surfers gameplay footage
@@ -1522,7 +1614,7 @@ def render_studio_visualizer_short(
     duration = max(10.0, end_sec - start_sec)
     dur_str = f"{duration:.2f}"
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
-    log(f"🎨 Rendering Storytime Animated Short ({duration:.1f}s) in RG Bucket List & Not Your Type Style...")
+    log(f"🎨 Rendering Audio-Reactive Storytime Short ({duration:.1f}s) in RG Bucket List & Not Your Type Style...")
     
     # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
@@ -1538,6 +1630,9 @@ def render_studio_visualizer_short(
     
     # 1.5 Accurately detect speaker gender directly from the sliced audio waveform
     detected_guest_gender = detect_audio_pitch_gender(audio_slice_path)
+    
+    # 1.6 Extract sample-accurate audio energy envelope (active speech vs silent pauses vs loudness)
+    spk_active_audio, spk_loud_audio, is_calm_tone = compute_audio_energy_timeline(audio_slice_path)
     
     # 2. Safe ASS escaping
     ass_filter_path = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
@@ -1557,24 +1652,7 @@ def render_studio_visualizer_short(
     has_bgm = bool(bgm_path and bgm_path.exists())
     has_whoosh = bool(sfx_whoosh_path and sfx_whoosh_path.exists())
     
-    # Build speech activity expressions for Host vs Guest
-    spk_intervals = []
-    if transcript_segments:
-        for seg in transcript_segments:
-            s_start = seg.get("start", 0.0)
-            s_end = seg.get("end", 0.0)
-            if s_end >= (start_sec - 0.1) and s_start <= (end_sec + 0.1):
-                r_start = max(0.0, s_start - start_sec)
-                r_end = min(duration, s_end - start_sec)
-                if r_end > r_start:
-                    spk_intervals.append(f"between(t,{r_start:.2f},{r_end:.2f})")
-    
-    if spk_intervals:
-        spk_active_all = "+".join(spk_intervals[:60])
-    else:
-        spk_active_all = "1"
-        
-    spk_guest = spk_active_all
+    spk_guest = spk_active_audio
     spk_host = "0"
     
     # RG Bucket List & Not Your Type Dynamic Trigger Calculations:
@@ -1598,12 +1676,16 @@ def render_studio_visualizer_short(
     # Co-Host active listening nod (gentle 3.5px nod every 4.2 seconds)
     host_nod_expr = "if(lt(mod(t,4.2),0.4), 3.5*sin(PI*mod(t,4.2)/0.4), 0)"
     
-    # Vocal Squash & Stretch Dialogue Bounce rhythm
-    guest_bounce_expr = f"if({spk_guest}, 3.5*sin(16*PI*t), 0)"
+    # Tone-reactive motion: calm speech gives smooth subtle sway; emphatic loud speech gives bouncy squash & stretch
+    guest_bounce_expr = (
+        f"if({spk_guest}, "
+        f"if({spk_loud_audio}, 4.2*sin(16*PI*t), 1.8*sin(8*PI*t)), "
+        f"0.8*sin(2*PI*t))"
+    )
     
     if bg_path and bg_path.exists() and host_closed and host_open and host_gesture and host_shocked and guest_closed and guest_open and guest_gesture and guest_shocked:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🐱 Using RG Bucket List & Not Your Type Storytime Layout ({host_closed.parent.name} vs {guest_closed.parent.name})...")
+        log(f"🐱 Using Audio-Reactive Storytime Layout ({host_closed.parent.name} vs {guest_closed.parent.name})...")
         
         # Base input index offset:
         # 0: bg_video, 1: audio_slice
@@ -1646,7 +1728,7 @@ def render_studio_visualizer_short(
             f"scale=500:940,setsar=1[left_av]"
         )
         
-        # Right Guest Avatar Filter (500x940) with Storytime Snap-Zooms, Shock Reactions, Gestures & Squash/Stretch Bounce
+        # Right Guest Avatar Filter (500x940) with Storytime Snap-Zooms, Shock Reactions, Gestures & Audio-Reactive Bounce
         right_av_filter = (
             f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gc];"
             f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[go];"
@@ -1685,14 +1767,14 @@ def render_studio_visualizer_short(
             f"drawbox=x=60:y=175:w=iw-120:h=90:color=black@0.85:t=fill:enable='between(t,0.2,2.8)',"
             f"drawbox=x=60:y=175:w=iw-120:h=90:color=#00D2FF@0.95:t=4:enable='between(t,0.2,2.8)',"
             f"drawtext=text='{hook_clean}':fontcolor=#FFE600:fontsize=42:{font_opt}:x=(w-text_w)/2:y=202:enable='between(t,0.2,2.8)',"
-            # Anime Reaction Badge 1: 💡 KEY INSIGHT during explanation gesture
-            f"drawbox=x=680:y=180:w=260:h=70:color=#FFE600@0.95:t=fill:enable='{badge_insight_cond}',"
-            f"drawbox=x=680:y=180:w=260:h=70:color=black:t=3:enable='{badge_insight_cond}',"
-            f"drawtext=text='💡 KEY INSIGHT':fontcolor=black:fontsize=32:{font_opt}:x=695:y=198:enable='{badge_insight_cond}',"
-            # Anime Reaction Badge 2: ⚡ MIND BLOWN! during shocked mindblown reaction
-            f"drawbox=x=680:y=180:w=260:h=70:color=#FF0055@0.95:t=fill:enable='{badge_shock_cond}',"
-            f"drawbox=x=680:y=180:w=260:h=70:color=white:t=3:enable='{badge_shock_cond}',"
-            f"drawtext=text='⚡ MIND BLOWN!':fontcolor=white:fontsize=32:{font_opt}:x=690:y=198:enable='{badge_shock_cond}',"
+            # Anime Reaction Badge 1: [!] KEY INSIGHT during explanation gesture
+            f"drawbox=x=670:y=180:w=280:h=70:color=#FFE600@0.95:t=fill:enable='{badge_insight_cond}',"
+            f"drawbox=x=670:y=180:w=280:h=70:color=black:t=3:enable='{badge_insight_cond}',"
+            f"drawtext=text='★ KEY INSIGHT':fontcolor=black:fontsize=32:{font_opt}:x=690:y=198:enable='{badge_insight_cond}',"
+            # Anime Reaction Badge 2: [!] MIND BLOWN during shocked mindblown reaction
+            f"drawbox=x=670:y=180:w=280:h=70:color=#FF0055@0.95:t=fill:enable='{badge_shock_cond}',"
+            f"drawbox=x=670:y=180:w=280:h=70:color=white:t=3:enable='{badge_shock_cond}',"
+            f"drawtext=text='★ MIND BLOWN!':fontcolor=white:fontsize=32:{font_opt}:x=682:y=198:enable='{badge_shock_cond}',"
             # Bottom Progress Retention Bar
             f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
             f"ass='{ass_filter_path}'[v]"
