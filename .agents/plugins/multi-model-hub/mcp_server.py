@@ -57,13 +57,15 @@ PROVIDERS = {
     "openrouter": {
         "url": "https://openrouter.ai/api/v1/chat/completions",
         "key_name": "OPENROUTER_API_KEY",
-        "default_model": "anthropic/claude-3.5-sonnet",
+        "default_model": "openrouter/free",
         "models": [
+            "openrouter/free",
+            "google/gemma-4-31b-it:free",
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "openai/gpt-oss-20b:free",
             "anthropic/claude-3.5-sonnet",
             "deepseek/deepseek-r1",
-            "deepseek/deepseek-chat",
-            "openai/gpt-4o",
-            "google/gemini-2.0-flash-001"
+            "openai/gpt-4o"
         ]
     },
     "deepseek": {
@@ -100,7 +102,11 @@ def send_chat_completion(provider_name: str, model_name: str, messages: list, ma
         
     target_model = model_name or provider["default_model"]
     
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/antigravity",
+        "X-Title": "Antigravity CLI"
+    }
     if api_key and api_key != "no-key":
         headers["Authorization"] = f"Bearer {api_key}"
         
