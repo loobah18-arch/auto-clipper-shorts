@@ -837,15 +837,36 @@ def select_viral_clip_with_groq(
             "speaker_badge": podcast_entry.get("name", "Podcast")
         }
         
+    SPONSOR_KEYWORDS = [
+        "sponsor", "sponsored", "brought to you by", "promo code", "discount code", "use code",
+        "athletic greens", "ag1", "betterhelp", "expressvpn", "nordvpn", "squarespace", "shopify",
+        "manscaped", "audible", "cash app", "eight sleep", "blinkist", "hello fresh", "factor",
+        "magic spoon", "patreon", "subscribestar", "advertisement", "support the podcast", "merch",
+        "our sponsors", "today's sponsor", "free trial", "percent off", "check out"
+    ]
+    
+    # Filter out early sponsor reads from candidate segments for Part 1
+    clean_segments = []
+    if transcript_segments:
+        for seg in transcript_segments:
+            seg_text = seg.get("text", "").lower()
+            is_sponsor = any(kw in seg_text for kw in SPONSOR_KEYWORDS)
+            if not is_sponsor or seg.get("start", 0) > 400.0:
+                clean_segments.append(seg)
+                
     client = Groq(api_key=groq_api_key)
     system_prompt = (
         "You are an expert viral YouTube Shorts content strategist specializing in "
-        "podcasts, philosophy, science, and high-impact discussions."
+        "podcasts, philosophy, science, and high-impact discussions.\n"
+        "CRITICAL RULE: YOU MUST NEVER SELECT SPONSOR READS, ADVERTISEMENTS, PRODUCT ENDORSEMENTS, "
+        "PROMO CODES, OR HOUSEKEEPING INTROS. ONLY SELECT CORE INTELLECTUAL, PHILOSOPHICAL, "
+        "SCIENTIFIC, OR LIFE-CHANGING INSIGHTS."
     )
     user_prompt = f"""
 Podcast: {podcast_entry.get('name', 'Podcast')}
 Episode Title: {video_meta.get('title', 'Episode')}
 Goal: {goal_instruction}
+STRICT REQUIREMENT: NO SPONSOR ADS, NO PROMO CODES, NO PRODUCT PLUGS. Pick pure wisdom / high-value insight.
 
 Transcript:
 {formatted_transcript}
@@ -877,8 +898,9 @@ JSON Schema:
             raw_content = resp.choices[0].message.content
             clip_data = parse_llm_json(raw_content)
             
-            min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
-            raw_start = max(min_start, float(clip_data.get("start_seconds", min_start)))
+            # Ensure we start after intro sponsors for Part 1 (at least 150s in unless multi-part continuation)
+            base_min = (continuation_start_sec + 0.5) if (continuation_start_sec and part_number > 1) else (150.0 if clean_segments and clean_segments[0].get("start", 0) > 150 else 30.0)
+            raw_start = max(base_min, float(clip_data.get("start_seconds", base_min)))
             raw_end = float(clip_data.get("end_seconds", raw_start + 45.0))
             
             start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, raw_start, raw_end)
@@ -892,8 +914,8 @@ JSON Schema:
         except Exception as ge:
             log(f"⚠️ Groq highlight detection notice: {ge}")
             
-    # Fallback to deterministic sequential slice
-    default_start = continuation_start_sec + 1.0 if continuation_start_sec else 30.0
+    # Fallback to deterministic sequential slice (skipping early sponsor block for Part 1)
+    default_start = continuation_start_sec + 1.0 if continuation_start_sec else 150.0
     start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, default_start, default_start + 45.0)
     return {
         "start_seconds": start_sec,
@@ -1355,28 +1377,32 @@ def get_cute_animal_image_info(gender: str = "male") -> Path:
     return None
 
 
-def get_character_mouth_pair(char_dir: Path, gender: str = "male") -> tuple:
+def get_character_mouth_trio(char_dir: Path, gender: str = "male") -> tuple:
     """
-    Returns (mouth_closed_path, mouth_open_path) for a character.
+    Returns (mouth_closed_path, mouth_open_path, gesture_pose_path) for a character.
     """
+    if not char_dir or not char_dir.exists():
+        fallback = get_cute_animal_image_info(gender)
+        return (fallback, fallback, fallback)
+        
     closed = char_dir / "mouth_closed.jpg"
     open_p = char_dir / "mouth_open.jpg"
-    if closed.exists() and open_p.exists():
-        return (closed, open_p)
-    imgs = sorted(list(char_dir.glob("*.jpg")) + list(char_dir.glob("*.png")))
-    if len(imgs) >= 2:
-        return (imgs[0], imgs[1])
-    elif imgs:
-        return (imgs[0], imgs[0])
-    fallback = get_cute_animal_image_info(gender)
-    return (fallback, fallback)
+    gesture = char_dir / "gesture_pose.jpg"
+    
+    if not closed.exists():
+        closed = get_cute_animal_image_info(gender)
+    if not open_p.exists():
+        open_p = closed
+    if not gesture.exists():
+        gesture = open_p
+        
+    return (closed, open_p, gesture)
 
 
 def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "male") -> tuple:
     """
-    Finds mouth-closed & mouth-open avatar pairs for both speakers (Host on Left, Guest on Right)
-    ensuring they use distinct adult anime characters with matching uniform studio backgrounds.
-    Returns: ((host_closed, host_open), (guest_closed, guest_open))
+    Finds mouth-closed, mouth-open (hands down), and gesture-pose avatar sets for both speakers.
+    Returns: ((host_closed, host_open, host_gesture), (guest_closed, guest_open, guest_gesture))
     """
     base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
     
@@ -1393,10 +1419,10 @@ def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "mal
     else:
         guest_char = host_char
         
-    host_pair = get_character_mouth_pair(host_char, host_gender) if host_char else (None, None)
-    guest_pair = get_character_mouth_pair(guest_char, guest_gender) if guest_char else (None, None)
+    host_trio = get_character_mouth_trio(host_char, host_gender)
+    guest_trio = get_character_mouth_trio(guest_char, guest_gender)
     
-    return (host_pair, guest_pair)
+    return (host_trio, guest_trio)
 
 
 def get_character_pose_sequence(gender: str = "male") -> list:
@@ -1477,8 +1503,9 @@ def render_studio_visualizer_short(
     Renders a 1080x1920 split-screen animated viral short:
     - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
       with matching uniform dark grey studio background (#1A1C22) and center spacing gap.
-      Speaking avatar actively animates mouth movement, shakes to voice tone & expands +10%,
-      active speaker cyan rim spotlight glow, and 3-second hook banner.
+      Speaking avatar actively animates precise mouth lip-sync (hands down), with hand gesture
+      appearing only once or twice for 1.7s at key moments, active speaker cyan rim spotlight glow,
+      and 3-second curiosity hook banner.
     - Bottom half (1080x960): Subway Surfers gameplay footage
     - Audio: Sample-accurate speech + calm BGM + subtle whoosh micro-SFX on hook entrance
     - Overlays: Floating speaker badge, 3s curiosity hook banner, middle kinetic neon subtitles, bottom retention bar
@@ -1518,7 +1545,7 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
-    (host_closed, host_open), (guest_closed, guest_open) = get_dual_speaker_avatars(host_gender, detected_guest_gender)
+    (host_closed, host_open, host_gesture), (guest_closed, guest_open, guest_gesture) = get_dual_speaker_avatars(host_gender, detected_guest_gender)
     bgm_path = get_background_music_info()
     sfx_whoosh_path = get_sfx_info("whoosh")
     has_bgm = bool(bgm_path and bgm_path.exists())
@@ -1544,9 +1571,16 @@ def render_studio_visualizer_short(
     spk_guest = spk_active_all
     spk_host = "0"
     
-    if bg_path and bg_path.exists() and host_closed and host_open and guest_closed and guest_open:
+    # Hand gesture triggers ONLY once or twice per short for 1.7 seconds at key moments
+    if duration >= 25.0:
+        guest_gesture_cond = "between(t,7.5,9.2)+between(t,23.5,25.2)"
+    else:
+        guest_gesture_cond = "between(t,6.5,8.2)"
+    host_gesture_cond = "0"
+    
+    if bg_path and bg_path.exists() and host_closed and host_open and host_gesture and guest_closed and guest_open and guest_gesture:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🐱 Using dual-speaker studio layout with mouth movement & spacing gap ({host_closed.parent.name} vs {guest_closed.parent.name})...")
+        log(f"🐱 Using dual-speaker studio layout with precise lip-sync & occasional hand gestures ({host_closed.parent.name} vs {guest_closed.parent.name})...")
         
         # Base input index offset:
         # 0: bg_video, 1: audio_slice
@@ -1565,14 +1599,18 @@ def render_studio_visualizer_short(
             
         hc_idx = curr_inp_idx
         ho_idx = curr_inp_idx + 1
-        gc_idx = curr_inp_idx + 2
-        go_idx = curr_inp_idx + 3
+        hg_idx = curr_inp_idx + 2
+        gc_idx = curr_inp_idx + 3
+        go_idx = curr_inp_idx + 4
+        gg_idx = curr_inp_idx + 5
         
-        # Left Host Avatar Filter (500x940) with inward hflip, mouth movement & vocal tone shake
+        # Left Host Avatar Filter (500x940) with inward hflip, mouth movement (hands down) & occasional gesture
         left_av_filter = (
             f"[{hc_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hc];"
             f"[{ho_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[ho];"
-            f"[hc][ho]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.22),0.13), 0)'[h_comp];"
+            f"[{hg_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hg];"
+            f"[hc][ho]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.20),0.12), 0)'[h_talk];"
+            f"[h_talk][hg]overlay=0:0:enable='if({spk_host}, {host_gesture_cond}, 0)'[h_comp];"
             f"[h_comp]crop="
             f"w='if({spk_host}, 500/1.08, 500)':"
             f"h='if({spk_host}, 940/1.08, 940)':"
@@ -1581,11 +1619,13 @@ def render_studio_visualizer_short(
             f"scale=500:940,setsar=1[left_av]"
         )
         
-        # Right Guest Avatar Filter (500x940) with mouth movement & vocal tone shake
+        # Right Guest Avatar Filter (500x940) with mouth movement (hands down) & occasional gesture
         right_av_filter = (
             f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gc];"
             f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[go];"
-            f"[gc][go]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.22),0.13), 0)'[g_comp];"
+            f"[{gg_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg];"
+            f"[gc][go]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.20),0.12), 0)'[g_talk];"
+            f"[g_talk][gg]overlay=0:0:enable='if({spk_guest}, {guest_gesture_cond}, 0)'[g_comp];"
             f"[g_comp]crop="
             f"w='if({spk_guest}, 500/1.08, 500)':"
             f"h='if({spk_guest}, 940/1.08, 940)':"
@@ -1637,12 +1677,14 @@ def render_studio_visualizer_short(
             cmd.extend(["-i", str(sfx_whoosh_path)])
             audio_mix_inputs.append("[whoosh]")
             
-        # Add mouth-closed and mouth-open avatar images
+        # Add mouth-closed, mouth-open (hands down), and gesture-pose avatar images
         cmd.extend([
             "-i", str(host_closed),
             "-i", str(host_open),
+            "-i", str(host_gesture),
             "-i", str(guest_closed),
-            "-i", str(guest_open)
+            "-i", str(guest_open),
+            "-i", str(guest_gesture)
         ])
             
         a_filter_parts = ["[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice]"]
