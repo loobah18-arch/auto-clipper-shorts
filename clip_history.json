@@ -136,7 +136,26 @@
       "end": 160.35,
       "uploaded_youtube_id": "Fj_fUHFGHFw",
       "created_at": "2026-08-10T06:08:50.382202+00:00"
+    },
+    {
+      "video_id": "Pmd6knanPKw",
+      "title": "Three Daily Neuromodulator Phases [Part 1] 🧠 #Shorts",
+      "channel": "Huberman Lab",
+      "part": 1,
+      "start": 91.03,
+      "end": 140.31,
+      "uploaded_youtube_id": "0XgwRMX1u1E",
+      "created_at": "2026-08-10T06:43:33.374238+00:00"
     }
   ],
-  "active_series": null
+  "active_series": {
+    "video_id": "Pmd6knanPKw",
+    "podcast_id": "huberman_lab",
+    "episode_title": "Essentials: Control Your Brain Chemistry for Focus, Motivation & Well-Being",
+    "topic_title": "Three Daily Neuromodulator Phases",
+    "speaker_badge": "Andrew Huberman",
+    "current_part": 1,
+    "max_parts": 3,
+    "last_clip_end_sec": 140.31
+  }
 }
