@@ -1377,17 +1377,18 @@ def get_cute_animal_image_info(gender: str = "male") -> Path:
     return None
 
 
-def get_character_mouth_trio(char_dir: Path, gender: str = "male") -> tuple:
+def get_character_mouth_quad(char_dir: Path, gender: str = "male") -> tuple:
     """
-    Returns (mouth_closed_path, mouth_open_path, gesture_pose_path) for a character.
+    Returns (mouth_closed_path, mouth_open_path, gesture_pose_path, shocked_pose_path) for a character.
     """
     if not char_dir or not char_dir.exists():
         fallback = get_cute_animal_image_info(gender)
-        return (fallback, fallback, fallback)
+        return (fallback, fallback, fallback, fallback)
         
     closed = char_dir / "mouth_closed.jpg"
     open_p = char_dir / "mouth_open.jpg"
     gesture = char_dir / "gesture_pose.jpg"
+    shocked = char_dir / "shocked_pose.jpg"
     
     if not closed.exists():
         closed = get_cute_animal_image_info(gender)
@@ -1395,14 +1396,16 @@ def get_character_mouth_trio(char_dir: Path, gender: str = "male") -> tuple:
         open_p = closed
     if not gesture.exists():
         gesture = open_p
+    if not shocked.exists():
+        shocked = gesture
         
-    return (closed, open_p, gesture)
+    return (closed, open_p, gesture, shocked)
 
 
 def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "male") -> tuple:
     """
-    Finds mouth-closed, mouth-open (hands down), and gesture-pose avatar sets for both speakers.
-    Returns: ((host_closed, host_open, host_gesture), (guest_closed, guest_open, guest_gesture))
+    Finds quad pose sets (closed, open, gesture, shocked) for both speakers.
+    Returns: ((host_closed, host_open, host_gesture, host_shocked), (guest_closed, guest_open, guest_gesture, guest_shocked))
     """
     base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
     
@@ -1419,10 +1422,10 @@ def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "mal
     else:
         guest_char = host_char
         
-    host_trio = get_character_mouth_trio(host_char, host_gender)
-    guest_trio = get_character_mouth_trio(guest_char, guest_gender)
+    host_quad = get_character_mouth_quad(host_char, host_gender)
+    guest_quad = get_character_mouth_quad(guest_char, guest_gender)
     
-    return (host_trio, guest_trio)
+    return (host_quad, guest_quad)
 
 
 def get_character_pose_sequence(gender: str = "male") -> list:
@@ -1500,12 +1503,15 @@ def render_studio_visualizer_short(
     topic_title: str = ""
 ):
     """
-    Renders a 1080x1920 split-screen animated viral short:
+    Renders a 1080x1920 split-screen animated viral short in the high-energy
+    RG Bucket List & Not Your Type storytime anime animation style:
     - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
-      with matching uniform dark grey studio background (#1A1C22) and center spacing gap.
-      Speaking avatar actively animates precise mouth lip-sync (hands down), with hand gesture
-      appearing only once or twice for 1.7s at key moments, active speaker cyan rim spotlight glow,
-      and 3-second curiosity hook banner.
+      with matching uniform studio grey background (#1A1C22) and 60px center spacing gap.
+      Features dynamic camera snap-zooms (+18% zoom punches on hook and punchlines),
+      reaction poses (explaining hand gesture & shocked mind-blown reaction),
+      anime pop-up reaction badges (💡 KEY INSIGHT, ⚡ MIND BLOWN!),
+      vocal squash & stretch dialogue bouncing, co-host active listening head nods,
+      and sample-accurate mouth lip sync.
     - Bottom half (1080x960): Subway Surfers gameplay footage
     - Audio: Sample-accurate speech + calm BGM + subtle whoosh micro-SFX on hook entrance
     - Overlays: Floating speaker badge, 3s curiosity hook banner, middle kinetic neon subtitles, bottom retention bar
@@ -1516,7 +1522,7 @@ def render_studio_visualizer_short(
     duration = max(10.0, end_sec - start_sec)
     dur_str = f"{duration:.2f}"
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
-    log(f"🎨 Rendering Dual-Avatar Animated Studio Short ({duration:.1f}s) with Host ({host_gender}) & Guest ({speaker_gender})...")
+    log(f"🎨 Rendering Storytime Animated Short ({duration:.1f}s) in RG Bucket List & Not Your Type Style...")
     
     # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
@@ -1545,7 +1551,7 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
-    (host_closed, host_open, host_gesture), (guest_closed, guest_open, guest_gesture) = get_dual_speaker_avatars(host_gender, detected_guest_gender)
+    (host_closed, host_open, host_gesture, host_shocked), (guest_closed, guest_open, guest_gesture, guest_shocked) = get_dual_speaker_avatars(host_gender, detected_guest_gender)
     bgm_path = get_background_music_info()
     sfx_whoosh_path = get_sfx_info("whoosh")
     has_bgm = bool(bgm_path and bgm_path.exists())
@@ -1571,16 +1577,33 @@ def render_studio_visualizer_short(
     spk_guest = spk_active_all
     spk_host = "0"
     
-    # Hand gesture triggers ONLY once or twice per short for 1.7 seconds at key moments
+    # RG Bucket List & Not Your Type Dynamic Trigger Calculations:
+    # 1. Camera Punch Snap-Zoom (+18%) on Hook (0.2s-2.8s) and Punchline (18s-20.5s)
     if duration >= 25.0:
-        guest_gesture_cond = "between(t,7.5,9.2)+between(t,23.5,25.2)"
+        snap_zoom_cond = f"if({spk_guest}, between(t,0.2,2.8)+between(t,18.0,20.5), 0)"
+        guest_gesture_cond = "between(t,6.0,7.8)"
+        guest_shocked_cond = "between(t,18.0,19.8)"
+        badge_insight_cond = "between(t,6.0,7.8)"
+        badge_shock_cond = "between(t,18.0,19.8)"
     else:
-        guest_gesture_cond = "between(t,6.5,8.2)"
+        snap_zoom_cond = f"if({spk_guest}, between(t,0.2,2.8)+between(t,8.0,10.2), 0)"
+        guest_gesture_cond = "between(t,4.5,6.2)"
+        guest_shocked_cond = "between(t,8.0,9.8)"
+        badge_insight_cond = "between(t,4.5,6.2)"
+        badge_shock_cond = "between(t,8.0,9.8)"
+        
     host_gesture_cond = "0"
+    host_shocked_cond = "0"
     
-    if bg_path and bg_path.exists() and host_closed and host_open and host_gesture and guest_closed and guest_open and guest_gesture:
+    # Co-Host active listening nod (gentle 3.5px nod every 4.2 seconds)
+    host_nod_expr = "if(lt(mod(t,4.2),0.4), 3.5*sin(PI*mod(t,4.2)/0.4), 0)"
+    
+    # Vocal Squash & Stretch Dialogue Bounce rhythm
+    guest_bounce_expr = f"if({spk_guest}, 3.5*sin(16*PI*t), 0)"
+    
+    if bg_path and bg_path.exists() and host_closed and host_open and host_gesture and host_shocked and guest_closed and guest_open and guest_gesture and guest_shocked:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🐱 Using dual-speaker studio layout with precise lip-sync & occasional hand gestures ({host_closed.parent.name} vs {guest_closed.parent.name})...")
+        log(f"🐱 Using RG Bucket List & Not Your Type Storytime Layout ({host_closed.parent.name} vs {guest_closed.parent.name})...")
         
         # Base input index offset:
         # 0: bg_video, 1: audio_slice
@@ -1600,49 +1623,55 @@ def render_studio_visualizer_short(
         hc_idx = curr_inp_idx
         ho_idx = curr_inp_idx + 1
         hg_idx = curr_inp_idx + 2
-        gc_idx = curr_inp_idx + 3
-        go_idx = curr_inp_idx + 4
-        gg_idx = curr_inp_idx + 5
+        hs_idx = curr_inp_idx + 3
+        gc_idx = curr_inp_idx + 4
+        go_idx = curr_inp_idx + 5
+        gg_idx = curr_inp_idx + 6
+        gs_idx = curr_inp_idx + 7
         
-        # Left Host Avatar Filter (500x940) with inward hflip, mouth movement (hands down) & occasional gesture
+        # Left Host Avatar Filter (500x940) with inward hflip, mouth movement (hands down), gestures & active listening nods
         left_av_filter = (
             f"[{hc_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hc];"
             f"[{ho_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[ho];"
             f"[{hg_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hg];"
+            f"[{hs_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hs];"
             f"[hc][ho]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.20),0.12), 0)'[h_talk];"
-            f"[h_talk][hg]overlay=0:0:enable='if({spk_host}, {host_gesture_cond}, 0)'[h_comp];"
+            f"[h_talk][hg]overlay=0:0:enable='if({spk_host}, {host_gesture_cond}, 0)'[h_gesture];"
+            f"[h_gesture][hs]overlay=0:0:enable='if({spk_host}, {host_shocked_cond}, 0)'[h_comp];"
             f"[h_comp]crop="
             f"w='if({spk_host}, 500/1.08, 500)':"
             f"h='if({spk_host}, 940/1.08, 940)':"
             f"x='(560-out_w)/2 + if({spk_host}, 4.5*sin(32*PI*t), 0)':"
-            f"y='(980-out_h)/2 + if({spk_host}, 3.0*cos(26*PI*t), 0)',"
+            f"y='(980-out_h)/2 + {host_nod_expr}',"
             f"scale=500:940,setsar=1[left_av]"
         )
         
-        # Right Guest Avatar Filter (500x940) with mouth movement (hands down) & occasional gesture
+        # Right Guest Avatar Filter (500x940) with Storytime Snap-Zooms, Shock Reactions, Gestures & Squash/Stretch Bounce
         right_av_filter = (
             f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gc];"
             f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[go];"
             f"[{gg_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg];"
+            f"[{gs_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gs];"
             f"[gc][go]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.20),0.12), 0)'[g_talk];"
-            f"[g_talk][gg]overlay=0:0:enable='if({spk_guest}, {guest_gesture_cond}, 0)'[g_comp];"
+            f"[g_talk][gg]overlay=0:0:enable='if({spk_guest}, {guest_gesture_cond}, 0)'[g_gesture];"
+            f"[g_gesture][gs]overlay=0:0:enable='if({spk_guest}, {guest_shocked_cond}, 0)'[g_comp];"
             f"[g_comp]crop="
-            f"w='if({spk_guest}, 500/1.08, 500)':"
-            f"h='if({spk_guest}, 940/1.08, 940)':"
-            f"x='(560-out_w)/2 + if({spk_guest}, 4.5*sin(32*PI*t), 0)':"
-            f"y='(980-out_h)/2 + if({spk_guest}, 3.0*cos(26*PI*t), 0)',"
+            f"w='if({snap_zoom_cond}, 500/1.18, 500)':"
+            f"h='if({snap_zoom_cond}, 940/1.18, 940)':"
+            f"x='(560-out_w)/2 + if({spk_guest}, 3.5*sin(32*PI*t), 0)':"
+            f"y='(980-out_h)/2 + {guest_bounce_expr}',"
             f"scale=500:940,setsar=1[right_av]"
         )
         
-        # Studio Top Canvas (#1A1C22) with 60px Center Spacing Gap
+        # Studio Top Canvas (#1A1C22) with 60px Center Spacing Gap & Spotlight Rim
         top_filter = (
             f"{left_av_filter};{right_av_filter};"
             f"color=c=#1A1C22:s=1080x960[studio_bg];"
             f"[studio_bg][left_av]overlay=25:10[top_with_left];"
             f"[top_with_left][right_av]overlay=555:10[top_both];"
             f"[top_both]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.3:t=fill,"
-            f"drawbox=x=553:y=8:w=504:h=944:color=#00D2FF@0.7:t=4:enable='{spk_guest}',"
-            f"drawbox=x=23:y=8:w=504:h=944:color=#00D2FF@0.7:t=4:enable='{spk_host}'[top_glow]"
+            f"drawbox=x=553:y=8:w=504:h=944:color=#00D2FF@0.85:t='if({snap_zoom_cond}, 6, 4)':enable='{spk_guest}',"
+            f"drawbox=x=23:y=8:w=504:h=944:color=#00D2FF@0.85:t=4:enable='{spk_host}'[top_glow]"
         )
         
         v_filter = (
@@ -1652,9 +1681,19 @@ def render_studio_visualizer_short(
             f"[stacked]drawbox=y=956:color=#00D2FF@0.9:width=iw:height=8:t=fill,"
             f"drawbox=y=80:color=black@0.75:width=iw:height=90:t=fill,"
             f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=102,"
+            # Hook Banner at t in [0.2, 2.8]
             f"drawbox=x=60:y=175:w=iw-120:h=90:color=black@0.85:t=fill:enable='between(t,0.2,2.8)',"
             f"drawbox=x=60:y=175:w=iw-120:h=90:color=#00D2FF@0.95:t=4:enable='between(t,0.2,2.8)',"
             f"drawtext=text='{hook_clean}':fontcolor=#FFE600:fontsize=42:{font_opt}:x=(w-text_w)/2:y=202:enable='between(t,0.2,2.8)',"
+            # Anime Reaction Badge 1: 💡 KEY INSIGHT during explanation gesture
+            f"drawbox=x=680:y=180:w=260:h=70:color=#FFE600@0.95:t=fill:enable='{badge_insight_cond}',"
+            f"drawbox=x=680:y=180:w=260:h=70:color=black:t=3:enable='{badge_insight_cond}',"
+            f"drawtext=text='💡 KEY INSIGHT':fontcolor=black:fontsize=32:{font_opt}:x=695:y=198:enable='{badge_insight_cond}',"
+            # Anime Reaction Badge 2: ⚡ MIND BLOWN! during shocked mindblown reaction
+            f"drawbox=x=680:y=180:w=260:h=70:color=#FF0055@0.95:t=fill:enable='{badge_shock_cond}',"
+            f"drawbox=x=680:y=180:w=260:h=70:color=white:t=3:enable='{badge_shock_cond}',"
+            f"drawtext=text='⚡ MIND BLOWN!':fontcolor=white:fontsize=32:{font_opt}:x=690:y=198:enable='{badge_shock_cond}',"
+            # Bottom Progress Retention Bar
             f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
             f"ass='{ass_filter_path}'[v]"
         )
@@ -1677,14 +1716,16 @@ def render_studio_visualizer_short(
             cmd.extend(["-i", str(sfx_whoosh_path)])
             audio_mix_inputs.append("[whoosh]")
             
-        # Add mouth-closed, mouth-open (hands down), and gesture-pose avatar images
+        # Add mouth-closed, mouth-open (hands down), gesture-pose, and shocked-pose avatar images
         cmd.extend([
             "-i", str(host_closed),
             "-i", str(host_open),
             "-i", str(host_gesture),
+            "-i", str(host_shocked),
             "-i", str(guest_closed),
             "-i", str(guest_open),
-            "-i", str(guest_gesture)
+            "-i", str(guest_gesture),
+            "-i", str(guest_shocked)
         ])
             
         a_filter_parts = ["[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice]"]
