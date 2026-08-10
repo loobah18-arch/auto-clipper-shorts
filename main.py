@@ -1705,35 +1705,46 @@ def generate_minimax_h3_avatar_gesture(
         return None
 
 
-def get_character_mouth_quad(char_dir: Path, gender: str = "male") -> tuple:
+def get_character_avatar_pack(char_dir: Path, gender: str = "male") -> tuple:
     """
-    Returns (mouth_closed_path, mouth_open_path, gesture_pose_path, shocked_pose_path) for a character.
+    Returns full 7-pose avatar suite for realistic podcast gestures & mouth variants:
+    (closed, half, open_p, gesture_one, gesture_both, gesture_think, shocked)
     """
     if not char_dir or not char_dir.exists():
         fallback_single = get_cute_animal_image_info(gender)
-        return (fallback_single, fallback_single, fallback_single, fallback_single)
+        return (fallback_single, fallback_single, fallback_single, fallback_single, fallback_single, fallback_single, fallback_single)
         
     closed = char_dir / "mouth_closed.jpg"
+    half = char_dir / "mouth_half.jpg"
     open_p = char_dir / "mouth_open.jpg"
-    gesture = char_dir / "gesture_pose.jpg"
+    g_one = char_dir / "gesture_pose.jpg"
+    g_both = char_dir / "gesture_both.jpg"
+    g_think = char_dir / "gesture_think.jpg"
     shocked = char_dir / "shocked_pose.jpg"
     
     if not closed.exists():
         closed = get_cute_animal_image_info(gender)
+    if not half.exists():
+        half = closed
     if not open_p.exists():
-        open_p = closed
-    if not gesture.exists():
-        gesture = open_p
+        open_p = half
+    if not g_one.exists():
+        g_one = open_p
+    if not g_both.exists():
+        g_both = g_one
+    if not g_think.exists():
+        g_think = g_one
     if not shocked.exists():
-        shocked = gesture
+        shocked = g_both
         
-    return (closed, open_p, gesture, shocked)
+    return (closed, half, open_p, g_one, g_both, g_think, shocked)
 
 
 def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "male") -> tuple:
     """
-    Finds quad pose sets (closed, open, gesture, shocked) for both speakers.
-    Returns: ((host_closed, host_open, host_gesture, host_shocked), (guest_closed, guest_open, guest_gesture, guest_shocked))
+    Finds full 7-pose avatar suites for both speakers.
+    Returns: ((host_closed, host_half, host_open, host_g1, host_g2, host_g3, host_shocked),
+              (guest_closed, guest_half, guest_open, guest_g1, guest_g2, guest_g3, guest_shocked))
     """
     base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
     
@@ -1750,16 +1761,16 @@ def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "mal
     else:
         guest_char = host_char
         
-    host_quad = get_character_mouth_quad(host_char, host_gender)
-    guest_quad = get_character_mouth_quad(guest_char, guest_gender)
+    host_pack = get_character_avatar_pack(host_char, host_gender)
+    guest_pack = get_character_avatar_pack(guest_char, guest_gender)
     
-    return (host_quad, guest_quad)
+    return (host_pack, guest_pack)
 
 
 def get_character_pose_sequence(gender: str = "male") -> list:
     """
     Finds the pose variations for a chosen adult anime character avatar.
-    Returns list of Paths to character poses (e.g. mouth_closed.jpg, mouth_open.jpg).
+    Returns list of Paths to character poses.
     """
     base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
     target_dir = base_dir / ("female" if gender == "female" else "male")
@@ -1836,17 +1847,14 @@ def render_studio_visualizer_short(
     RG Bucket List & Not Your Type storytime anime animation style:
     - Real Podcaster Computer Vision Motion Engine: Extracts frame-accurate hand gestures,
       body emphasis peaks, and speech cadence directly from the podcast video slice.
+    - Multi-Level Mouth Lip Sync: Dynamic transitions between closed, conversational half-open,
+      and emphatic wide-open mouth shapes matching vocal amplitude and pause timing.
+    - Multi-Pose Gesture Suite: Expansive two-handed gestures, one-handed point explanations,
+      thoughtful chin contemplation, and stunned mind-blown reactions.
     - MiniMax H3 / Hailuo Avatar Gesture Synthesis: Uses MiniMax H3 reference-driven
-      video generation to mirror the podcast speaker's lively gestures when configured.
-    - Audio-Reactive Lip Sync: Analyzes uncompressed audio waveform to detect pauses
-      (snaps mouth closed instantly with calm breathing sway) vs calm speech vs emphatic loudness.
+      video generation when configured.
     - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
       with matching uniform studio grey background (#1A1C22) and 60px center spacing gap.
-      Features dynamic camera snap-zooms (+18% zoom punches on hook and punchlines),
-      reaction poses (explaining hand gesture & shocked mind-blown reaction),
-      anime pop-up reaction badges (KEY INSIGHT, MIND BLOWN!),
-      vocal squash & stretch dialogue bouncing, co-host active listening head nods,
-      and sample-accurate mouth lip sync.
     - Bottom half (1080x960): Subway Surfers gameplay footage
     - Audio: Sample-accurate speech + calm BGM + subtle whoosh micro-SFX on hook entrance
     - Overlays: Floating speaker badge, 3s curiosity hook banner, middle kinetic neon subtitles, bottom retention bar
@@ -1857,7 +1865,7 @@ def render_studio_visualizer_short(
     duration = max(10.0, end_sec - start_sec)
     dur_str = f"{duration:.2f}"
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
-    log(f"🎨 Rendering Audio-Reactive Storytime Short ({duration:.1f}s) in RG Bucket List & Not Your Type Style...")
+    log(f"🎨 Rendering Multi-Gesture Animated Storytime Short ({duration:.1f}s)...")
     
     # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
@@ -1894,7 +1902,7 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
-    (host_closed, host_open, host_gesture, host_shocked), (guest_closed, guest_open, guest_gesture, guest_shocked) = get_dual_speaker_avatars(host_gender, detected_guest_gender)
+    (host_closed, host_half, host_open, host_g1, host_g2, host_g3, host_shocked), (guest_closed, guest_half, guest_open, guest_g1, guest_g2, guest_g3, guest_shocked) = get_dual_speaker_avatars(host_gender, detected_guest_gender)
     bgm_path = get_background_music_info()
     sfx_whoosh_path = get_sfx_info("whoosh")
     has_bgm = bool(bgm_path and bgm_path.exists())
@@ -1904,7 +1912,7 @@ def render_studio_visualizer_short(
     minimax_gesture_video = None
     minimax_video_out = output_final_path.with_name(f"minimax_gesture_{output_final_path.stem}.mp4")
     if os.environ.get("MINIMAX_API_KEY") or (WORKSPACE_DIR / ".env").exists():
-        ref_avatar = guest_gesture if (guest_gesture and guest_gesture.exists()) else guest_closed
+        ref_avatar = guest_g1 if (guest_g1 and guest_g1.exists()) else guest_closed
         minimax_gesture_video = generate_minimax_h3_avatar_gesture(
             avatar_image_path=ref_avatar,
             topic_prompt=hook_clean,
@@ -1916,25 +1924,32 @@ def render_studio_visualizer_short(
     spk_host = "0"
     
     # RG Bucket List & Not Your Type Dynamic Trigger Calculations:
-    # 1. Camera Punch Snap-Zoom (+18%) on Hook (0.2s-2.8s) and Punchline (18s-20.5s)
     if duration >= 25.0:
         snap_zoom_cond = f"if({spk_guest}, between(t,0.2,2.8)+between(t,18.0,20.5), 0)"
-        timed_gesture = "between(t,6.0,7.8)"
+        timed_g1 = "between(t,4.5,6.8)"
+        timed_g2 = "between(t,11.0,13.5)"
+        timed_g3 = "between(t,21.0,23.5)"
         timed_shock = "between(t,18.0,19.8)"
     else:
         snap_zoom_cond = f"if({spk_guest}, between(t,0.2,2.8)+between(t,8.0,10.2), 0)"
-        timed_gesture = "between(t,4.5,6.2)"
+        timed_g1 = "between(t,3.0,5.0)"
+        timed_g2 = "between(t,6.5,8.5)"
+        timed_g3 = "between(t,11.0,13.0)"
         timed_shock = "between(t,8.0,9.8)"
         
     if has_cv_motion and cv_gesture != "0":
-        guest_gesture_cond = f"if({spk_guest}, {cv_gesture}, 0)"
+        guest_g1_cond = f"if({spk_guest}, {cv_gesture}, 0)"
+        guest_g2_cond = f"if({spk_guest} * {spk_loud_audio}, {cv_gesture}, 0)"
+        guest_g3_cond = f"if(not({spk_guest}), between(t,6.0,8.5)+between(t,16.0,18.5), 0)"
         guest_shocked_cond = f"if({spk_guest}, {cv_shock if cv_shock != '0' else timed_shock}, 0)"
         badge_insight_cond = cv_gesture
         badge_shock_cond = cv_shock if cv_shock != "0" else timed_shock
     else:
-        guest_gesture_cond = timed_gesture
+        guest_g1_cond = timed_g1
+        guest_g2_cond = timed_g2
+        guest_g3_cond = timed_g3
         guest_shocked_cond = timed_shock
-        badge_insight_cond = timed_gesture
+        badge_insight_cond = f"{timed_g1}+{timed_g2}"
         badge_shock_cond = timed_shock
         
     host_gesture_cond = "0"
@@ -1950,9 +1965,9 @@ def render_studio_visualizer_short(
         f"0.8*sin(2*PI*t))"
     )
     
-    if bg_path and bg_path.exists() and host_closed and host_open and host_gesture and host_shocked and guest_closed:
+    if bg_path and bg_path.exists() and host_closed and guest_closed:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        layout_name = "MiniMax H3 Speaker Gesture Layout" if (minimax_gesture_video and minimax_gesture_video.exists()) else "Audio-Reactive Storytime Layout"
+        layout_name = "MiniMax H3 Speaker Gesture Layout" if (minimax_gesture_video and minimax_gesture_video.exists()) else "Audio-Reactive Multi-Gesture Storytime Layout"
         log(f"🐱 Using {layout_name} ({host_closed.parent.name} vs {guest_closed.parent.name})...")
         
         # Base input index offset:
@@ -1971,19 +1986,22 @@ def render_studio_visualizer_short(
             curr_inp_idx += 1
             
         hc_idx = curr_inp_idx
-        ho_idx = curr_inp_idx + 1
-        hg_idx = curr_inp_idx + 2
-        hs_idx = curr_inp_idx + 3
-        curr_inp_idx += 4
+        hh_idx = curr_inp_idx + 1
+        ho_idx = curr_inp_idx + 2
+        hg1_idx = curr_inp_idx + 3
+        hs_idx = curr_inp_idx + 4
+        curr_inp_idx += 5
         
-        # Left Host Avatar Filter (500x940) with inward hflip, mouth movement (hands down), gestures & active listening nods
+        # Left Host Avatar Filter (500x940) with inward hflip, multi-level mouth, gestures & active listening nods
         left_av_filter = (
             f"[{hc_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hc];"
+            f"[{hh_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hh];"
             f"[{ho_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[ho];"
-            f"[{hg_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hg];"
+            f"[{hg1_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hg1];"
             f"[{hs_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hs];"
-            f"[hc][ho]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.20),0.12), 0)'[h_talk];"
-            f"[h_talk][hg]overlay=0:0:enable='if({spk_host}, {host_gesture_cond}, 0)'[h_gesture];"
+            f"[hc][hh]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.22),0.11), 0)'[h_talk1];"
+            f"[h_talk1][ho]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.44),0.12), 0)'[h_talk2];"
+            f"[h_talk2][hg1]overlay=0:0:enable='if({spk_host}, {host_gesture_cond}, 0)'[h_gesture];"
             f"[h_gesture][hs]overlay=0:0:enable='if({spk_host}, {host_shocked_cond}, 0)'[h_comp];"
             f"[h_comp]crop="
             f"w='if({spk_host}, 500/1.08, 500)':"
@@ -1993,11 +2011,12 @@ def render_studio_visualizer_short(
             f"scale=500:940,setsar=1[left_av]"
         )
         
-        # Right Guest Avatar Filter: MiniMax H3 Video or Pure-FFmpeg Multi-Pose Lip-Sync
+        # Right Guest Avatar Filter: MiniMax H3 Video or Pure-FFmpeg 7-Pose Suite (Mouth Closed/Half/Open + 3 Gestures + Shock)
         cmd_avatar_inputs = [
             "-i", str(host_closed),
+            "-i", str(host_half),
             "-i", str(host_open),
-            "-i", str(host_gesture),
+            "-i", str(host_g1),
             "-i", str(host_shocked)
         ]
         
@@ -2015,23 +2034,40 @@ def render_studio_visualizer_short(
             )
         else:
             gc_idx = curr_inp_idx
-            go_idx = curr_inp_idx + 1
-            gg_idx = curr_inp_idx + 2
-            gs_idx = curr_inp_idx + 3
+            gh_idx = curr_inp_idx + 1
+            go_idx = curr_inp_idx + 2
+            gg1_idx = curr_inp_idx + 3
+            gg2_idx = curr_inp_idx + 4
+            gg3_idx = curr_inp_idx + 5
+            gs_idx = curr_inp_idx + 6
             cmd_avatar_inputs.extend([
                 "-i", str(guest_closed),
+                "-i", str(guest_half),
                 "-i", str(guest_open),
-                "-i", str(guest_gesture),
+                "-i", str(guest_g1),
+                "-i", str(guest_g2),
+                "-i", str(guest_g3),
                 "-i", str(guest_shocked)
             ])
+            # Multi-level mouth layering:
+            # 1. Closed base [gc]
+            # 2. Overlay half-open mouth [gh] during active speech
+            # 3. Overlay wide-open mouth [go] during loud speech / vocal emphasis
+            # 4. Layer gesture 1 (one hand point), gesture 2 (both hands open), gesture 3 (contemplative think), and shocked pose
             right_av_filter = (
                 f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gc];"
+                f"[{gh_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gh];"
                 f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[go];"
-                f"[{gg_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg];"
+                f"[{gg1_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg1];"
+                f"[{gg2_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg2];"
+                f"[{gg3_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg3];"
                 f"[{gs_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gs];"
-                f"[gc][go]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.20),0.12), 0)'[g_talk];"
-                f"[g_talk][gg]overlay=0:0:enable='if({spk_guest}, {guest_gesture_cond}, 0)'[g_gesture];"
-                f"[g_gesture][gs]overlay=0:0:enable='if({spk_guest}, {guest_shocked_cond}, 0)'[g_comp];"
+                f"[gc][gh]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.22),0.11), 0)'[g_talk1];"
+                f"[g_talk1][go]overlay=0:0:enable='if({spk_guest}*{spk_loud_audio}, lt(mod(t,0.18),0.09), 0)'[g_talk2];"
+                f"[g_talk2][gg1]overlay=0:0:enable='if({spk_guest}, {guest_g1_cond}, 0)'[g_gest1];"
+                f"[g_gest1][gg2]overlay=0:0:enable='if({spk_guest}, {guest_g2_cond}, 0)'[g_gest2];"
+                f"[g_gest2][gg3]overlay=0:0:enable='{guest_g3_cond}'[g_gest3];"
+                f"[g_gest3][gs]overlay=0:0:enable='if({spk_guest}, {guest_shocked_cond}, 0)'[g_comp];"
                 f"[g_comp]crop="
                 f"w='if({snap_zoom_cond}, 500/1.18, 500)':"
                 f"h='if({snap_zoom_cond}, 940/1.18, 940)':"
