@@ -1504,7 +1504,7 @@ def generate_minimax_h3_avatar_gesture(
         return None
         
     base_host = os.environ.get("MINIMAX_API_HOST", "https://api.minimax.io").rstrip("/")
-    model_name = os.environ.get("MINIMAX_VIDEO_MODEL", "hailuo-h3")
+    model_name = os.environ.get("MINIMAX_VIDEO_MODEL", "MiniMax-H3")
     
     try:
         # 1. Base64 encode the reference avatar image
@@ -1522,16 +1522,22 @@ def generate_minimax_h3_avatar_gesture(
             f"active conversational energy, looking towards camera, vibrant anime aesthetic, 4k 60fps"
         )
         
-        log(f"🧠 Querying MiniMax H3 ({model_name}) for speaker gesture video ({duration:.1f}s)...")
+        target_dur = max(4, min(10, int(duration)))
+        log(f"🧠 Querying MiniMax H3 ({model_name}) for speaker gesture video ({target_dur}s, 768P 9:16)...")
+        
         payload = json.dumps({
             "model": model_name,
-            "prompt": prompt,
-            "first_frame_image": data_uri,
-            "prompt_optimizer": True
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": data_uri}
+            ],
+            "resolution": "768P",
+            "ratio": "9:16",
+            "duration": target_dur
         }).encode("utf-8")
         
         req = urllib.request.Request(
-            f"{base_host}/v1/video_generation",
+            f"{base_host}/v2/video_generation",
             data=payload,
             headers={
                 "Authorization": f"Bearer {api_key}",
