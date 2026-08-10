@@ -450,10 +450,12 @@ def create_word_timestamps_from_segment(text: str, start_sec: float, end_sec: fl
     return result
 
 
-def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path) -> dict:
+def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path, target_title: str = None) -> dict:
     """
-    Downloads audio directly from the podcast's official RSS feed and extracts real episode metadata.
-    Completely immune to YouTube BotGuard blocks and requires 0 cookies.
+    Downloads full episode MP3 audio directly from podcast RSS feed.
+    - If target_title is provided: Searches all RSS items and matches the closest episode.
+      If no item matches, returns False to fallback to direct YouTube audio.
+    - If target_title is None: Downloads the latest episode item.
     """
     if not rss_feed_url:
         return {"success": False}
@@ -467,21 +469,44 @@ def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path) -> dict:
             xml_data = resp.read()
 
         root = ET.fromstring(xml_data)
-        item = root.find(".//item")
-        if item is None:
-            log("⚠️ No item found in RSS feed.")
+        items = root.findall(".//item")
+        if not items:
+            log("⚠️ No items found in RSS feed.")
             return {"success": False}
             
-        enclosure = item.find("enclosure")
+        chosen_item = None
+        if target_title and target_title.strip() and target_title.strip() != "Podcast Episode":
+            target_words = set(re.findall(r"[a-z0-9]+", target_title.lower())) - {
+                "the", "a", "an", "and", "or", "in", "on", "at", "to", "for", "with", "by", "of", "full", "episode", "podcast", "shorts", "part"
+            }
+            best_score = 0
+            for it in items[:35]:
+                it_title_el = it.find("title")
+                it_title = it_title_el.text.strip() if (it_title_el is not None and it_title_el.text) else ""
+                it_words = set(re.findall(r"[a-z0-9]+", it_title.lower()))
+                overlap = len(target_words & it_words)
+                if overlap > best_score:
+                    best_score = overlap
+                    chosen_item = it
+            if best_score < 2 and len(target_words) >= 2:
+                log(f"⚠️ RSS feed items do not match target YouTube episode: '{target_title[:50]}...'. Falling back to direct video audio.")
+                return {"success": False}
+        else:
+            chosen_item = items[0]
+            
+        if chosen_item is None:
+            chosen_item = items[0]
+
+        enclosure = chosen_item.find("enclosure")
         if enclosure is None or not enclosure.get("url"):
             log("⚠️ No audio enclosure found in RSS feed.")
             return {"success": False}
 
-        title_el = item.find("title")
+        title_el = chosen_item.find("title")
         ep_title = title_el.text.strip() if (title_el is not None and title_el.text) else "Podcast Episode"
         
         # Look for itunes:author
-        author_el = item.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}author")
+        author_el = chosen_item.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}author")
         ep_author = author_el.text.strip() if (author_el is not None and author_el.text) else ""
 
         mp3_url = enclosure.get("url")
@@ -509,14 +534,26 @@ def download_audio_via_rss(rss_feed_url: str, output_audio_path: Path) -> dict:
 def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcast_entry: dict = None, video_meta: dict = None) -> list:
     """
     Attempts to:
-    1. Download audio via official Podcast RSS feed (100% BotGuard immune, 0 cookies needed) -> Whisper AI.
-    2. Download instant YouTube captions (manual/auto-generated json3/vtt).
-    3. Fallback to yt-dlp audio download -> Whisper AI.
+    1. Reuse already cached audio for this video_id if continuing multi-part series.
+    2. Download audio via official Podcast RSS feed (matched by title) -> Whisper AI.
+    3. Download instant YouTube captions (manual/auto-generated json3/vtt).
+    4. Fallback to yt-dlp audio download -> Whisper AI.
     """
-    # 1. Try Podcast RSS feed audio first (Zero BotGuard / Zero Captchas)
+    video_id = video_meta.get("id", "episode") if video_meta else "episode"
+    audio_full_path = output_base / f"podcast_audio_{video_id}.mp3"
+    
+    # 0. Reuse already cached audio for this exact video if present
+    if audio_full_path.exists() and audio_full_path.stat().st_size > 500000:
+        log(f"🔄 Reusing cached episode audio ({audio_full_path.stat().st_size / (1024*1024):.1f} MB): {audio_full_path.name}")
+        try:
+            return transcribe_audio_with_whisper(audio_full_path, model_size="base.en")
+        except Exception as we:
+            log(f"⚠️ Cached audio transcription notice: {we}")
+
+    # 1. Try Podcast RSS feed audio with title matching
+    target_title = video_meta.get("title") if (video_meta and video_meta.get("title") != "Podcast Episode") else None
     if podcast_entry and podcast_entry.get("rss_feed"):
-        rss_audio_path = output_base / "rss_podcast_audio.mp3"
-        rss_info = download_audio_via_rss(podcast_entry["rss_feed"], rss_audio_path)
+        rss_info = download_audio_via_rss(podcast_entry["rss_feed"], audio_full_path, target_title=target_title)
         if rss_info.get("success"):
             if video_meta is not None and rss_info.get("title"):
                 video_meta["title"] = rss_info["title"]
@@ -524,7 +561,7 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
                     video_meta["uploader"] = rss_info["author"]
             try:
                 log("Transcribing clean RSS podcast audio with Whisper AI...")
-                return transcribe_audio_with_whisper(rss_audio_path, model_size="base.en")
+                return transcribe_audio_with_whisper(audio_full_path, model_size="base.en")
             except Exception as we:
                 log(f"⚠️ Whisper AI notice: {we}. Trying instant YouTube captions...")
 
@@ -576,12 +613,11 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
     except Exception as e:
         log(f"YouTube caption extraction notice: {e}")
 
-    # Fallback to Whisper AI audio transcription
+    # Fallback to Whisper AI audio transcription directly from YouTube video audio
     log("Falling back to Whisper AI audio transcription via yt-dlp...")
-    audio_path = output_base / "whisper_audio.m4a"
     try:
-        download_audio_for_transcription(video_url, audio_path)
-        return transcribe_audio_with_whisper(audio_path, model_size="base.en")
+        download_audio_for_transcription(video_url, audio_full_path)
+        return transcribe_audio_with_whisper(audio_full_path, model_size="base.en")
     except Exception as fe:
         log(f"⚠️ Audio transcription fallback error: {fe}")
         return []
@@ -1272,11 +1308,13 @@ def detect_speaker_gender(speaker_name: str, episode_title: str = "") -> str:
         "elizabeth", "gilbert", "mel", "robbins", "brene", "brown", "esther", "perel", 
         "sara", "blakely", "rhonda", "patrick", "vanessa", "edwards", "mary", "sarah", 
         "lisa", "jennifer", "amy", "emma", "laura", "rachel", "claire", "anna", "tara",
+        "fei-fei", "feifei", "fei", "li", "hannah", "jessica", "lucy", "sophie", "katie",
+        "maya", "chloe", "olivia", "eva", "natalie", "zoe", "cloe", "dr fei-fei", "dr. fei-fei",
         "she", "her", "female", "woman"
     }
     combined = f"{speaker_name} {episode_title}".lower()
     for fi in female_identifiers:
-        if re.search(rf"\b{fi}\b", combined):
+        if re.search(rf"\b{re.escape(fi)}\b", combined):
             return "female"
     return "male"
 
@@ -1943,7 +1981,11 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     generate_karaoke_ass_subtitles(transcript_segments, start_sec, end_sec, ass_sub_path)
     
     # 5. Render Studio Visualizer Short (100% immune to YouTube BotGuard)
-    audio_full_path = OUTPUT_DIR / "rss_podcast_audio.mp3"
+    audio_full_path = OUTPUT_DIR / f"podcast_audio_{target_video['id']}.mp3"
+    if not audio_full_path.exists() or audio_full_path.stat().st_size < 500000:
+        legacy_rss = OUTPUT_DIR / "rss_podcast_audio.mp3"
+        if legacy_rss.exists() and legacy_rss.stat().st_size > 500000:
+            audio_full_path = legacy_rss
     final_render_path = OUTPUT_DIR / f"clip_{target_video['id']}_final.mp4"
     
     if audio_full_path.exists() and audio_full_path.stat().st_size > 500000:
