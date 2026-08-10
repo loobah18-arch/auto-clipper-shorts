@@ -1280,6 +1280,39 @@ def get_cute_animal_image_info(gender: str = "male") -> Path:
     return None
 
 
+def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "male") -> tuple:
+    """
+    Finds avatar sets for both speakers (Host on Left, Guest on Right)
+    ensuring they use distinct adult anime characters with gesture poses.
+    """
+    base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
+    
+    host_dir = base_dir / ("female" if host_gender == "female" else "male")
+    guest_dir = base_dir / ("female" if guest_gender == "female" else "male")
+    
+    host_chars = [d for d in host_dir.iterdir() if d.is_dir()] if host_dir.exists() else []
+    guest_chars = [d for d in guest_dir.iterdir() if d.is_dir()] if guest_dir.exists() else []
+    
+    host_char = random.choice(host_chars) if host_chars else None
+    if guest_chars:
+        avail_guest = [c for c in guest_chars if c != host_char] or guest_chars
+        guest_char = random.choice(avail_guest)
+    else:
+        guest_char = host_char
+        
+    host_poses = sorted(list(host_char.glob("*.jpg")) + list(host_char.glob("*.png"))) if host_char else []
+    guest_poses = sorted(list(guest_char.glob("*.jpg")) + list(guest_char.glob("*.png"))) if guest_char else []
+    
+    if not host_poses:
+        h_single = get_cute_animal_image_info(host_gender)
+        host_poses = [h_single] if h_single else []
+    if not guest_poses:
+        g_single = get_cute_animal_image_info(guest_gender)
+        guest_poses = [g_single] if g_single else []
+        
+    return (host_poses, guest_poses)
+
+
 def get_character_pose_sequence(gender: str = "male") -> list:
     """
     Finds the pose variations for a chosen adult anime character avatar.
@@ -1289,7 +1322,6 @@ def get_character_pose_sequence(gender: str = "male") -> list:
     target_dir = base_dir / ("female" if gender == "female" else "male")
     
     if target_dir.exists():
-        # Find character subdirectories (e.g. wolf, lion, snow_leopard, fox)
         char_dirs = [d for d in target_dir.iterdir() if d.is_dir()]
         if char_dirs:
             chosen_char = random.choice(char_dirs)
@@ -1297,7 +1329,6 @@ def get_character_pose_sequence(gender: str = "male") -> list:
             if poses:
                 return poses
                 
-        # If flat directory
         flat_poses = sorted(list(target_dir.glob("*.jpg")) + list(target_dir.glob("*.png")))
         if flat_poses:
             return flat_poses
@@ -1344,12 +1375,14 @@ def render_studio_visualizer_short(
     output_final_path: Path,
     speaker_badge: str = "",
     transcript_segments: list = None,
-    speaker_gender: str = "male"
+    speaker_gender: str = "male",
+    host_gender: str = "male"
 ):
     """
     Renders a 1080x1920 split-screen animated short:
-    - Top half (1080x960): Adult anime-style avatar with dynamic gesture pose switching every 4.5s
-      (manly for male speakers, feminine for female speakers; dynamically shakes and expands +10% when speaking)
+    - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
+      with dark grey studio background. Speaking avatar dynamically shakes to voice tone & expands +10%,
+      while listening avatar rests.
     - Bottom half (1080x960): Subway Surfers gameplay footage
     - Audio: Sample-accurate speech + calm royalty-free BGM with zero dropout / muting
     - Overlays: Floating speaker badge, middle kinetic neon subtitles, bottom retention bar
@@ -1360,7 +1393,7 @@ def render_studio_visualizer_short(
     duration = max(10.0, end_sec - start_sec)
     dur_str = f"{duration:.2f}"
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
-    log(f"🎨 Rendering Animated Split-Screen Short ({duration:.1f}s) with adult anime avatar ({speaker_gender}) + Subway Surfers...")
+    log(f"🎨 Rendering Dual-Avatar Animated Studio Short ({duration:.1f}s) with Host ({host_gender}) & Guest ({speaker_gender})...")
     
     # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
@@ -1385,15 +1418,11 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
-    pose_paths = get_character_pose_sequence(speaker_gender)
-    if not pose_paths:
-        single = get_cute_animal_image_info(speaker_gender)
-        pose_paths = [single] if single else []
-        
+    host_poses, guest_poses = get_dual_speaker_avatars(host_gender, speaker_gender)
     bgm_path = get_background_music_info()
     has_bgm = bool(bgm_path and bgm_path.exists())
     
-    # Build speech activity expression for reactive avatar shake and +10% zoom
+    # Build speech activity expression for tone-reactive shake and zoom
     spk_intervals = []
     if transcript_segments:
         for seg in transcript_segments:
@@ -1410,44 +1439,87 @@ def render_studio_visualizer_short(
     else:
         spk_expr = "1"
     
-    if bg_path and bg_path.exists() and pose_paths:
+    if bg_path and bg_path.exists() and host_poses and guest_poses:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        num_poses = len(pose_paths)
-        pose_interval = 4.5  # Switch gesture pose every 4.5 seconds
-        log(f"🐱 Using animated avatar with {num_poses} dynamic gesture pose(s) & gameplay: {bg_path.name} (offset {bg_start:.1f}s)...")
+        pose_interval = 4.5
+        all_pose_paths = host_poses + guest_poses
+        log(f"🐱 Using dual-speaker studio layout (Host: {len(host_poses)} poses, Guest: {len(guest_poses)} poses) & gameplay: {bg_path.name}...")
         
-        # Build multi-pose input scaling and time-switching filtergraph
+        # Base input index offset for pose images
         pose_offset = 3 if has_bgm else 2
-        pose_filters = []
-        for idx in range(num_poses):
+        
+        # Build Left Avatar (Host: 540x960) filter
+        left_filters = []
+        for idx in range(len(host_poses)):
             inp_idx = pose_offset + idx
-            pose_filters.append(f"[{inp_idx}:v]scale=1200:1066:force_original_aspect_ratio=increase,crop=1200:1066,loop=loop=-1:size=1:start=0[p{idx}]")
+            left_filters.append(f"[{inp_idx}:v]scale=600:1066:force_original_aspect_ratio=increase,crop=600:1066,loop=loop=-1:size=1:start=0[hp{idx}]")
             
-        if num_poses == 1:
-            composite_chain = "[p0]"
+        if len(host_poses) == 1:
+            h_composite = "[hp0]"
         else:
-            curr_layer = "p0"
-            for idx in range(1, num_poses):
+            h_curr = "hp0"
+            for idx in range(1, len(host_poses)):
                 active_ranges = []
                 t_start = idx * pose_interval
                 while t_start < duration:
                     t_end = min(duration, t_start + pose_interval)
                     active_ranges.append(f"between(t,{t_start:.2f},{t_end:.2f})")
-                    t_start += num_poses * pose_interval
-                    
+                    t_start += len(host_poses) * pose_interval
                 enable_cond = "+".join(active_ranges) if active_ranges else "0"
-                next_layer = f"p0_{idx}"
-                pose_filters.append(f"[{curr_layer}][p{idx}]overlay=0:0:enable='{enable_cond}'[{next_layer}]")
-                curr_layer = next_layer
-            composite_chain = f"[{curr_layer}]"
+                h_next = f"hp0_{idx}"
+                left_filters.append(f"[{h_curr}][hp{idx}]overlay=0:0:enable='{enable_cond}'[{h_next}]")
+                h_curr = h_next
+            h_composite = f"[{h_curr}]"
             
-        top_filter = ";".join(pose_filters) + ";" + (
-            f"{composite_chain}crop="
-            f"w='if({spk_expr}, 1080/1.10, 1080)':"
+        # Left Host avatar shakes & zooms when speaking
+        left_av_filter = ";".join(left_filters) + ";" + (
+            f"{h_composite}crop="
+            f"w='if({spk_expr}, 540/1.10, 540)':"
             f"h='if({spk_expr}, 960/1.10, 960)':"
-            f"x='(1200-out_w)/2 + if({spk_expr}, 5*sin(30*PI*t), 0)':"
-            f"y='(1066-out_h)/2 + if({spk_expr}, 3*cos(25*PI*t), 0)',"
-            f"scale=1080:960[top]"
+            f"x='(600-out_w)/2 + if({spk_expr}, 5.5*sin(32*PI*t), 0)':"
+            f"y='(1066-out_h)/2 + if({spk_expr}, 3.5*cos(26*PI*t), 0)',"
+            f"scale=540:960[left_av]"
+        )
+        
+        # Build Right Avatar (Guest: 540x960) filter
+        guest_offset = pose_offset + len(host_poses)
+        right_filters = []
+        for idx in range(len(guest_poses)):
+            inp_idx = guest_offset + idx
+            right_filters.append(f"[{inp_idx}:v]scale=600:1066:force_original_aspect_ratio=increase,crop=600:1066,loop=loop=-1:size=1:start=0[gp{idx}]")
+            
+        if len(guest_poses) == 1:
+            g_composite = "[gp0]"
+        else:
+            g_curr = "gp0"
+            for idx in range(1, len(guest_poses)):
+                active_ranges = []
+                t_start = idx * pose_interval
+                while t_start < duration:
+                    t_end = min(duration, t_start + pose_interval)
+                    active_ranges.append(f"between(t,{t_start:.2f},{t_end:.2f})")
+                    t_start += len(guest_poses) * pose_interval
+                enable_cond = "+".join(active_ranges) if active_ranges else "0"
+                g_next = f"gp0_{idx}"
+                right_filters.append(f"[{g_curr}][gp{idx}]overlay=0:0:enable='{enable_cond}'[{g_next}]")
+                g_curr = g_next
+            g_composite = f"[{g_curr}]"
+            
+        # Right Guest avatar shakes & zooms when speaking
+        right_av_filter = ";".join(right_filters) + ";" + (
+            f"{g_composite}crop="
+            f"w='if({spk_expr}, 540/1.10, 540)':"
+            f"h='if({spk_expr}, 960/1.10, 960)':"
+            f"x='(600-out_w)/2 + if({spk_expr}, 5.5*sin(32*PI*t), 0)':"
+            f"y='(1066-out_h)/2 + if({spk_expr}, 3.5*cos(26*PI*t), 0)',"
+            f"scale=540:960[right_av]"
+        )
+        
+        # Combine Left + Right side-by-side into 1080x960 top half
+        top_filter = (
+            f"{left_av_filter};{right_av_filter};"
+            f"[left_av][right_av]hstack=inputs=2[top_avatars];"
+            f"[top_avatars]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.4:t=fill[top]"
         )
         
         v_filter = (
@@ -1471,7 +1543,7 @@ def render_studio_visualizer_short(
         if has_bgm:
             log(f"🎵 Mixing calm royalty-free BGM: {bgm_path.name}...")
             cmd.extend(["-i", str(bgm_path)])
-            for p in pose_paths:
+            for p in all_pose_paths:
                 cmd.extend(["-i", str(p)])
             a_filter = (
                 "[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
@@ -1493,7 +1565,7 @@ def render_studio_visualizer_short(
                 str(output_final_path)
             ])
         else:
-            for p in pose_paths:
+            for p in all_pose_paths:
                 cmd.extend(["-i", str(p)])
             filtergraph = f"{v_filter};[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[aout]"
             cmd.extend([
@@ -1806,7 +1878,8 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     final_render_path = OUTPUT_DIR / f"clip_{target_video['id']}_final.mp4"
     
     if audio_full_path.exists() and audio_full_path.stat().st_size > 500000:
-        gender = detect_speaker_gender(badge_name, target_video.get("title", ""))
+        guest_gender = detect_speaker_gender(badge_name, target_video.get("title", ""))
+        host_gender = detect_speaker_gender(podcast_entry.get("name", ""))
         render_studio_visualizer_short(
             audio_full_path=audio_full_path,
             start_sec=start_sec,
@@ -1815,7 +1888,8 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
             output_final_path=final_render_path,
             speaker_badge=composed_badge,
             transcript_segments=transcript_segments,
-            speaker_gender=gender
+            speaker_gender=guest_gender,
+            host_gender=host_gender
         )
     else:
         raw_slice_path = OUTPUT_DIR / f"raw_slice_{target_video['id']}.mp4"
