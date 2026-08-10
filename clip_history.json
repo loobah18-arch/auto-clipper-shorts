@@ -1,9 +1,10 @@
 {
-  "last_channel_index": 4,
+  "last_channel_index": 5,
   "processed_videos": [
     "328wX2x_s5g",
     "BI1P14gjqKI",
-    "BbGv7GTbRN8"
+    "BbGv7GTbRN8",
+    "4AlZGl1o89s"
   ],
   "processed_clips": [
     {
@@ -77,7 +78,7 @@
     },
     {
       "video_id": "4AlZGl1o89s",
-      "title": "The Tim Ferriss Show Insight [Part 1] 💡 #Shorts",
+      "title": "Creative Productivity [Part 1] 🧠 #Shorts",
       "channel": "The Tim Ferriss Show",
       "part": 1,
       "start": 30.0,
@@ -87,23 +88,24 @@
     },
     {
       "video_id": "4AlZGl1o89s",
-      "title": "The Tim Ferriss Show Insight [Part 2] 💡 #Shorts",
+      "title": "Creative Productivity [Part 2] 🧠 #Shorts",
       "channel": "The Tim Ferriss Show",
       "part": 2,
       "start": 76.0,
       "end": 121.0,
       "uploaded_youtube_id": "WtyP3KKuSqQ",
       "created_at": "2026-08-09T17:11:55.121398+00:00"
+    },
+    {
+      "video_id": "4AlZGl1o89s",
+      "title": "Creative Productivity [Part 3] 🧠 #Shorts",
+      "channel": "The Tim Ferriss Show",
+      "part": 3,
+      "start": 121.0,
+      "end": 166.0,
+      "uploaded_youtube_id": "vPcMPfTF8L8",
+      "created_at": "2026-08-10T02:40:00.000000+00:00"
     }
   ],
-  "active_series": {
-    "video_id": "4AlZGl1o89s",
-    "podcast_id": "tim_ferriss",
-    "episode_title": "#878: How to Start When You're Stuck, Finish What You Begin, and Stop Waiting for Inspiration — Creative Advice from Elizabeth Gilbert, Seth Godin, Joyce Carol Oates, Anne Lamott and More",
-    "topic_title": "The Tim Ferriss Show Masterclass",
-    "speaker_badge": "The Tim Ferriss Show",
-    "current_part": 2,
-    "max_parts": 3,
-    "last_clip_end_sec": 121.0
-  }
+  "active_series": null
 }
