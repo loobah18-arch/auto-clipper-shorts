@@ -17,6 +17,7 @@ import tempfile
 import argparse
 import subprocess
 import urllib.request
+import math
 import wave
 import struct
 import xml.etree.ElementTree as ET
@@ -415,8 +416,8 @@ def parse_json3_subtitles(json3_data: dict) -> list:
         # Adjust end times between consecutive words
         for idx in range(len(words) - 1):
             words[idx]["end"] = min(words[idx + 1]["start"], words[idx]["start"] + 0.6)
-        if words and end_sec > words[-1]["start"]:
-            words[-1]["end"] = round(end_sec, 2)
+        if words:
+            words[-1]["end"] = round(min(words[-1]["start"] + 0.65, max(end_sec, words[-1]["start"] + 0.3)), 2)
             
         full_text = " ".join(full_text_parts)
         if full_text:
@@ -836,7 +837,7 @@ def select_viral_clip_with_groq(
                         "Content-Type": "application/json"
                     }
                 )
-                with urllib.request.urlopen(n_req, timeout=75) as n_resp:
+                with urllib.request.urlopen(n_req, timeout=30) as n_resp:
                     n_data = json.loads(n_resp.read().decode("utf-8"))
                     content = n_data["choices"][0]["message"]["content"]
                     parsed = parse_llm_json(content)
@@ -856,9 +857,53 @@ def select_viral_clip_with_groq(
             except Exception as ne:
                 log(f"⚠️ NVIDIA Nemotron notice (attempt {attempt}): {ne}")
                 if attempt < 2:
-                    time.sleep(2)
+                    time.sleep(1)
                 else:
-                    log("Falling back to Groq...")
+                    log("Falling back to Groq / OpenRouter...")
+
+    # 1.5 OpenRouter / DeepSeek Fallback if key is present
+    openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
+    if openrouter_api_key:
+        try:
+            log(f"🧠 Querying OpenRouter DeepSeek for highlight (Part {part_number})...")
+            or_payload = json.dumps({
+                "model": "deepseek/deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "You are an expert viral YouTube Shorts editor. Return ONLY a single raw JSON object with keys: start_seconds, end_seconds, topic_title, viral_title, hook_reason, tags, speaker_badge."},
+                    {"role": "user", "content": f"Podcast: {podcast_entry.get('name', 'Podcast')}\nEpisode: {video_meta.get('title', 'Episode')}\nGoal: {goal_instruction}\n\nTranscript:\n{formatted_transcript}"}
+                ],
+                "temperature": 0.1,
+                "max_tokens": 1024
+            }).encode("utf-8")
+            or_req = urllib.request.Request(
+                "https://openrouter.ai/api/v1/chat/completions",
+                data=or_payload,
+                headers={
+                    "Authorization": f"Bearer {openrouter_api_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://github.com/auto-clipper-shorts",
+                    "X-Title": "Auto Clipper Shorts"
+                }
+            )
+            with urllib.request.urlopen(or_req, timeout=30) as or_resp:
+                or_data = json.loads(or_resp.read().decode("utf-8"))
+                or_content = or_data["choices"][0]["message"]["content"]
+                or_parsed = parse_llm_json(or_content)
+                if or_parsed and "start_seconds" in or_parsed and "end_seconds" in or_parsed:
+                    min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
+                    raw_start = max(min_start, float(or_parsed.get("start_seconds", min_start)))
+                    raw_end = float(or_parsed.get("end_seconds", raw_start + 45.0))
+                    
+                    start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, raw_start, raw_end)
+                    clip_dur = end_sec - start_sec
+                    
+                    or_parsed["start_seconds"] = start_sec
+                    or_parsed["end_seconds"] = end_sec
+                    or_parsed["duration"] = clip_dur
+                    log(f"✅ OpenRouter selected clip (Part {part_number}): {or_parsed['start_seconds']}s -> {or_parsed['end_seconds']}s ({clip_dur:.1f}s)")
+                    return or_parsed
+        except Exception as oe:
+            log(f"⚠️ OpenRouter highlight notice: {oe}")
 
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
@@ -1022,7 +1067,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         for active_idx, target_word in enumerate(group):
             w_start = target_word["start"]
-            w_end = target_word["end"]
+            w_end = max(w_start + 0.1, min(target_word["end"], w_start + 0.75))
+            if active_idx < len(group) - 1:
+                w_end = min(w_end, group[active_idx + 1]["start"])
             
             line_parts = []
             for idx, gw in enumerate(group):
