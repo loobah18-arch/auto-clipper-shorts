@@ -113,7 +113,8 @@ def main():
 
     # 5. Render Video
     output_video = OUTPUT_DIR / "local_test_short.mp4"
-    log("🎨 Starting render of 1080x1920 portrait Short...")
+    raw_video_ref = OUTPUT_DIR / "raw_slice_Pmd6knanPKw.mp4"
+    log("🎨 Starting render of 1080x1920 portrait Short with Computer Vision Gesture Tracking...")
     render_studio_visualizer_short(
         audio_full_path=audio_source,
         start_sec=start_sec,
@@ -124,7 +125,8 @@ def main():
         transcript_segments=segments,
         speaker_gender="male",
         host_gender="male",
-        topic_title="AI REVOLUTION & NVIDIA"
+        topic_title="AI REVOLUTION & NVIDIA",
+        video_reference_path=raw_video_ref if raw_video_ref.exists() else None
     )
 
     if output_video.exists() and output_video.stat().st_size > 100000:
