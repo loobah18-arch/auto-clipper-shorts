@@ -115,6 +115,16 @@
       "end": 75.65,
       "uploaded_youtube_id": "u0TgCmwenKA",
       "created_at": "2026-08-10T03:44:37.686641+00:00"
+    },
+    {
+      "video_id": "pv1TUJSEM2k",
+      "title": "Lex Fridman Podcast Insight [Part 2] 💡 #Shorts",
+      "channel": "Lex Fridman Podcast",
+      "part": 2,
+      "start": 75.7,
+      "end": 122.39,
+      "uploaded_youtube_id": "i59JJ-pO8g0",
+      "created_at": "2026-08-10T04:25:17.531696+00:00"
     }
   ],
   "active_series": {
@@ -123,8 +133,8 @@
     "episode_title": "#499 – Gary Gallagher: American Civil War, Slavery, Lincoln, Grant & Lee",
     "topic_title": "Lex Fridman Podcast Masterclass",
     "speaker_badge": "Lex Fridman Podcast",
-    "current_part": 1,
+    "current_part": 2,
     "max_parts": 3,
-    "last_clip_end_sec": 75.65
+    "last_clip_end_sec": 122.39
   }
 }
