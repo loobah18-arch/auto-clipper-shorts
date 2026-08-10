@@ -1989,15 +1989,15 @@ def render_studio_visualizer_short(
         guest_g2_cond = f"if({spk_guest} * {spk_loud_audio}, {cv_gesture}, 0)"
         guest_g3_cond = f"if(not({spk_guest}), between(t,6.0,8.5)+between(t,16.0,18.5), 0)"
         guest_shocked_cond = f"if({spk_guest}, {cv_shock if cv_shock != '0' else timed_shock}, 0)"
-        badge_insight_cond = cv_gesture
-        badge_shock_cond = cv_shock if cv_shock != "0" else timed_shock
+        badge_insight_cond = f"if(gt(t,3.0), {cv_gesture}, 0)"
+        badge_shock_cond = f"if(gt(t,3.0), {cv_shock if cv_shock != '0' else timed_shock}, 0)"
     else:
         guest_g1_cond = timed_g1
         guest_g2_cond = timed_g2
         guest_g3_cond = timed_g3
         guest_shocked_cond = timed_shock
-        badge_insight_cond = f"{timed_g1}+{timed_g2}"
-        badge_shock_cond = timed_shock
+        badge_insight_cond = f"if(gt(t,3.0), {timed_g1}+{timed_g2}, 0)"
+        badge_shock_cond = f"if(gt(t,3.0), {timed_shock}, 0)"
         
     host_gesture_cond = "0"
     host_shocked_cond = "0"
