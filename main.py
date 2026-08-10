@@ -1355,10 +1355,28 @@ def get_cute_animal_image_info(gender: str = "male") -> Path:
     return None
 
 
+def get_character_mouth_pair(char_dir: Path, gender: str = "male") -> tuple:
+    """
+    Returns (mouth_closed_path, mouth_open_path) for a character.
+    """
+    closed = char_dir / "mouth_closed.jpg"
+    open_p = char_dir / "mouth_open.jpg"
+    if closed.exists() and open_p.exists():
+        return (closed, open_p)
+    imgs = sorted(list(char_dir.glob("*.jpg")) + list(char_dir.glob("*.png")))
+    if len(imgs) >= 2:
+        return (imgs[0], imgs[1])
+    elif imgs:
+        return (imgs[0], imgs[0])
+    fallback = get_cute_animal_image_info(gender)
+    return (fallback, fallback)
+
+
 def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "male") -> tuple:
     """
-    Finds avatar sets for both speakers (Host on Left, Guest on Right)
-    ensuring they use distinct adult anime characters with gesture poses.
+    Finds mouth-closed & mouth-open avatar pairs for both speakers (Host on Left, Guest on Right)
+    ensuring they use distinct adult anime characters with matching uniform studio backgrounds.
+    Returns: ((host_closed, host_open), (guest_closed, guest_open))
     """
     base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
     
@@ -1375,23 +1393,16 @@ def get_dual_speaker_avatars(host_gender: str = "male", guest_gender: str = "mal
     else:
         guest_char = host_char
         
-    host_poses = sorted(list(host_char.glob("*.jpg")) + list(host_char.glob("*.png"))) if host_char else []
-    guest_poses = sorted(list(guest_char.glob("*.jpg")) + list(guest_char.glob("*.png"))) if guest_char else []
+    host_pair = get_character_mouth_pair(host_char, host_gender) if host_char else (None, None)
+    guest_pair = get_character_mouth_pair(guest_char, guest_gender) if guest_char else (None, None)
     
-    if not host_poses:
-        h_single = get_cute_animal_image_info(host_gender)
-        host_poses = [h_single] if h_single else []
-    if not guest_poses:
-        g_single = get_cute_animal_image_info(guest_gender)
-        guest_poses = [g_single] if g_single else []
-        
-    return (host_poses, guest_poses)
+    return (host_pair, guest_pair)
 
 
 def get_character_pose_sequence(gender: str = "male") -> list:
     """
     Finds the pose variations for a chosen adult anime character avatar.
-    Returns list of Paths to character poses (e.g. pose_01.jpg, pose_02.jpg, pose_03.jpg).
+    Returns list of Paths to character poses (e.g. mouth_closed.jpg, mouth_open.jpg).
     """
     base_dir = Path(__file__).resolve().parent / "assets" / "images" / "avatars"
     target_dir = base_dir / ("female" if gender == "female" else "male")
@@ -1465,7 +1476,8 @@ def render_studio_visualizer_short(
     """
     Renders a 1080x1920 split-screen animated viral short:
     - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
-      with dark grey studio background. Speaking avatar dynamically shakes to voice tone & expands +10%,
+      with matching uniform dark grey studio background (#1A1C22) and center spacing gap.
+      Speaking avatar actively animates mouth movement, shakes to voice tone & expands +10%,
       active speaker cyan rim spotlight glow, and 3-second hook banner.
     - Bottom half (1080x960): Subway Surfers gameplay footage
     - Audio: Sample-accurate speech + calm BGM + subtle whoosh micro-SFX on hook entrance
@@ -1506,7 +1518,7 @@ def render_studio_visualizer_short(
         font_opt = "font='DejaVu Sans'"
 
     bg_path, bg_dur = get_background_video_info()
-    host_poses, guest_poses = get_dual_speaker_avatars(host_gender, detected_guest_gender)
+    (host_closed, host_open), (guest_closed, guest_open) = get_dual_speaker_avatars(host_gender, detected_guest_gender)
     bgm_path = get_background_music_info()
     sfx_whoosh_path = get_sfx_info("whoosh")
     has_bgm = bool(bgm_path and bgm_path.exists())
@@ -1532,94 +1544,65 @@ def render_studio_visualizer_short(
     spk_guest = spk_active_all
     spk_host = "0"
     
-    if bg_path and bg_path.exists() and host_poses and guest_poses:
+    if bg_path and bg_path.exists() and host_closed and host_open and guest_closed and guest_open:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        pose_interval = 4.5
-        all_pose_paths = host_poses + guest_poses
-        log(f"🐱 Using dual-speaker studio layout (Host: {len(host_poses)} poses, Guest: {len(guest_poses)} poses) & gameplay: {bg_path.name}...")
+        log(f"🐱 Using dual-speaker studio layout with mouth movement & spacing gap ({host_closed.parent.name} vs {guest_closed.parent.name})...")
         
-        # Base input index offset for pose images
-        # 0: bg_video, 1: audio_slice, 2: bgm (if present), 3: whoosh (if present)
-        pose_offset = 2
+        # Base input index offset:
+        # 0: bg_video, 1: audio_slice
+        # Next optional: bgm, whoosh
+        curr_inp_idx = 2
+        bgm_idx = None
+        whoosh_idx = None
+        
         if has_bgm:
-            pose_offset += 1
+            bgm_idx = curr_inp_idx
+            curr_inp_idx += 1
+            
         if has_whoosh:
-            pose_offset += 1
+            whoosh_idx = curr_inp_idx
+            curr_inp_idx += 1
             
-        # Build Left Avatar (Host: 540x960) filter:
-        left_filters = []
-        for idx in range(len(host_poses)):
-            inp_idx = pose_offset + idx
-            left_filters.append(f"[{inp_idx}:v]hflip,scale=600:1066:force_original_aspect_ratio=increase,crop=600:1066,loop=loop=-1:size=1:start=0[hp{idx}]")
-            
-        if len(host_poses) == 1:
-            h_composite = "[hp0]"
-        else:
-            h_curr = "hp0"
-            for idx in range(1, len(host_poses)):
-                active_ranges = []
-                t_start = idx * pose_interval
-                while t_start < duration:
-                    t_end = min(duration, t_start + pose_interval)
-                    active_ranges.append(f"between(t,{t_start:.2f},{t_end:.2f})")
-                    t_start += len(host_poses) * pose_interval
-                enable_cond = "+".join(active_ranges) if active_ranges else "0"
-                h_next = f"hp0_{idx}"
-                left_filters.append(f"[{h_curr}][hp{idx}]overlay=0:0:enable='{enable_cond}'[{h_next}]")
-                h_curr = h_next
-            h_composite = f"[{h_curr}]"
-            
-        # Left Host avatar shakes & zooms ONLY when Host is speaking
-        left_av_filter = ";".join(left_filters) + ";" + (
-            f"{h_composite}crop="
-            f"w='if({spk_host}, 540/1.10, 540)':"
-            f"h='if({spk_host}, 960/1.10, 960)':"
-            f"x='(600-out_w)/2 + if({spk_host}, 5.5*sin(32*PI*t), 0)':"
-            f"y='(1066-out_h)/2 + if({spk_host}, 3.5*cos(26*PI*t), 0)',"
-            f"scale=540:960[left_av]"
+        hc_idx = curr_inp_idx
+        ho_idx = curr_inp_idx + 1
+        gc_idx = curr_inp_idx + 2
+        go_idx = curr_inp_idx + 3
+        
+        # Left Host Avatar Filter (500x940) with inward hflip, mouth movement & vocal tone shake
+        left_av_filter = (
+            f"[{hc_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hc];"
+            f"[{ho_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[ho];"
+            f"[hc][ho]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.22),0.13), 0)'[h_comp];"
+            f"[h_comp]crop="
+            f"w='if({spk_host}, 500/1.08, 500)':"
+            f"h='if({spk_host}, 940/1.08, 940)':"
+            f"x='(560-out_w)/2 + if({spk_host}, 4.5*sin(32*PI*t), 0)':"
+            f"y='(980-out_h)/2 + if({spk_host}, 3.0*cos(26*PI*t), 0)',"
+            f"scale=500:940,setsar=1[left_av]"
         )
         
-        # Build Right Avatar (Guest: 540x960) filter:
-        guest_offset = pose_offset + len(host_poses)
-        right_filters = []
-        for idx in range(len(guest_poses)):
-            inp_idx = guest_offset + idx
-            right_filters.append(f"[{inp_idx}:v]scale=600:1066:force_original_aspect_ratio=increase,crop=600:1066,loop=loop=-1:size=1:start=0[gp{idx}]")
-            
-        if len(guest_poses) == 1:
-            g_composite = "[gp0]"
-        else:
-            g_curr = "gp0"
-            for idx in range(1, len(guest_poses)):
-                active_ranges = []
-                t_start = idx * pose_interval
-                while t_start < duration:
-                    t_end = min(duration, t_start + pose_interval)
-                    active_ranges.append(f"between(t,{t_start:.2f},{t_end:.2f})")
-                    t_start += len(guest_poses) * pose_interval
-                enable_cond = "+".join(active_ranges) if active_ranges else "0"
-                g_next = f"gp0_{idx}"
-                right_filters.append(f"[{g_curr}][gp{idx}]overlay=0:0:enable='{enable_cond}'[{g_next}]")
-                g_curr = g_next
-            g_composite = f"[{g_curr}]"
-            
-        # Right Guest avatar shakes & zooms ONLY when Guest is speaking
-        right_av_filter = ";".join(right_filters) + ";" + (
-            f"{g_composite}crop="
-            f"w='if({spk_guest}, 540/1.10, 540)':"
-            f"h='if({spk_guest}, 960/1.10, 960)':"
-            f"x='(600-out_w)/2 + if({spk_guest}, 5.5*sin(32*PI*t), 0)':"
-            f"y='(1066-out_h)/2 + if({spk_guest}, 3.5*cos(26*PI*t), 0)',"
-            f"scale=540:960[right_av]"
+        # Right Guest Avatar Filter (500x940) with mouth movement & vocal tone shake
+        right_av_filter = (
+            f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gc];"
+            f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[go];"
+            f"[gc][go]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.22),0.13), 0)'[g_comp];"
+            f"[g_comp]crop="
+            f"w='if({spk_guest}, 500/1.08, 500)':"
+            f"h='if({spk_guest}, 940/1.08, 940)':"
+            f"x='(560-out_w)/2 + if({spk_guest}, 4.5*sin(32*PI*t), 0)':"
+            f"y='(980-out_h)/2 + if({spk_guest}, 3.0*cos(26*PI*t), 0)',"
+            f"scale=500:940,setsar=1[right_av]"
         )
         
-        # Combine Left + Right with active speaker cyan rim spotlight glow
+        # Studio Top Canvas (#1A1C22) with 60px Center Spacing Gap
         top_filter = (
             f"{left_av_filter};{right_av_filter};"
-            f"[left_av][right_av]hstack=inputs=2[top_avatars];"
-            f"[top_avatars]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.4:t=fill,"
-            f"drawbox=x=544:y=6:w=530:h=948:color=#00D2FF@0.65:t=4:enable='{spk_guest}',"
-            f"drawbox=x=6:y=6:w=530:h=948:color=#00D2FF@0.65:t=4:enable='{spk_host}'[top_glow]"
+            f"color=c=#1A1C22:s=1080x960[studio_bg];"
+            f"[studio_bg][left_av]overlay=25:10[top_with_left];"
+            f"[top_with_left][right_av]overlay=555:10[top_both];"
+            f"[top_both]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.3:t=fill,"
+            f"drawbox=x=553:y=8:w=504:h=944:color=#00D2FF@0.7:t=4:enable='{spk_guest}',"
+            f"drawbox=x=23:y=8:w=504:h=944:color=#00D2FF@0.7:t=4:enable='{spk_host}'[top_glow]"
         )
         
         v_filter = (
@@ -1643,24 +1626,24 @@ def render_studio_visualizer_short(
             "-i", str(audio_slice_path)
         ]
         
-        audio_in_idx = 1
         audio_mix_inputs = ["[voice]"]
         
         if has_bgm:
             log(f"🎵 Mixing calm royalty-free BGM: {bgm_path.name}...")
             cmd.extend(["-i", str(bgm_path)])
-            bgm_idx = audio_in_idx + 1
-            audio_in_idx += 1
             audio_mix_inputs.append("[bgm]")
             
         if has_whoosh:
             cmd.extend(["-i", str(sfx_whoosh_path)])
-            whoosh_idx = audio_in_idx + 1
-            audio_in_idx += 1
             audio_mix_inputs.append("[whoosh]")
             
-        for p in all_pose_paths:
-            cmd.extend(["-i", str(p)])
+        # Add mouth-closed and mouth-open avatar images
+        cmd.extend([
+            "-i", str(host_closed),
+            "-i", str(host_open),
+            "-i", str(guest_closed),
+            "-i", str(guest_open)
+        ])
             
         a_filter_parts = ["[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice]"]
         if has_bgm:
