@@ -1189,21 +1189,38 @@ def render_vertical_916_short(
     subprocess.run(cmd, check=True)
     log(f"Video render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
 
-    # Generate high-impact thumbnail from 5s timestamp
+    # Generate high-impact thumbnail with curiosity title stamping
     thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
+    generate_custom_thumbnail(output_final_path, thumb_path, speaker_badge)
+
+
+def generate_custom_thumbnail(video_path: Path, thumb_path: Path, topic_title: str = ""):
+    """
+    Generates a high-CTR custom YouTube thumbnail frame with bold curiosity text stamping.
+    """
     try:
+        font_file = find_system_font()
+        font_opt = f"fontfile='{font_file}'" if os.path.exists(font_file) else "font='DejaVu Sans'"
+        clean_title = re.sub(r"[^A-Za-z0-9\s\?!\'\-]", "", (topic_title or "MASTERCLASS INSIGHT")).strip().upper()[:40]
+        
+        vf = (
+            f"drawbox=y=1380:color=black@0.85:width=iw:height=160:t=fill,"
+            f"drawbox=y=1380:color=#00D2FF@0.95:width=iw:height=160:t=4,"
+            f"drawtext=text='{clean_title}':fontcolor=#FFE600:fontsize=46:{font_opt}:x=(w-text_w)/2:y=1436"
+        )
         subprocess.run([
             "ffmpeg", "-y",
-            "-ss", "00:00:05",
-            "-i", str(output_final_path),
+            "-ss", "00:00:02.00",
+            "-i", str(video_path),
             "-vframes", "1",
+            "-vf", vf,
             "-q:v", "2",
             str(thumb_path)
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if thumb_path.exists():
-            log(f"📸 Thumbnail generated: {thumb_path.name} ({thumb_path.stat().st_size // 1024} KB)")
+            log(f"📸 High-CTR Stamped Thumbnail generated: {thumb_path.name} ({thumb_path.stat().st_size // 1024} KB)")
     except Exception as te:
-        log(f"Thumbnail frame notice: {te}")
+        log(f"Thumbnail notice: {te}")
 
 
 def detect_audio_pitch_gender(wav_path: Path) -> str:
@@ -1397,7 +1414,7 @@ def get_character_pose_sequence(gender: str = "male") -> list:
 
 def get_background_video_info() -> tuple:
     """
-    Finds one of the 3 one-minute Subway Surfers gameplay background videos in assets/backgrounds/.
+    Finds one of the gameplay background videos in assets/backgrounds/.
     Returns (Path, duration_seconds) if found, else (None, 0.0).
     """
     bg_dir = Path(__file__).resolve().parent / "assets" / "backgrounds"
@@ -1425,6 +1442,14 @@ def get_background_music_info() -> Path:
     return None
 
 
+def get_sfx_info(sfx_name: str = "whoosh") -> Path:
+    """
+    Finds one of the micro-SFX in assets/sfx/.
+    """
+    sfx_path = Path(__file__).resolve().parent / "assets" / "sfx" / f"{sfx_name}.wav"
+    return sfx_path if sfx_path.exists() else None
+
+
 def render_studio_visualizer_short(
     audio_full_path: Path,
     start_sec: float,
@@ -1434,16 +1459,17 @@ def render_studio_visualizer_short(
     speaker_badge: str = "",
     transcript_segments: list = None,
     speaker_gender: str = "male",
-    host_gender: str = "male"
+    host_gender: str = "male",
+    topic_title: str = ""
 ):
     """
-    Renders a 1080x1920 split-screen animated short:
+    Renders a 1080x1920 split-screen animated viral short:
     - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
       with dark grey studio background. Speaking avatar dynamically shakes to voice tone & expands +10%,
-      while listening avatar rests.
+      active speaker cyan rim spotlight glow, and 3-second hook banner.
     - Bottom half (1080x960): Subway Surfers gameplay footage
-    - Audio: Sample-accurate speech + calm royalty-free BGM with zero dropout / muting
-    - Overlays: Floating speaker badge, middle kinetic neon subtitles, bottom retention bar
+    - Audio: Sample-accurate speech + calm BGM + subtle whoosh micro-SFX on hook entrance
+    - Overlays: Floating speaker badge, 3s curiosity hook banner, middle kinetic neon subtitles, bottom retention bar
     """
     if output_final_path.exists():
         output_final_path.unlink()
@@ -1471,6 +1497,7 @@ def render_studio_visualizer_short(
     # 2. Safe ASS escaping
     ass_filter_path = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
     badge_text = (speaker_badge or "PODCAST INSIGHT").replace(":", " ").replace("'", "").replace("%", "").replace("\\", "").upper()
+    hook_clean = re.sub(r"[^A-Za-z0-9\s\?!\'\-]", "", (topic_title or speaker_badge or "MINDSET INSIGHT")).strip().upper()[:42]
     
     font_file = find_system_font()
     if os.path.exists(font_file):
@@ -1481,10 +1508,11 @@ def render_studio_visualizer_short(
     bg_path, bg_dur = get_background_video_info()
     host_poses, guest_poses = get_dual_speaker_avatars(host_gender, detected_guest_gender)
     bgm_path = get_background_music_info()
+    sfx_whoosh_path = get_sfx_info("whoosh")
     has_bgm = bool(bgm_path and bgm_path.exists())
+    has_whoosh = bool(sfx_whoosh_path and sfx_whoosh_path.exists())
     
     # Build speech activity expressions for Host vs Guest
-    # Only the avatar currently speaking will shake and expand +10%; the listening avatar remains still!
     spk_intervals = []
     if transcript_segments:
         for seg in transcript_segments:
@@ -1501,8 +1529,6 @@ def render_studio_visualizer_short(
     else:
         spk_active_all = "1"
         
-    # In viral podcast shorts, the guest is the primary featured speaker explaining the insight.
-    # Guest (Right) shakes when talking; Host (Left) remains attentive and still.
     spk_guest = spk_active_all
     spk_host = "0"
     
@@ -1513,10 +1539,14 @@ def render_studio_visualizer_short(
         log(f"🐱 Using dual-speaker studio layout (Host: {len(host_poses)} poses, Guest: {len(guest_poses)} poses) & gameplay: {bg_path.name}...")
         
         # Base input index offset for pose images
-        pose_offset = 3 if has_bgm else 2
-        
+        # 0: bg_video, 1: audio_slice, 2: bgm (if present), 3: whoosh (if present)
+        pose_offset = 2
+        if has_bgm:
+            pose_offset += 1
+        if has_whoosh:
+            pose_offset += 1
+            
         # Build Left Avatar (Host: 540x960) filter:
-        # Applied hflip so Host on the LEFT ALWAYS FACES RIGHT towards the center/guest!
         left_filters = []
         for idx in range(len(host_poses)):
             inp_idx = pose_offset + idx
@@ -1539,7 +1569,7 @@ def render_studio_visualizer_short(
                 h_curr = h_next
             h_composite = f"[{h_curr}]"
             
-        # Left Host avatar shakes & zooms ONLY when Host is speaking (spk_host)
+        # Left Host avatar shakes & zooms ONLY when Host is speaking
         left_av_filter = ";".join(left_filters) + ";" + (
             f"{h_composite}crop="
             f"w='if({spk_host}, 540/1.10, 540)':"
@@ -1550,7 +1580,6 @@ def render_studio_visualizer_short(
         )
         
         # Build Right Avatar (Guest: 540x960) filter:
-        # Naturally faces LEFT towards the center/host!
         guest_offset = pose_offset + len(host_poses)
         right_filters = []
         for idx in range(len(guest_poses)):
@@ -1574,7 +1603,7 @@ def render_studio_visualizer_short(
                 g_curr = g_next
             g_composite = f"[{g_curr}]"
             
-        # Right Guest avatar shakes & zooms ONLY when Guest is speaking (spk_guest)
+        # Right Guest avatar shakes & zooms ONLY when Guest is speaking
         right_av_filter = ";".join(right_filters) + ";" + (
             f"{g_composite}crop="
             f"w='if({spk_guest}, 540/1.10, 540)':"
@@ -1584,20 +1613,25 @@ def render_studio_visualizer_short(
             f"scale=540:960[right_av]"
         )
         
-        # Combine Left + Right side-by-side into 1080x960 top half
+        # Combine Left + Right with active speaker cyan rim spotlight glow
         top_filter = (
             f"{left_av_filter};{right_av_filter};"
             f"[left_av][right_av]hstack=inputs=2[top_avatars];"
-            f"[top_avatars]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.4:t=fill[top]"
+            f"[top_avatars]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.4:t=fill,"
+            f"drawbox=x=544:y=6:w=530:h=948:color=#00D2FF@0.65:t=4:enable='{spk_guest}',"
+            f"drawbox=x=6:y=6:w=530:h=948:color=#00D2FF@0.65:t=4:enable='{spk_host}'[top_glow]"
         )
         
         v_filter = (
             f"{top_filter};"
             f"[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.04:brightness=-0.04[bot];"
-            f"[top][bot]vstack[stacked];"
+            f"[top_glow][bot]vstack[stacked];"
             f"[stacked]drawbox=y=956:color=#00D2FF@0.9:width=iw:height=8:t=fill,"
             f"drawbox=y=80:color=black@0.75:width=iw:height=90:t=fill,"
             f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=102,"
+            f"drawbox=x=60:y=175:w=iw-120:h=90:color=black@0.85:t=fill:enable='between(t,0.2,2.8)',"
+            f"drawbox=x=60:y=175:w=iw-120:h=90:color=#00D2FF@0.95:t=4:enable='between(t,0.2,2.8)',"
+            f"drawtext=text='{hook_clean}':fontcolor=#FFE600:fontsize=42:{font_opt}:x=(w-text_w)/2:y=202:enable='between(t,0.2,2.8)',"
             f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
             f"ass='{ass_filter_path}'[v]"
         )
@@ -1609,47 +1643,47 @@ def render_studio_visualizer_short(
             "-i", str(audio_slice_path)
         ]
         
+        audio_in_idx = 1
+        audio_mix_inputs = ["[voice]"]
+        
         if has_bgm:
             log(f"🎵 Mixing calm royalty-free BGM: {bgm_path.name}...")
             cmd.extend(["-i", str(bgm_path)])
-            for p in all_pose_paths:
-                cmd.extend(["-i", str(p)])
-            a_filter = (
-                "[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
-                "[2:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm];"
-                "[voice][bgm]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
-            )
-            filtergraph = f"{v_filter};{a_filter}"
-            cmd.extend([
-                "-filter_complex", filtergraph,
-                "-map", "[v]",
-                "-map", "[aout]",
-                "-c:v", "libx264",
-                "-preset", "veryfast",
-                "-crf", "20",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-pix_fmt", "yuv420p",
-                "-t", dur_str,
-                str(output_final_path)
-            ])
-        else:
-            for p in all_pose_paths:
-                cmd.extend(["-i", str(p)])
-            filtergraph = f"{v_filter};[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[aout]"
-            cmd.extend([
-                "-filter_complex", filtergraph,
-                "-map", "[v]",
-                "-map", "[aout]",
-                "-c:v", "libx264",
-                "-preset", "veryfast",
-                "-crf", "20",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-pix_fmt", "yuv420p",
-                "-t", dur_str,
-                str(output_final_path)
-            ])
+            bgm_idx = audio_in_idx + 1
+            audio_in_idx += 1
+            audio_mix_inputs.append("[bgm]")
+            
+        if has_whoosh:
+            cmd.extend(["-i", str(sfx_whoosh_path)])
+            whoosh_idx = audio_in_idx + 1
+            audio_in_idx += 1
+            audio_mix_inputs.append("[whoosh]")
+            
+        for p in all_pose_paths:
+            cmd.extend(["-i", str(p)])
+            
+        a_filter_parts = ["[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice]"]
+        if has_bgm:
+            a_filter_parts.append(f"[{bgm_idx}:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm]")
+        if has_whoosh:
+            a_filter_parts.append(f"[{whoosh_idx}:a]adelay=150|150,volume=0.30[whoosh]")
+            
+        a_filter_parts.append(f"{''.join(audio_mix_inputs)}amix=inputs={len(audio_mix_inputs)}:duration=first:dropout_transition=0:normalize=0[aout]")
+        filtergraph = f"{v_filter};{';'.join(a_filter_parts)}"
+        
+        cmd.extend([
+            "-filter_complex", filtergraph,
+            "-map", "[v]",
+            "-map", "[aout]",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "20",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-pix_fmt", "yuv420p",
+            "-t", dur_str,
+            str(output_final_path)
+        ])
     elif bg_path and bg_path.exists():
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
         log(f"🎮 Using full-screen Subway Surfers from {bg_path.name} (offset {bg_start:.1f}s)...")
@@ -1958,7 +1992,8 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
             speaker_badge=composed_badge,
             transcript_segments=transcript_segments,
             speaker_gender=guest_gender,
-            host_gender=host_gender
+            host_gender=host_gender,
+            topic_title=resolved_topic
         )
     else:
         raw_slice_path = OUTPUT_DIR / f"raw_slice_{target_video['id']}.mp4"
