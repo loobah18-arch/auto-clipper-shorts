@@ -1422,7 +1422,8 @@ def render_studio_visualizer_short(
     bgm_path = get_background_music_info()
     has_bgm = bool(bgm_path and bgm_path.exists())
     
-    # Build speech activity expression for tone-reactive shake and zoom
+    # Build speech activity expressions for Host vs Guest
+    # Only the avatar currently speaking will shake and expand +10%; the listening avatar remains still!
     spk_intervals = []
     if transcript_segments:
         for seg in transcript_segments:
@@ -1435,9 +1436,14 @@ def render_studio_visualizer_short(
                     spk_intervals.append(f"between(t,{r_start:.2f},{r_end:.2f})")
     
     if spk_intervals:
-        spk_expr = "+".join(spk_intervals[:60])
+        spk_active_all = "+".join(spk_intervals[:60])
     else:
-        spk_expr = "1"
+        spk_active_all = "1"
+        
+    # In viral podcast shorts, the guest is the primary featured speaker explaining the insight.
+    # Guest (Right) shakes when talking; Host (Left) remains attentive and still.
+    spk_guest = spk_active_all
+    spk_host = "0"
     
     if bg_path and bg_path.exists() and host_poses and guest_poses:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
@@ -1448,11 +1454,12 @@ def render_studio_visualizer_short(
         # Base input index offset for pose images
         pose_offset = 3 if has_bgm else 2
         
-        # Build Left Avatar (Host: 540x960) filter
+        # Build Left Avatar (Host: 540x960) filter:
+        # Applied hflip so Host on the LEFT ALWAYS FACES RIGHT towards the center/guest!
         left_filters = []
         for idx in range(len(host_poses)):
             inp_idx = pose_offset + idx
-            left_filters.append(f"[{inp_idx}:v]scale=600:1066:force_original_aspect_ratio=increase,crop=600:1066,loop=loop=-1:size=1:start=0[hp{idx}]")
+            left_filters.append(f"[{inp_idx}:v]hflip,scale=600:1066:force_original_aspect_ratio=increase,crop=600:1066,loop=loop=-1:size=1:start=0[hp{idx}]")
             
         if len(host_poses) == 1:
             h_composite = "[hp0]"
@@ -1471,17 +1478,18 @@ def render_studio_visualizer_short(
                 h_curr = h_next
             h_composite = f"[{h_curr}]"
             
-        # Left Host avatar shakes & zooms when speaking
+        # Left Host avatar shakes & zooms ONLY when Host is speaking (spk_host)
         left_av_filter = ";".join(left_filters) + ";" + (
             f"{h_composite}crop="
-            f"w='if({spk_expr}, 540/1.10, 540)':"
-            f"h='if({spk_expr}, 960/1.10, 960)':"
-            f"x='(600-out_w)/2 + if({spk_expr}, 5.5*sin(32*PI*t), 0)':"
-            f"y='(1066-out_h)/2 + if({spk_expr}, 3.5*cos(26*PI*t), 0)',"
+            f"w='if({spk_host}, 540/1.10, 540)':"
+            f"h='if({spk_host}, 960/1.10, 960)':"
+            f"x='(600-out_w)/2 + if({spk_host}, 5.5*sin(32*PI*t), 0)':"
+            f"y='(1066-out_h)/2 + if({spk_host}, 3.5*cos(26*PI*t), 0)',"
             f"scale=540:960[left_av]"
         )
         
-        # Build Right Avatar (Guest: 540x960) filter
+        # Build Right Avatar (Guest: 540x960) filter:
+        # Naturally faces LEFT towards the center/host!
         guest_offset = pose_offset + len(host_poses)
         right_filters = []
         for idx in range(len(guest_poses)):
@@ -1505,13 +1513,13 @@ def render_studio_visualizer_short(
                 g_curr = g_next
             g_composite = f"[{g_curr}]"
             
-        # Right Guest avatar shakes & zooms when speaking
+        # Right Guest avatar shakes & zooms ONLY when Guest is speaking (spk_guest)
         right_av_filter = ";".join(right_filters) + ";" + (
             f"{g_composite}crop="
-            f"w='if({spk_expr}, 540/1.10, 540)':"
-            f"h='if({spk_expr}, 960/1.10, 960)':"
-            f"x='(600-out_w)/2 + if({spk_expr}, 5.5*sin(32*PI*t), 0)':"
-            f"y='(1066-out_h)/2 + if({spk_expr}, 3.5*cos(26*PI*t), 0)',"
+            f"w='if({spk_guest}, 540/1.10, 540)':"
+            f"h='if({spk_guest}, 960/1.10, 960)':"
+            f"x='(600-out_w)/2 + if({spk_guest}, 5.5*sin(32*PI*t), 0)':"
+            f"y='(1066-out_h)/2 + if({spk_guest}, 3.5*cos(26*PI*t), 0)',"
             f"scale=540:960[right_av]"
         )
         
