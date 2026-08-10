@@ -1,0 +1,6 @@
+{
+  "name": "multi-model-hub",
+  "version": "1.0.0",
+  "description": "Multi-Model AI Hub connecting 100+ AI models (NVIDIA Nemotron 70B, Meta LLaMA 3.1 70B, Mistral Large 2, Codestral, Google Gemma 3, DeepSeek) to Antigravity CLI via MCP.",
+  "author": "Antigravity Pair Programmer"
+}
