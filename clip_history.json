@@ -167,7 +167,26 @@
       "end": 216.19,
       "uploaded_youtube_id": "joOLfsMU8bU",
       "created_at": "2026-08-11T00:19:47.723612+00:00"
+    },
+    {
+      "video_id": "PbXjK-F-5so",
+      "title": "Mammalian Vagal System [Part 1] 🧠 #Shorts",
+      "channel": "Modern Wisdom (Chris Williamson)",
+      "part": 1,
+      "start": 29.36,
+      "end": 67.89,
+      "uploaded_youtube_id": "ilAM6RUp2EU",
+      "created_at": "2026-08-11T02:24:07.307885+00:00"
     }
   ],
-  "active_series": null
+  "active_series": {
+    "video_id": "PbXjK-F-5so",
+    "podcast_id": "modern_wisdom",
+    "episode_title": "Polyvagal Theory: Why You Feel So Anxious All The Time - Dr Stephen Porges - #1128",
+    "topic_title": "Mammalian Vagal System",
+    "speaker_badge": "Dr. Stephen Porges",
+    "current_part": 1,
+    "max_parts": 3,
+    "last_clip_end_sec": 67.89
+  }
 }
