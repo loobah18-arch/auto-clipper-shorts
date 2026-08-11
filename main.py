@@ -1730,7 +1730,7 @@ def generate_minimax_h3_avatar_gesture(
             "model": model_name,
             "content": [
                 {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": data_uri}
+                {"type": "image_url", "image_url": {"url": data_uri}}
             ],
             "resolution": "768P",
             "ratio": "9:16",
