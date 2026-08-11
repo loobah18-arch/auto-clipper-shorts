@@ -1541,12 +1541,34 @@ def compute_audio_energy_timeline(wav_path: Path) -> tuple:
         if curr_loud_start is not None:
             loud_intervals.append((curr_loud_start, times[-1]))
             
-        active_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in active_intervals if (e - s) >= 0.08]
-        loud_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in loud_intervals if (e - s) >= 0.08]
+        # Merge adjacent active intervals with small pauses (< 0.25s)
+        merged_active = []
+        for s, e in active_intervals:
+            if not merged_active:
+                merged_active.append([s, e])
+            else:
+                if s - merged_active[-1][1] < 0.25:
+                    merged_active[-1][1] = e
+                else:
+                    merged_active.append([s, e])
+                    
+        # Merge adjacent loud intervals with small gaps (< 0.35s)
+        merged_loud = []
+        for s, e in loud_intervals:
+            if not merged_loud:
+                merged_loud.append([s, e])
+            else:
+                if s - merged_loud[-1][1] < 0.35:
+                    merged_loud[-1][1] = e
+                else:
+                    merged_loud.append([s, e])
+            
+        active_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in merged_active if (e - s) >= 0.15]
+        loud_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in merged_loud if (e - s) >= 0.15]
         
-        spk_active_expr = "+".join(active_expr_parts[:80]) if active_expr_parts else "1"
-        spk_loud_expr = "+".join(loud_expr_parts[:60]) if loud_expr_parts else "0"
-        is_calm_speech = (len(loud_intervals) < len(active_intervals) * 0.25)
+        spk_active_expr = "+".join(active_expr_parts[:20]) if active_expr_parts else "1"
+        spk_loud_expr = "+".join(loud_expr_parts[:15]) if loud_expr_parts else "0"
+        is_calm_speech = (len(merged_loud) < max(1, len(merged_active)) * 0.25)
         
         return (spk_active_expr, spk_loud_expr, is_calm_speech)
     except Exception as e:
@@ -2088,11 +2110,11 @@ def render_studio_visualizer_short(
         
         # Left Host Avatar Filter (500x940) with inward hflip, multi-level mouth, gestures & active listening nods
         left_av_filter = (
-            f"[{hc_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hc];"
-            f"[{hh_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hh];"
-            f"[{ho_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[ho];"
-            f"[{hg1_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hg1];"
-            f"[{hs_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[hs];"
+            f"[{hc_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[hc];"
+            f"[{hh_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[hh];"
+            f"[{ho_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[ho];"
+            f"[{hg1_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[hg1];"
+            f"[{hs_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[hs];"
             f"[hc][hh]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.22),0.11), 0)'[h_talk1];"
             f"[h_talk1][ho]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.44),0.12), 0)'[h_talk2];"
             f"[h_talk2][hg1]overlay=0:0:enable='if({spk_host}, {host_gesture_cond}, 0)'[h_gesture];"
@@ -2107,11 +2129,11 @@ def render_studio_visualizer_short(
         
         # Right Guest Avatar Filter: MiniMax H3 Video or Pure-FFmpeg 7-Pose Suite (Mouth Closed/Half/Open + 3 Gestures + Shock)
         cmd_avatar_inputs = [
-            "-i", str(host_closed),
-            "-i", str(host_half),
-            "-i", str(host_open),
-            "-i", str(host_g1),
-            "-i", str(host_shocked)
+            "-loop", "1", "-framerate", "25", "-i", str(host_closed),
+            "-loop", "1", "-framerate", "25", "-i", str(host_half),
+            "-loop", "1", "-framerate", "25", "-i", str(host_open),
+            "-loop", "1", "-framerate", "25", "-i", str(host_g1),
+            "-loop", "1", "-framerate", "25", "-i", str(host_shocked)
         ]
         
         if minimax_gesture_video and minimax_gesture_video.exists():
@@ -2135,13 +2157,13 @@ def render_studio_visualizer_short(
             gg3_idx = curr_inp_idx + 5
             gs_idx = curr_inp_idx + 6
             cmd_avatar_inputs.extend([
-                "-i", str(guest_closed),
-                "-i", str(guest_half),
-                "-i", str(guest_open),
-                "-i", str(guest_g1),
-                "-i", str(guest_g2),
-                "-i", str(guest_g3),
-                "-i", str(guest_shocked)
+                "-loop", "1", "-framerate", "25", "-i", str(guest_closed),
+                "-loop", "1", "-framerate", "25", "-i", str(guest_half),
+                "-loop", "1", "-framerate", "25", "-i", str(guest_open),
+                "-loop", "1", "-framerate", "25", "-i", str(guest_g1),
+                "-loop", "1", "-framerate", "25", "-i", str(guest_g2),
+                "-loop", "1", "-framerate", "25", "-i", str(guest_g3),
+                "-loop", "1", "-framerate", "25", "-i", str(guest_shocked)
             ])
             # Multi-level mouth layering:
             # 1. Closed base [gc]
@@ -2149,13 +2171,13 @@ def render_studio_visualizer_short(
             # 3. Overlay wide-open mouth [go] during loud speech / vocal emphasis
             # 4. Layer gesture 1 (one hand point), gesture 2 (both hands open), gesture 3 (contemplative think), and shocked pose
             right_av_filter = (
-                f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gc];"
-                f"[{gh_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gh];"
-                f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[go];"
-                f"[{gg1_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg1];"
-                f"[{gg2_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg2];"
-                f"[{gg3_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gg3];"
-                f"[{gs_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,loop=loop=-1:size=1:start=0[gs];"
+                f"[{gc_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[gc];"
+                f"[{gh_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[gh];"
+                f"[{go_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[go];"
+                f"[{gg1_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[gg1];"
+                f"[{gg2_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[gg2];"
+                f"[{gg3_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[gg3];"
+                f"[{gs_idx}:v]scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[gs];"
                 f"[gc][gh]overlay=0:0:enable='if({spk_guest}, lt(mod(t,0.22),0.11), 0)'[g_talk1];"
                 f"[g_talk1][go]overlay=0:0:enable='if({spk_guest}*{spk_loud_audio}, lt(mod(t,0.18),0.09), 0)'[g_talk2];"
                 f"[g_talk2][gg1]overlay=0:0:enable='if({spk_guest}, {guest_g1_cond}, 0)'[g_gest1];"
@@ -2241,6 +2263,7 @@ def render_studio_visualizer_short(
             "-c:v", "libx264",
             "-preset", "veryfast",
             "-crf", "20",
+            "-threads", "2",
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",
