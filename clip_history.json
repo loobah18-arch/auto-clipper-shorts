@@ -136,7 +136,26 @@
       "end": 124.3,
       "uploaded_youtube_id": "i4h213GIj4s",
       "created_at": "2026-08-11T10:36:07.039243+00:00"
+    },
+    {
+      "video_id": "SwQhKFMxmDY",
+      "title": "AI Contextual Learning [Part 1] 🧠 #Shorts",
+      "channel": "Huberman Lab",
+      "part": 1,
+      "start": 25.04,
+      "end": 63.04,
+      "uploaded_youtube_id": "ET2NZ62ZJXI",
+      "created_at": "2026-08-11T10:47:34.769783+00:00"
     }
   ],
-  "active_series": null
+  "active_series": {
+    "video_id": "SwQhKFMxmDY",
+    "podcast_id": "huberman_lab",
+    "episode_title": "Using AI to Increase Your Intelligence & Enrich Humanity | Dr. Fei-Fei Li",
+    "topic_title": "AI Contextual Learning",
+    "speaker_badge": "Dr. Fei-Fei Li",
+    "current_part": 1,
+    "max_parts": 3,
+    "last_clip_end_sec": 63.04
+  }
 }
