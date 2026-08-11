@@ -802,64 +802,60 @@ def select_viral_clip_with_groq(
             "The clip MUST start right where they begin sharing this specific information or topic (skip any small talk/intro). Duration: 38-55 seconds."
         )
 
-    # 1. Check if NVIDIA Nemotron 3 Ultra is configured
+    # 1. Check if NVIDIA Nemotron is configured
     if nvidia_api_key:
-        for attempt in range(1, 3):
-            try:
-                log(f"🧠 Querying NVIDIA Nemotron 3 Ultra (550B MoE) for viral highlight (Part {part_number}, attempt {attempt})...")
-                n_sys = "You are an expert viral YouTube Shorts content strategist. You MUST return ONLY a single JSON object. Absolutely NO conversational text, reasoning explanation, or markdown wrapper."
-                n_user = (
-                    f"Podcast: {podcast_entry.get('name', 'Podcast')}\n"
-                    f"Episode: {video_meta.get('title', 'Episode')}\n"
-                    f"Goal: {goal_instruction}\n\n"
-                    f"Transcript:\n{formatted_transcript}\n\n"
-                    f"Output ONLY valid raw JSON with this exact schema:\n"
-                    f"{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"topic_title\": \"<Core 3-5 word topic title>\", "
-                    f"\"viral_title\": \"<Punchy title under 60 chars with 1 emoji and #Shorts>\", \"hook_reason\": \"<string>\", "
-                    f"\"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<Speaker Name>\"}}"
-                )
-                
-                n_payload = json.dumps({
-                    "model": "nvidia/nemotron-3-ultra-550b-a55b",
-                    "messages": [
-                        {"role": "system", "content": n_sys},
-                        {"role": "user", "content": n_user}
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens": 1024
-                }).encode("utf-8")
-                
-                n_req = urllib.request.Request(
-                    "https://integrate.api.nvidia.com/v1/chat/completions",
-                    data=n_payload,
-                    headers={
-                        "Authorization": f"Bearer {nvidia_api_key}",
-                        "Content-Type": "application/json"
-                    }
-                )
-                with urllib.request.urlopen(n_req, timeout=30) as n_resp:
-                    n_data = json.loads(n_resp.read().decode("utf-8"))
-                    content = n_data["choices"][0]["message"]["content"]
-                    parsed = parse_llm_json(content)
-                    if parsed and "start_seconds" in parsed and "end_seconds" in parsed:
-                        min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
-                        raw_start = max(min_start, float(parsed.get("start_seconds", min_start)))
-                        raw_end = float(parsed.get("end_seconds", raw_start + 45.0))
-                        
-                        start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, raw_start, raw_end)
-                        clip_dur = end_sec - start_sec
-                        
-                        parsed["start_seconds"] = start_sec
-                        parsed["end_seconds"] = end_sec
-                        parsed["duration"] = clip_dur
-                        log(f"✅ NVIDIA Nemotron selected clip (Part {part_number}): {parsed['start_seconds']}s -> {parsed['end_seconds']}s ({clip_dur:.1f}s)")
-                        return parsed
-            except Exception as ne:
-                log(f"⚠️ NVIDIA Nemotron notice (attempt {attempt}): {ne}")
-                if attempt < 2:
-                    time.sleep(1)
-                else:
-                    log("Falling back to Groq / OpenRouter...")
+        try:
+            log(f"🧠 Querying NVIDIA Nemotron (Super 49B) for viral highlight (Part {part_number})...")
+            n_sys = "You are an expert viral YouTube Shorts content strategist. You MUST return ONLY a single JSON object. Absolutely NO conversational text, reasoning explanation, or markdown wrapper."
+            n_user = (
+                f"Podcast: {podcast_entry.get('name', 'Podcast')}\n"
+                f"Episode: {video_meta.get('title', 'Episode')}\n"
+                f"Goal: {goal_instruction}\n\n"
+                f"Transcript:\n{formatted_transcript}\n\n"
+                f"Output ONLY valid raw JSON with this exact schema:\n"
+                f"{{\"start_seconds\": <float>, \"end_seconds\": <float>, \"topic_title\": \"<Core 3-5 word topic title>\", "
+                f"\"viral_title\": \"<Punchy title under 60 chars with 1 emoji and #Shorts>\", \"hook_reason\": \"<string>\", "
+                f"\"tags\": [\"tag1\", \"tag2\"], \"speaker_badge\": \"<Speaker Name>\"}}"
+            )
+            
+            n_payload = json.dumps({
+                "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+                "messages": [
+                    {"role": "system", "content": n_sys},
+                    {"role": "user", "content": n_user}
+                ],
+                "temperature": 0.1,
+                "max_tokens": 1024
+            }).encode("utf-8")
+            
+            n_req = urllib.request.Request(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                data=n_payload,
+                headers={
+                    "Authorization": f"Bearer {nvidia_api_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+            with urllib.request.urlopen(n_req, timeout=10) as n_resp:
+                n_data = json.loads(n_resp.read().decode("utf-8"))
+                content = n_data["choices"][0]["message"]["content"]
+                parsed = parse_llm_json(content)
+                if parsed and "start_seconds" in parsed and "end_seconds" in parsed:
+                    min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
+                    raw_start = max(min_start, float(parsed.get("start_seconds", min_start)))
+                    raw_end = float(parsed.get("end_seconds", raw_start + 45.0))
+                    
+                    start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, raw_start, raw_end)
+                    clip_dur = end_sec - start_sec
+                    
+                    parsed["start_seconds"] = start_sec
+                    parsed["end_seconds"] = end_sec
+                    parsed["duration"] = clip_dur
+                    log(f"✅ NVIDIA Nemotron selected clip (Part {part_number}): {parsed['start_seconds']}s -> {parsed['end_seconds']}s ({clip_dur:.1f}s)")
+                    return parsed
+        except Exception as ne:
+            log(f"⚠️ NVIDIA Nemotron notice (server load/timeout): {ne}")
+            log("Falling back to Groq / OpenRouter...")
 
     # 1.5 OpenRouter / DeepSeek Fallback if key is present
     openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
