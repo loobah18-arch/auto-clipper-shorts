@@ -98,6 +98,8 @@ jobs:
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+          MINIMAX_VIDEO_MODEL: ${{ secrets.MINIMAX_VIDEO_MODEL }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
@@ -128,7 +130,11 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main || true
-          git add clip_history.json pipeline_debug.log || true
+          TARGET_BRANCH="${GITHUB_REF_NAME:-main}"
+          echo "Syncing state to branch: $TARGET_BRANCH"
+          git fetch origin "$TARGET_BRANCH" || true
+          git pull --rebase origin "$TARGET_BRANCH" || true
+          git add clip_history.json || true
           git commit -m "🤖 Auto-clip state update [skip ci]" || echo "No changes to commit"
-          git push origin main || echo "Push skipped or nothing to push"
+          git push origin "HEAD:$TARGET_BRANCH" || echo "Push skipped or nothing to push"
+

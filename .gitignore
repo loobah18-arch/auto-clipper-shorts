@@ -6,6 +6,7 @@ output/
 *.m4a
 *.ass
 *.wav
+!assets/sfx/*.wav
 *.aac
 __pycache__/
 *.pyc

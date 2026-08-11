@@ -79,7 +79,10 @@ In your new GitHub repo: **Settings → Secrets and variables → Actions → Ne
 
 | Secret Name | Where to get it |
 |---|---|
-| `GROQ_API_KEY` | Free from [console.groq.com](https://console.groq.com) |
+| `NVIDIA_API_KEY` | Free / Developer API key from [build.nvidia.com](https://build.nvidia.com) (Nemotron 3 Ultra 550B) |
+| `GROQ_API_KEY` | Free from [console.groq.com](https://console.groq.com) (Fallback LLM) |
+| `MINIMAX_API_KEY` | Optional: [platform.minimax.io](https://platform.minimax.io) for H3 / Hailuo avatar gesture video generation |
+| `MINIMAX_VIDEO_MODEL` | Optional: `hailuo-h3` (default) or `video-01` |
 | `CLIENT_ID` | From Google Cloud Console |
 | `CLIENT_SECRET` | From Google Cloud Console |
 | `REFRESH_TOKEN` | From `auth_setup.py` |

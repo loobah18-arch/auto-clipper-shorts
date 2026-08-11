@@ -1,10 +1,13 @@
 {
-  "last_channel_index": 0,
+  "last_channel_index": 2,
   "processed_videos": [
     "328wX2x_s5g",
     "BI1P14gjqKI",
     "BbGv7GTbRN8",
     "4AlZGl1o89s",
+    "pv1TUJSEM2k",
+    "Pmd6knanPKw",
+    "PbXjK-F-5so",
     "XyXBwO5jYpw"
   ],
   "processed_clips": [
@@ -79,7 +82,7 @@
     },
     {
       "video_id": "4AlZGl1o89s",
-      "title": "The Tim Ferriss Show Insight [Part 1] 💡 #Shorts",
+      "title": "Creative Productivity [Part 1] 🧠 #Shorts",
       "channel": "The Tim Ferriss Show",
       "part": 1,
       "start": 30.0,
@@ -89,7 +92,7 @@
     },
     {
       "video_id": "4AlZGl1o89s",
-      "title": "The Tim Ferriss Show Insight [Part 2] 💡 #Shorts",
+      "title": "Creative Productivity [Part 2] 🧠 #Shorts",
       "channel": "The Tim Ferriss Show",
       "part": 2,
       "start": 76.0,
@@ -99,13 +102,13 @@
     },
     {
       "video_id": "4AlZGl1o89s",
-      "title": "Creative Project Management [Part 3] 🧠 #Shorts",
+      "title": "Creative Productivity [Part 3] 🧠 #Shorts",
       "channel": "The Tim Ferriss Show",
       "part": 3,
-      "start": 121.5,
-      "end": 159.5,
-      "uploaded_youtube_id": "m9y4xTLbkSw",
-      "created_at": "2026-08-09T21:22:45.423032+00:00"
+      "start": 121.0,
+      "end": 166.0,
+      "uploaded_youtube_id": "vPcMPfTF8L8",
+      "created_at": "2026-08-10T02:40:00.000000+00:00"
     },
     {
       "video_id": "XyXBwO5jYpw",
@@ -146,6 +149,96 @@
       "end": 63.04,
       "uploaded_youtube_id": "ET2NZ62ZJXI",
       "created_at": "2026-08-11T10:47:34.769783+00:00"
+    },
+    {
+      "video_id": "pv1TUJSEM2k",
+      "title": "Lex Fridman Podcast Insight [Part 1] 💡 #Shorts",
+      "channel": "Lex Fridman Podcast",
+      "part": 1,
+      "start": 29.13,
+      "end": 75.65,
+      "uploaded_youtube_id": "u0TgCmwenKA",
+      "created_at": "2026-08-10T03:44:37.686641+00:00"
+    },
+    {
+      "video_id": "pv1TUJSEM2k",
+      "title": "Lex Fridman Podcast Insight [Part 2] 💡 #Shorts",
+      "channel": "Lex Fridman Podcast",
+      "part": 2,
+      "start": 75.7,
+      "end": 122.39,
+      "uploaded_youtube_id": "i59JJ-pO8g0",
+      "created_at": "2026-08-10T04:25:17.531696+00:00"
+    },
+    {
+      "video_id": "pv1TUJSEM2k",
+      "title": "American Civil War [Part 3] 🧠 #Shorts",
+      "channel": "Lex Fridman Podcast",
+      "part": 3,
+      "start": 122.04,
+      "end": 160.35,
+      "uploaded_youtube_id": "Fj_fUHFGHFw",
+      "created_at": "2026-08-10T06:08:50.382202+00:00"
+    },
+    {
+      "video_id": "Pmd6knanPKw",
+      "title": "Three Daily Neuromodulator Phases [Part 1] 🧠 #Shorts",
+      "channel": "Huberman Lab",
+      "part": 1,
+      "start": 91.03,
+      "end": 140.31,
+      "uploaded_youtube_id": "0XgwRMX1u1E",
+      "created_at": "2026-08-10T06:43:33.374238+00:00"
+    },
+    {
+      "video_id": "Pmd6knanPKw",
+      "title": "AI Learning [Part 2] 🧠 #Shorts",
+      "channel": "Huberman Lab",
+      "part": 2,
+      "start": 140.01,
+      "end": 178.28,
+      "uploaded_youtube_id": "XZ5Bzxg7qQw",
+      "created_at": "2026-08-10T16:09:39.704101+00:00"
+    },
+    {
+      "video_id": "Pmd6knanPKw",
+      "title": "Neuromodulator Phases [Part 3] 🧠 #Shorts",
+      "channel": "Huberman Lab",
+      "part": 3,
+      "start": 177.8,
+      "end": 216.19,
+      "uploaded_youtube_id": "joOLfsMU8bU",
+      "created_at": "2026-08-11T00:19:47.723612+00:00"
+    },
+    {
+      "video_id": "PbXjK-F-5so",
+      "title": "Mammalian Vagal System [Part 1] 🧠 #Shorts",
+      "channel": "Modern Wisdom (Chris Williamson)",
+      "part": 1,
+      "start": 29.36,
+      "end": 67.89,
+      "uploaded_youtube_id": "ilAM6RUp2EU",
+      "created_at": "2026-08-11T02:24:07.307885+00:00"
+    },
+    {
+      "video_id": "PbXjK-F-5so",
+      "title": "Mammalian Vagal System [Part 2] 🧠 #Shorts",
+      "channel": "Modern Wisdom (Chris Williamson)",
+      "part": 2,
+      "start": 68.36,
+      "end": 106.79,
+      "uploaded_youtube_id": "1ygxsVHXFqM",
+      "created_at": "2026-08-11T03:27:23.595104+00:00"
+    },
+    {
+      "video_id": "PbXjK-F-5so",
+      "title": "Polyvagal Theory [Part 3] 🧠 #Shorts",
+      "channel": "Modern Wisdom (Chris Williamson)",
+      "part": 3,
+      "start": 106.44,
+      "end": 144.67,
+      "uploaded_youtube_id": "zELSH6Ks19k",
+      "created_at": "2026-08-11T12:18:36.190361+00:00"
     }
   ],
   "active_series": {
