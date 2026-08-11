@@ -2068,18 +2068,30 @@ def render_studio_visualizer_short(
         badge_insight_cond = f"if(gt(t,3.0), {timed_g1}+{timed_g2}, 0)"
         badge_shock_cond = f"if(gt(t,3.0), {timed_shock}, 0)"
         
-    host_gesture_cond = "0"
-    host_shocked_cond = "0"
+    host_gesture_cond = "between(t,2.0,4.5)+between(t,12.0,14.5)"
+    host_shocked_cond = "between(t,8.5,10.0)"
+    host_think_cond = f"if(not({spk_host}), between(t,3.5,6.5)+between(t,13.5,16.5), 0)"
+    guest_think_cond = f"if(not({spk_guest}), between(t,5.0,8.0)+between(t,15.0,18.0), 0)"
     
-    # Co-Host active listening nod (gentle 3.5px nod every 4.2 seconds)
-    host_nod_expr = "if(lt(mod(t,4.2),0.4), 3.5*sin(PI*mod(t,4.2)/0.4), 0)"
+    # Active motion for host:
+    # Speaking: active speech jitter + speech bounce
+    # Listening: organic breathing + lateral posture sway + attentive head nods every 2.4s
+    host_bounce_expr = (
+        f"if({spk_host}, "
+        f"if({spk_loud_audio}, 4.2*sin(16*PI*t), 2.2*sin(8*PI*t)), "
+        f"if(lt(mod(t,2.4),0.45), 3.8*sin(PI*mod(t,2.4)/0.45), 1.6*sin(1.8*PI*t)))"
+    )
+    host_sway_expr = f"if({spk_host}, 4.2*sin(32*PI*t), 1.4*sin(1.2*PI*t))"
     
-    # Tone-reactive motion: calm speech gives smooth subtle sway; emphatic loud speech gives bouncy squash & stretch
+    # Active motion for guest:
+    # Speaking: active speech jitter + speech bounce
+    # Listening: organic breathing + lateral posture sway + attentive head nods every 2.4s
     guest_bounce_expr = (
         f"if({spk_guest}, "
-        f"if({spk_loud_audio}, 4.2*sin(16*PI*t), 1.8*sin(8*PI*t)), "
-        f"0.8*sin(2*PI*t))"
+        f"if({spk_loud_audio}, 4.2*sin(16*PI*t), 2.2*sin(8*PI*t)), "
+        f"if(lt(mod(t,2.4),0.45), 3.8*sin(PI*mod(t,2.4)/0.45), 1.6*sin(1.8*PI*t)))"
     )
+    guest_sway_expr = f"if({spk_guest}, 3.5*sin(32*PI*t), 1.4*sin(1.2*PI*t))"
     
     if bg_path and bg_path.exists() and host_closed and guest_closed:
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
@@ -2117,13 +2129,13 @@ def render_studio_visualizer_short(
             f"[{hs_idx}:v]hflip,scale=560:980:force_original_aspect_ratio=increase,crop=560:980,setsar=1[hs];"
             f"[hc][hh]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.22),0.11), 0)'[h_talk1];"
             f"[h_talk1][ho]overlay=0:0:enable='if({spk_host}, lt(mod(t,0.44),0.12), 0)'[h_talk2];"
-            f"[h_talk2][hg1]overlay=0:0:enable='if({spk_host}, {host_gesture_cond}, 0)'[h_gesture];"
+            f"[h_talk2][hg1]overlay=0:0:enable='if({spk_host}, {host_gesture_cond}, {host_think_cond})'[h_gesture];"
             f"[h_gesture][hs]overlay=0:0:enable='if({spk_host}, {host_shocked_cond}, 0)'[h_comp];"
             f"[h_comp]crop="
             f"w='if({spk_host}, 500/1.08, 500)':"
             f"h='if({spk_host}, 940/1.08, 940)':"
-            f"x='(560-out_w)/2 + if({spk_host}, 4.5*sin(32*PI*t), 0)':"
-            f"y='(980-out_h)/2 + {host_nod_expr}',"
+            f"x='(560-out_w)/2 + {host_sway_expr}':"
+            f"y='(980-out_h)/2 + {host_bounce_expr}',"
             f"scale=500:940,setsar=1[left_av]"
         )
         
@@ -2182,12 +2194,12 @@ def render_studio_visualizer_short(
                 f"[g_talk1][go]overlay=0:0:enable='if({spk_guest}*{spk_loud_audio}, lt(mod(t,0.18),0.09), 0)'[g_talk2];"
                 f"[g_talk2][gg1]overlay=0:0:enable='if({spk_guest}, {guest_g1_cond}, 0)'[g_gest1];"
                 f"[g_gest1][gg2]overlay=0:0:enable='if({spk_guest}, {guest_g2_cond}, 0)'[g_gest2];"
-                f"[g_gest2][gg3]overlay=0:0:enable='{guest_g3_cond}'[g_gest3];"
+                f"[g_gest2][gg3]overlay=0:0:enable='if({spk_guest}, {guest_g3_cond}, {guest_think_cond})'[g_gest3];"
                 f"[g_gest3][gs]overlay=0:0:enable='if({spk_guest}, {guest_shocked_cond}, 0)'[g_comp];"
                 f"[g_comp]crop="
                 f"w='if({snap_zoom_cond}, 500/1.18, 500)':"
                 f"h='if({snap_zoom_cond}, 940/1.18, 940)':"
-                f"x='(560-out_w)/2 + if({spk_guest}, 3.5*sin(32*PI*t), 0)':"
+                f"x='(560-out_w)/2 + {guest_sway_expr}':"
                 f"y='(980-out_h)/2 + {guest_bounce_expr}',"
                 f"scale=500:940,setsar=1[right_av]"
             )
