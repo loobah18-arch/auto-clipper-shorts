@@ -115,16 +115,26 @@
       "end": 47.3,
       "uploaded_youtube_id": "L0WaWmUFyQs",
       "created_at": "2026-08-10T22:23:24.382098+00:00"
+    },
+    {
+      "video_id": "XyXBwO5jYpw",
+      "title": "Civil War Causes [Part 2] 🧠 #Shorts",
+      "channel": "Lex Fridman Podcast",
+      "part": 2,
+      "start": 47.8,
+      "end": 85.8,
+      "uploaded_youtube_id": "Tv71ujcfINw",
+      "created_at": "2026-08-11T06:37:07.282694+00:00"
     }
   ],
   "active_series": {
     "video_id": "XyXBwO5jYpw",
     "podcast_id": "lex_fridman",
     "episode_title": "#499 – Gary Gallagher: American Civil War, Slavery, Lincoln, Grant & Lee",
-    "topic_title": "Causes Civil War",
+    "topic_title": "Civil War Causes",
     "speaker_badge": "Gary Gallagher",
-    "current_part": 1,
+    "current_part": 2,
     "max_parts": 3,
-    "last_clip_end_sec": 47.3
+    "last_clip_end_sec": 85.8
   }
 }
