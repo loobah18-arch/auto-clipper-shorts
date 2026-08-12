@@ -571,48 +571,57 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
     log(f"Checking for instant YouTube captions for {video_url}...")
     sub_prefix = output_base / "subs_temp"
     
-    # Try downloading JSON3 / VTT English subtitles
-    cmd_subs = [
-        "yt-dlp",
-        "--write-auto-subs",
-        "--write-subs",
-        "--sub-lang", "en.*,en",
-        "--sub-format", "json3/vtt/srt",
-        "--skip-download",
-        "--no-playlist",
-        "--no-warnings",
-    ] + ytdlp_cookies_args() + [
-        "-o", f"{sub_prefix}.%(ext)s",
-        video_url
+    # Try downloading JSON3 / VTT English subtitles across client profiles
+    sub_profiles = [
+        ("ios,mweb", []),
+        ("mweb,web", []),
+        ("default", []),
+        ("web", ytdlp_cookies_args()),
     ]
-    try:
-        subprocess.run(cmd_subs, capture_output=True, text=True, check=True)
-        # Check if json3 or vtt file was created
-        json3_files = list(output_base.glob("subs_temp*.json3"))
-        if json3_files:
-            log(f"Found YouTube JSON3 captions: {json3_files[0].name}")
-            with open(json3_files[0], "r", encoding="utf-8") as f:
-                data = json.load(f)
-            segments = parse_json3_subtitles(data)
-            if segments and len(segments) > 5:
-                log(f"Parsed {len(segments)} segments with word timestamps from YouTube captions.")
-                for jf in json3_files:
-                    jf.unlink()
-                return segments
-                
-        vtt_files = list(output_base.glob("subs_temp*.vtt"))
-        if vtt_files:
-            log(f"Found YouTube WebVTT captions: {vtt_files[0].name}")
-            with open(vtt_files[0], "r", encoding="utf-8") as f:
-                vtt_text = f.read()
-            segments = parse_vtt_subtitles(vtt_text)
-            if segments and len(segments) > 5:
-                log(f"Parsed {len(segments)} segments from WebVTT captions.")
-                for vf in vtt_files:
-                    vf.unlink()
-                return segments
-    except Exception as e:
-        log(f"YouTube caption extraction notice: {e}")
+    for client_name, cookie_args in sub_profiles:
+        cmd_subs = [
+            "yt-dlp",
+            "--write-auto-subs",
+            "--write-subs",
+            "--sub-lang", "en.*,en",
+            "--sub-format", "json3/vtt/srt",
+            "--skip-download",
+            "--no-playlist",
+            "--no-warnings",
+        ]
+        if client_name != "default":
+            cmd_subs += ["--extractor-args", f"youtube:player_client={client_name}"]
+        cmd_subs += cookie_args + [
+            "-o", f"{sub_prefix}.%(ext)s",
+            video_url
+        ]
+        try:
+            subprocess.run(cmd_subs, capture_output=True, text=True, check=True)
+            json3_files = list(output_base.glob("subs_temp*.json3"))
+            if json3_files:
+                log(f"Found YouTube JSON3 captions: {json3_files[0].name}")
+                with open(json3_files[0], "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                segments = parse_json3_subtitles(data)
+                if segments and len(segments) > 5:
+                    log(f"Parsed {len(segments)} segments with word timestamps from YouTube captions.")
+                    for jf in json3_files:
+                        jf.unlink()
+                    return segments
+                    
+            vtt_files = list(output_base.glob("subs_temp*.vtt"))
+            if vtt_files:
+                log(f"Found YouTube WebVTT captions: {vtt_files[0].name}")
+                with open(vtt_files[0], "r", encoding="utf-8") as f:
+                    vtt_text = f.read()
+                segments = parse_vtt_subtitles(vtt_text)
+                if segments and len(segments) > 5:
+                    log(f"Parsed {len(segments)} segments from WebVTT captions.")
+                    for vf in vtt_files:
+                        vf.unlink()
+                    return segments
+        except Exception:
+            continue
 
     # Fallback to Whisper AI audio transcription directly from YouTube video audio
     log("Falling back to Whisper AI audio transcription via yt-dlp...")
@@ -625,47 +634,54 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
 
 
 def download_audio_for_transcription(video_url: str, output_audio_path: Path) -> Path:
-    """Fast audio download (low bitrate m4a) with multi-strategy fallback for quick transcription."""
+    """Fast audio download (low bitrate m4a) with multi-profile and multi-format fallback."""
     if output_audio_path.exists():
         output_audio_path.unlink()
         
     log(f"Downloading audio track for transcription: {video_url}")
     
-    # Strategy 1: Fast multi-format audio-only stream
-    cmd1 = [
-        "yt-dlp",
-        "-f", "bestaudio/140/251/139/249/ba/b/best",
-        "-x",
-        "--audio-format", "m4a",
-        "--audio-quality", "7",
-        "--no-playlist",
-        "--no-warnings",
-    ] + ytdlp_cookies_args() + [
-        "-o", str(output_audio_path),
-        video_url
+    client_profiles = [
+        ("ios,mweb", []),
+        ("mweb,ios", []),
+        ("android", []),
+        ("web", []),
+        ("default", []),
+        ("mweb,default", ytdlp_cookies_args()),
+        ("web", ytdlp_cookies_args()),
     ]
     
-    try:
-        subprocess.run(cmd1, check=True, capture_output=True, text=True)
-        if output_audio_path.exists():
-            return output_audio_path
-    except subprocess.CalledProcessError as e:
-        log(f"Audio download Strategy 1 failed: {e.stderr or e}. Trying Strategy 2 (fallback stream)...")
-        
-    # Strategy 2: Universal combined format extraction (18/22/best)
-    cmd2 = [
-        "yt-dlp",
-        "-f", "18/22/best[height<=720]/best",
-        "-x",
-        "--audio-format", "m4a",
-        "--no-playlist",
-        "--no-warnings",
-    ] + ytdlp_cookies_args() + [
-        "-o", str(output_audio_path),
-        video_url
+    formats_to_try = [
+        "bestaudio/140/251/139/249/ba/b/best",
+        "ba/b/best",
+        "18/22/best[height<=720]/best"
     ]
-    subprocess.run(cmd2, check=True)
-    return output_audio_path
+    
+    for client_name, cookie_args in client_profiles:
+        for fmt in formats_to_try:
+            cmd = [
+                "yt-dlp",
+                "-f", fmt,
+                "-x",
+                "--audio-format", "m4a",
+                "--audio-quality", "7",
+                "--no-playlist",
+                "--no-warnings",
+            ]
+            if client_name != "default":
+                cmd += ["--extractor-args", f"youtube:player_client={client_name}"]
+            cmd += cookie_args + [
+                "-o", str(output_audio_path),
+                video_url
+            ]
+            try:
+                subprocess.run(cmd, check=True, capture_output=True, text=True)
+                if output_audio_path.exists() and output_audio_path.stat().st_size > 1000:
+                    log(f"✅ Audio downloaded for transcription via [{client_name}] format [{fmt[:25]}] ({output_audio_path.stat().st_size} bytes)")
+                    return output_audio_path
+            except Exception:
+                continue
+
+    raise RuntimeError(f"All audio download strategies exhausted for {video_url}")
 
 
 def transcribe_audio_with_whisper(audio_path: Path, model_size: str = "base.en") -> list:
