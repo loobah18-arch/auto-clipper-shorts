@@ -190,5 +190,8 @@
     }
   ],
   "active_series": null,
-  "last_fact_index": 1
+  "last_fact_index": -1,
+  "ai_past_topics": [
+    "QUANTUM COMPUTER LEAP"
+  ]
 }
