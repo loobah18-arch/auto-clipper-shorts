@@ -254,15 +254,15 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
             clip_info = {
                 "viral_title": fact["title"],
                 "speaker_badge": fact["badge"],
-                "tags": fact.get("tags", ["techshorts", "coding", "techfacts", "shorts"])
+                "tags": fact.get("tags", ["techshorts", "coding", "techfacts", "shorts", "technology"])
             }
             podcast_dummy = {
-                "name": "Tech Facts & Tips",
-                "default_tags": ["techshorts", "technology", "programming", "shorts"],
-                "attribution_template": "Original Tech Facts Series 💡"
+                "name": "Tech Facts & Developer Tips",
+                "default_tags": ["techshorts", "technology", "programming", "shorts", "developer", "coding"],
+                "attribution_template": "Curated by @woosclips ⚡ Subscribe for daily tech revelations!"
             }
-            log(f"🚀 Uploading Short to YouTube: {fact['title']}...")
-            upload_to_youtube(out_video, clip_info, podcast_dummy, original_video_url="https://youtube.com/@techfacts")
+            log(f"🚀 Uploading Short to YouTube channel @woosclips: {fact['title']}...")
+            upload_to_youtube(out_video, clip_info, podcast_dummy, original_video_url="https://youtube.com/@woosclips")
 
         # Update History Rotation
         history["last_fact_index"] = chosen_idx
