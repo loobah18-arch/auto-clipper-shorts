@@ -266,8 +266,20 @@ is setting clear non-negotiable boundaries.
         )
         
         self.assertIn("between(t,", shock_expr)
-        # Should align closely with the 8.6s vocal peak
-        self.assertIn("8.45", shock_expr)
+        # Should align closely with the 8.6s vocal peak (8.50s)
+        self.assertIn("8.50", shock_expr)
+
+        # Test calm standard fact without trigger words -> Shock = 0
+        calm_segments = [
+            {"start": 0.0, "end": 10.0, "words": [{"word": "Water", "start": 1.0}, {"word": "is", "start": 2.0}, {"word": "wet", "start": 3.0}]}
+        ]
+        calm_shock = compute_intelligent_shock_condition(
+            transcript_segments=calm_segments,
+            vocal_peaks=[(2.0, 500.0, 1.0)],
+            duration=10.0,
+            start_sec=0.0
+        )
+        self.assertEqual(calm_shock, "0")
 
 
 if __name__ == "__main__":

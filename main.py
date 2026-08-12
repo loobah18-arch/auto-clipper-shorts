@@ -1592,18 +1592,19 @@ def compute_intelligent_shock_condition(
 ) -> str:
     """
     Intelligent Shock Detector:
-    1. Scans transcript words for mindblowing, supernatural, counter-intuitive revelation triggers.
-    2. Aligns semantic keyword triggers with local acoustic vocal energy peaks / punchline delivery.
-    3. Triggers the Lion's mindblown shocked reaction exactly on the punchline vocal burst.
+    1. Scans transcript words for genuine mindblowing, supernatural, or shocking revelation triggers.
+    2. Lion gets shocked AT MOST ONCE per video (or 0 times if it is a standard calm fact).
+    3. Aligns the single shock window with the exact vocal emphasis peak on the revelation.
     """
+    # High-confidence mindblowing / supernatural trigger keywords:
     shock_keywords = {
-        "actually", "secret", "bizarre", "supernatural", "impossible", "ocean",
-        "underwater", "quantum", "99%", "percent", "shark", "submarine", "never",
-        "hidden", "unbelievable", "mind-blowing", "shocking", "insane", "crazy",
-        "truth", "revealed", "discovered", "deepest", "billion", "trillion", "satellite"
+        "actually", "secret", "bizarre", "supernatural", "impossible", "alien",
+        "underwater", "quantum", "99%", "unbelievable", "mind-blowing",
+        "shocking", "insane", "hidden", "deepest", "ghost", "mystery",
+        "never-before-seen", "classified", "extraterrestrial"
     }
     
-    keyword_times = []
+    keyword_matches = []
     
     # 1. Search for semantic revelation trigger in transcript words:
     for seg in (transcript_segments or []):
@@ -1611,36 +1612,35 @@ def compute_intelligent_shock_condition(
         for w_obj in seg.get("words", []):
             w_text = re.sub(r"[^a-zA-Z0-9%]", "", w_obj.get("word", "")).lower()
             w_start = w_obj.get("start", seg_start) - start_sec
-            if w_text in shock_keywords and w_start >= max(2.5, duration * 0.30):
-                keyword_times.append(w_start)
+            if w_text in shock_keywords and w_start >= max(2.5, duration * 0.25):
+                keyword_matches.append((w_start, w_text))
                 
-    chosen_trigger = None
-    
-    if keyword_times:
-        first_kw = keyword_times[0]
-        # 2. Correlate with nearest acoustic vocal energy peak within [-0.4s, +2.0s]
-        nearby_peaks = [p[0] for p in vocal_peaks if (first_kw - 0.4) <= p[0] <= (first_kw + 2.0)]
+    if not keyword_matches:
+        # If no mindblowing / supernatural keyword exists, check if there is an extraordinary vocal energy burst (> 2.2x avg)
+        climax_peaks = [p for p in vocal_peaks if (duration * 0.35) <= p[0] <= (duration * 0.85) and len(p) >= 3 and p[2] >= 2.2]
+        if not climax_peaks:
+            # Fact is normal / standard -> Lion stays attentive and DOES NOT get shocked!
+            log("🦁 Lion Reaction: Normal informative tone detected. Lion remains calmly attentive (Shock = 0).")
+            return "0"
+        best_peak = max(climax_peaks, key=lambda p: p[1])
+        chosen_trigger = best_peak[0]
+    else:
+        # Pick the primary revelation keyword:
+        first_kw = keyword_matches[0][0]
+        # Correlate with nearest acoustic vocal energy peak within [-0.4s, +1.8s]
+        nearby_peaks = [p[0] for p in vocal_peaks if (first_kw - 0.4) <= p[0] <= (first_kw + 1.8)]
         if nearby_peaks:
             chosen_trigger = min(nearby_peaks, key=lambda p: abs(p - first_kw))
         else:
             chosen_trigger = first_kw
-    else:
-        # 3. Fallback: Find highest acoustic energy peak in climax zone (40% - 85% of duration)
-        climax_peaks = [p for p in vocal_peaks if (duration * 0.40) <= p[0] <= (duration * 0.85)]
-        if climax_peaks:
-            best_peak = max(climax_peaks, key=lambda p: p[1])
-            chosen_trigger = best_peak[0]
-        else:
-            # Default narrative climax curve:
-            chosen_trigger = max(4.0, duration * 0.55)
             
-    # Hold shock reaction for ~4.5s - 5.5s (up to 92% of total duration)
-    shock_start = max(2.0, chosen_trigger - 0.15)
-    shock_end = min(duration - 0.8, shock_start + 5.2)
-    if shock_end <= shock_start + 2.0:
-        shock_end = min(duration - 0.4, shock_start + 3.5)
+    # Lion gets shocked exactly ONCE for a punchy 3.2s - 4.2s window
+    shock_start = max(2.0, chosen_trigger - 0.10)
+    shock_end = min(duration - 0.6, shock_start + 3.8)
+    if shock_end <= shock_start + 1.5:
+        shock_end = min(duration - 0.2, shock_start + 2.5)
         
-    log(f"🧠 Intelligent Shock Sync: Fact Revelation at {chosen_trigger:.2f}s (Acoustic Peak aligned). Shock window: {shock_start:.2f}s -> {shock_end:.2f}s")
+    log(f"🧠 Intelligent Shock Sync: High-confidence revelation at {chosen_trigger:.2f}s. Single shock window: {shock_start:.2f}s -> {shock_end:.2f}s")
     return f"between(t,{shock_start:.2f},{shock_end:.2f})"
 
 
@@ -2158,6 +2158,19 @@ def render_studio_visualizer_short(
     spk_host = spk_active_audio
     spk_guest = "0"
     
+    # Wolf Hand Gesture: Appears naturally 1-2 times in a 1-minute video (e.g. at 20-30% and 70-80% duration for 2.2s each)
+    if duration >= 45.0:
+        g1 = max(3.5, duration * 0.22)
+        g2 = max(g1 + 18.0, duration * 0.68)
+        wolf_gesture_cond = f"({spk_host})*(between(t,{g1:.1f},{g1+2.2:.1f})+between(t,{g2:.1f},{g2+2.2:.1f}))"
+    elif duration >= 22.0:
+        g1 = max(3.5, duration * 0.30)
+        g2 = max(g1 + 10.0, duration * 0.72)
+        wolf_gesture_cond = f"({spk_host})*(between(t,{g1:.1f},{g1+2.0:.1f})+between(t,{g2:.1f},{g2+2.0:.1f}))"
+    else:
+        g1 = max(2.8, duration * 0.35)
+        wolf_gesture_cond = f"({spk_host})*(between(t,{g1:.1f},{g1+1.8:.1f}))"
+
     # Lion (Reactor) shock timing powered by Acoustic Energy & Semantic Revelation Peak Sync:
     lion_shock_cond = compute_intelligent_shock_condition(transcript_segments, vocal_peaks, duration, start_sec)
 
@@ -2198,15 +2211,18 @@ def render_studio_visualizer_short(
         # Character Video Inputs (Wolf Host on Left facing Right, Lion Guest on Right facing Left)
         w_idle_idx = curr_inp_idx
         w_spk_idx = curr_inp_idx + 1
-        l_idle_idx = curr_inp_idx + 2
-        l_shk_idx = curr_inp_idx + 3
-        curr_inp_idx += 4
+        w_gst_idx = curr_inp_idx + 2
+        l_idle_idx = curr_inp_idx + 3
+        l_shk_idx = curr_inp_idx + 4
+        curr_inp_idx += 5
         
-        # Left Host Avatar Filter (Wolf: Speaking Video Loop with active mouth & gestures when talking, Listening when quiet)
+        # Left Host Avatar Filter (Wolf: Speaking Video Loop with active mouth, switching smoothly to gesture 1-2 times)
         left_av_filter = (
             f"[{w_idle_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_idle];"
             f"[{w_spk_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_spk];"
-            f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[left_av]"
+            f"[{w_gst_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_gst];"
+            f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
+            f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[left_av]"
         )
         
         # Right Guest Avatar Filter (Lion: Attentive Listening Video Loop for normal facts, Mindblown Shock Video Loop for shocking facts)
@@ -2219,12 +2235,14 @@ def render_studio_visualizer_short(
         videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
         w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
         w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
+        w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
         l_listen_vid = videos_base / "lion" / "listening_not_shocking_facing_left.mp4"
         l_shock_vid = videos_base / "lion" / "shocked_reaction_facing_left.mp4"
         
         cmd_avatar_inputs = [
             "-stream_loop", "-1", "-i", str(w_listen_vid),
             "-stream_loop", "-1", "-i", str(w_speak_vid),
+            "-stream_loop", "-1", "-i", str(w_gest_vid),
             "-stream_loop", "-1", "-i", str(l_listen_vid),
             "-stream_loop", "-1", "-i", str(l_shock_vid)
         ]
