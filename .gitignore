@@ -1,4 +1,8 @@
 output/
+scratch/
+*.log
+pipeline_debug.log
+.deepseek_chat_history.json
 *.mp4
 !assets/backgrounds/*.mp4
 !assets/videos/**/*.mp4
@@ -18,3 +22,4 @@ client_secrets.json
 token.pickle
 token.json
 .DS_Store
+
