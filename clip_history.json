@@ -189,14 +189,5 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": {
-    "video_id": "PbXjK-F-5so",
-    "podcast_id": "modern_wisdom",
-    "episode_title": "Polyvagal Theory: Why You Feel So Anxious All The Time - Dr Stephen Porges - #1128",
-    "topic_title": "Mammalian Vagal System",
-    "speaker_badge": "Dr. Stephen Porges",
-    "current_part": 2,
-    "max_parts": 3,
-    "last_clip_end_sec": 106.79
-  }
+  "active_series": null
 }

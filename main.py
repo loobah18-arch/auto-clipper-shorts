@@ -2637,6 +2637,20 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     # 2. Extract Subtitles/Transcript (Direct RSS Audio + Whisper AI / Instant Subs)
     transcript_segments = fetch_youtube_subtitles_or_whisper(target_video["url"], OUTPUT_DIR, podcast_entry=podcast_entry, video_meta=target_video)
     if not transcript_segments:
+        log(f"⚠️ Video {target_video['id']} transcript unavailable. Automatically advancing to next tech channel source...")
+        if active_series:
+            history["active_series"] = None
+            save_json(HISTORY_PATH, history)
+            
+        podcast_entry, next_idx = pick_next_channel(catalog, history, force_channel)
+        target_video = select_target_video(podcast_entry, history, direct_url=force_url)
+        part_number = 1
+        continuation_start = None
+        topic_title = None
+        log(f"🎬 Trying alternate tech video: {target_video['title']} [{target_video['id']}]...")
+        transcript_segments = fetch_youtube_subtitles_or_whisper(target_video["url"], OUTPUT_DIR, podcast_entry=podcast_entry, video_meta=target_video)
+        
+    if not transcript_segments:
         raise RuntimeError(f"Failed to obtain transcript for video {target_video['id']}")
     
     # 3. AI Highlight / Continuation Detection
