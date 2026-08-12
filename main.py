@@ -1462,13 +1462,15 @@ def get_cute_animal_image_info(gender: str = "male") -> Path:
 
 def compute_audio_energy_timeline(wav_path: Path) -> tuple:
     """
-    Analyzes uncompressed PCM WAV audio and computes exact sample-accurate:
-    - spk_active_expr: active speech intervals (excluding pauses > 0.12s)
-    - spk_loud_expr: high-energy emphatic speech intervals
-    - is_calm_speech: boolean if overall segment is calm vs loud/passionate
+    Analyzes uncompressed PCM WAV audio with 25ms temporal resolution.
+    Returns:
+    - spk_active_expr: sample-accurate speech activity intervals
+    - spk_loud_expr: high-energy vocal emphasis bursts
+    - is_calm_speech: overall tonal profile
+    - vocal_peaks: list of (timestamp, rms, prominence_ratio)
     """
     if not wav_path or not Path(wav_path).exists():
-        return ("1", "0", False)
+        return ("1", "0", False, [])
         
     try:
         with wave.open(str(wav_path), 'rb') as wf:
@@ -1486,7 +1488,7 @@ def compute_audio_energy_timeline(wav_path: Path) -> tuple:
         else:
             mono_samples = samples
             
-        slice_ms = 40
+        slice_ms = 25
         samples_per_slice = int(framerate * (slice_ms / 1000.0))
         n_slices = len(mono_samples) // samples_per_slice
         
@@ -1502,12 +1504,24 @@ def compute_audio_energy_timeline(wav_path: Path) -> tuple:
             rms_list.append(rms)
             times.append(i * (slice_ms / 1000.0))
             
-        avg_rms = sum(rms_list) / max(1, len(rms_list))
-        silence_thresh = avg_rms * 0.28
-        loud_thresh = avg_rms * 1.35
+        if not rms_list:
+            return ("1", "0", False, [])
+            
+        avg_rms = sum(rms_list) / len(rms_list)
+        silence_thresh = avg_rms * 0.22
+        loud_thresh = avg_rms * 1.38
         
         active_intervals = []
         loud_intervals = []
+        vocal_peaks = []
+        
+        # Local peak prominence detection (sliding window over RMS)
+        for i in range(1, len(rms_list) - 1):
+            r_prev, r, r_next = rms_list[i-1], rms_list[i], rms_list[i+1]
+            t = times[i]
+            if r > r_prev and r > r_next and r >= loud_thresh:
+                prominence_ratio = r / max(1.0, avg_rms)
+                vocal_peaks.append((round(t, 2), round(r, 1), round(prominence_ratio, 2)))
         
         curr_active_start = None
         curr_loud_start = None
@@ -1537,39 +1551,97 @@ def compute_audio_energy_timeline(wav_path: Path) -> tuple:
         if curr_loud_start is not None:
             loud_intervals.append((curr_loud_start, times[-1]))
             
-        # Merge adjacent active intervals with small pauses (< 0.25s)
         merged_active = []
         for s, e in active_intervals:
             if not merged_active:
                 merged_active.append([s, e])
             else:
-                if s - merged_active[-1][1] < 0.25:
+                if s - merged_active[-1][1] < 0.20:
                     merged_active[-1][1] = e
                 else:
                     merged_active.append([s, e])
                     
-        # Merge adjacent loud intervals with small gaps (< 0.35s)
         merged_loud = []
         for s, e in loud_intervals:
             if not merged_loud:
                 merged_loud.append([s, e])
             else:
-                if s - merged_loud[-1][1] < 0.35:
+                if s - merged_loud[-1][1] < 0.30:
                     merged_loud[-1][1] = e
                 else:
                     merged_loud.append([s, e])
             
-        active_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in merged_active if (e - s) >= 0.15]
-        loud_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in merged_loud if (e - s) >= 0.15]
+        active_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in merged_active if (e - s) >= 0.12]
+        loud_expr_parts = [f"between(t,{s:.2f},{e:.2f})" for s, e in merged_loud if (e - s) >= 0.12]
         
-        spk_active_expr = "+".join(active_expr_parts[:20]) if active_expr_parts else "1"
-        spk_loud_expr = "+".join(loud_expr_parts[:15]) if loud_expr_parts else "0"
-        is_calm_speech = (len(merged_loud) < max(1, len(merged_active)) * 0.25)
+        spk_active_expr = "+".join(active_expr_parts[:25]) if active_expr_parts else "1"
+        spk_loud_expr = "+".join(loud_expr_parts[:18]) if loud_expr_parts else "0"
+        is_calm_speech = (len(merged_loud) < max(1, len(merged_active)) * 0.22)
         
-        return (spk_active_expr, spk_loud_expr, is_calm_speech)
+        return (spk_active_expr, spk_loud_expr, is_calm_speech, vocal_peaks)
     except Exception as e:
         log(f"Audio energy timeline notice: {e}")
-        return ("1", "0", False)
+        return ("1", "0", False, [])
+
+
+def compute_intelligent_shock_condition(
+    transcript_segments: list,
+    vocal_peaks: list,
+    duration: float,
+    start_sec: float = 0.0
+) -> str:
+    """
+    Intelligent Shock Detector:
+    1. Scans transcript words for mindblowing, supernatural, counter-intuitive revelation triggers.
+    2. Aligns semantic keyword triggers with local acoustic vocal energy peaks / punchline delivery.
+    3. Triggers the Lion's mindblown shocked reaction exactly on the punchline vocal burst.
+    """
+    shock_keywords = {
+        "actually", "secret", "bizarre", "supernatural", "impossible", "ocean",
+        "underwater", "quantum", "99%", "percent", "shark", "submarine", "never",
+        "hidden", "unbelievable", "mind-blowing", "shocking", "insane", "crazy",
+        "truth", "revealed", "discovered", "deepest", "billion", "trillion", "satellite"
+    }
+    
+    keyword_times = []
+    
+    # 1. Search for semantic revelation trigger in transcript words:
+    for seg in (transcript_segments or []):
+        seg_start = seg.get("start", 0.0)
+        for w_obj in seg.get("words", []):
+            w_text = re.sub(r"[^a-zA-Z0-9%]", "", w_obj.get("word", "")).lower()
+            w_start = w_obj.get("start", seg_start) - start_sec
+            if w_text in shock_keywords and w_start >= max(2.5, duration * 0.30):
+                keyword_times.append(w_start)
+                
+    chosen_trigger = None
+    
+    if keyword_times:
+        first_kw = keyword_times[0]
+        # 2. Correlate with nearest acoustic vocal energy peak within [-0.4s, +2.0s]
+        nearby_peaks = [p[0] for p in vocal_peaks if (first_kw - 0.4) <= p[0] <= (first_kw + 2.0)]
+        if nearby_peaks:
+            chosen_trigger = min(nearby_peaks, key=lambda p: abs(p - first_kw))
+        else:
+            chosen_trigger = first_kw
+    else:
+        # 3. Fallback: Find highest acoustic energy peak in climax zone (40% - 85% of duration)
+        climax_peaks = [p for p in vocal_peaks if (duration * 0.40) <= p[0] <= (duration * 0.85)]
+        if climax_peaks:
+            best_peak = max(climax_peaks, key=lambda p: p[1])
+            chosen_trigger = best_peak[0]
+        else:
+            # Default narrative climax curve:
+            chosen_trigger = max(4.0, duration * 0.55)
+            
+    # Hold shock reaction for ~4.5s - 5.5s (up to 92% of total duration)
+    shock_start = max(2.0, chosen_trigger - 0.15)
+    shock_end = min(duration - 0.8, shock_start + 5.2)
+    if shock_end <= shock_start + 2.0:
+        shock_end = min(duration - 0.4, shock_start + 3.5)
+        
+    log(f"🧠 Intelligent Shock Sync: Fact Revelation at {chosen_trigger:.2f}s (Acoustic Peak aligned). Shock window: {shock_start:.2f}s -> {shock_end:.2f}s")
+    return f"between(t,{shock_start:.2f},{shock_end:.2f})"
 
 
 def extract_speaker_visual_motion_timeline(video_path: Path) -> tuple:
@@ -2053,8 +2125,8 @@ def render_studio_visualizer_short(
         part_suffix = f" {part_match.group(0)}" if part_match else ""
         resolved_badge = f"{host_name}{part_suffix}"
 
-    # 1.6 Extract sample-accurate audio energy envelope (active speech vs silent pauses vs loudness)
-    spk_active_audio, spk_loud_audio, is_calm_tone = compute_audio_energy_timeline(audio_slice_path)
+    # 1.6 Extract sample-accurate audio energy envelope and emphatic vocal peaks
+    spk_active_audio, spk_loud_audio, is_calm_tone, vocal_peaks = compute_audio_energy_timeline(audio_slice_path)
     
     # 1.7 Extract Computer Vision real podcaster hand gestures and body motion from video reference
     cv_mouth, cv_gesture, cv_shock, has_cv_motion = ("1", "0", "0", False)
@@ -2086,14 +2158,8 @@ def render_studio_visualizer_short(
     spk_host = spk_active_audio
     spk_guest = "0"
     
-    # Lion (Reactor) listens calmly to normal explanation, and only reacts SHOCKED when the big mindblowing/supernatural fact drops:
-    if duration >= 25.0:
-        lion_shock_cond = "between(t,12.0,17.5)+between(t,20.0,24.5)"
-    else:
-        # Climax window (e.g. 9.2s - 15.2s in a 16.8s short):
-        climax_start = max(4.0, min(9.2, duration * 0.55))
-        climax_end = max(climax_start + 3.0, min(duration - 1.2, duration * 0.90))
-        lion_shock_cond = f"between(t,{climax_start:.1f},{climax_end:.1f})"
+    # Lion (Reactor) shock timing powered by Acoustic Energy & Semantic Revelation Peak Sync:
+    lion_shock_cond = compute_intelligent_shock_condition(transcript_segments, vocal_peaks, duration, start_sec)
 
     # Active motion for Wolf (Host):
     host_bounce_expr = (

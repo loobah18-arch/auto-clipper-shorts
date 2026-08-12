@@ -223,8 +223,52 @@ is setting clear non-negotiable boundaries.
         if test_out.exists():
             test_out.unlink()
 
+    def test_compute_intelligent_shock_condition(self):
+        from main import compute_intelligent_shock_condition
+        
+        sample_segments = [
+            {
+                "start": 0.0,
+                "end": 6.0,
+                "words": [
+                    {"word": "Most", "start": 0.5},
+                    {"word": "people", "start": 1.2},
+                    {"word": "think", "start": 2.0},
+                    {"word": "internet", "start": 3.0},
+                    {"word": "is", "start": 4.0},
+                    {"word": "satellites", "start": 5.0}
+                ]
+            },
+            {
+                "start": 6.5,
+                "end": 14.0,
+                "words": [
+                    {"word": "But", "start": 7.0},
+                    {"word": "actually", "start": 8.5},
+                    {"word": "99%", "start": 9.2},
+                    {"word": "travels", "start": 10.0},
+                    {"word": "through", "start": 10.5},
+                    {"word": "underwater", "start": 11.2},
+                    {"word": "ocean", "start": 12.0},
+                    {"word": "cables", "start": 12.8}
+                ]
+            }
+        ]
+        
+        # Simulated vocal energy peaks: peak at 8.6s (coinciding with "actually")
+        vocal_peaks = [(2.1, 1400.0, 1.45), (8.6, 2200.0, 2.10), (12.1, 1950.0, 1.85)]
+        
+        shock_expr = compute_intelligent_shock_condition(
+            transcript_segments=sample_segments,
+            vocal_peaks=vocal_peaks,
+            duration=16.0,
+            start_sec=0.0
+        )
+        
+        self.assertIn("between(t,", shock_expr)
+        # Should align closely with the 8.6s vocal peak
+        self.assertIn("8.45", shock_expr)
+
 
 if __name__ == "__main__":
     unittest.main()
-
-
