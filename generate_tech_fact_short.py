@@ -42,10 +42,14 @@ TECH_FACTS_DATABASE = [
         "voice": "en-US-ChristopherNeural",
         "tags": ["techfacts", "technology", "internet", "cables", "networking", "shorts"],
         "script": (
-            "Did you know that over ninety nine percent of all international internet traffic "
-            "travels through underwater fiber optic cables? "
-            "These deep sea cables span over eight hundred thousand miles across the ocean floor. "
-            "They are as thin as a garden hose, but transfer petabits of data every second!"
+            "Did you know that over ninety nine percent of all international internet traffic does not travel through satellites in space, "
+            "but through massive fiber optic cables resting on the pitch black ocean floor? "
+            "There are over five hundred active subsea cables stretching eight hundred thousand miles across the Earth, connecting every continent. "
+            "These glass lines are barely as thick as a garden hose, yet they transmit petabits of financial transactions, streaming video, and cloud data every single millisecond. "
+            "Here is the crazy part. If a deep sea anchor accidentally snags one of these cables, or an underwater earthquake shifts the seabed, "
+            "entire nations can instantly lose their internet connection overnight! "
+            "Specialized repair ships have to spend weeks in rough seas grappling the ocean floor to pull the severed glass fibers back to the surface for microscopic laser welding. "
+            "Subscribe for more mind blowing tech secrets!"
         )
     },
     {
@@ -55,9 +59,15 @@ TECH_FACTS_DATABASE = [
         "voice": "en-US-GuyNeural",
         "tags": ["linux", "terminal", "bash", "developer", "codingtips", "shorts"],
         "script": (
-            "Stop scrolling up to find your old terminal commands! "
-            "Just press Control plus R in any bash or zsh shell to trigger reverse history search. "
-            "Type a single keyword like docker or git, and it instantly brings back your longest commands!"
+            "Stop frantically hitting the up arrow fifty times just to find a terminal command you ran three weeks ago! "
+            "Every programmer needs to know this secret Linux superpower. "
+            "Inside any bash or zsh terminal, just press Control plus R on your keyboard. "
+            "This instantly activates the recursive history search engine. "
+            "The moment you start typing a single keyword like docker, git, or ssh, Linux instantly searches your entire shell history and auto-completes your longest, most complicated command with zero typos! "
+            "If you press Control plus R again, it cycles backwards through every past variation you ever executed. "
+            "Once you find it, just press Enter to run it immediately, or hit the Right Arrow key to edit your parameters. "
+            "This one shortcut will save you hours of command line frustration every single month. "
+            "Drop a like if you did not know this trick!"
         )
     },
     {
@@ -67,9 +77,15 @@ TECH_FACTS_DATABASE = [
         "voice": "en-US-EricNeural",
         "tags": ["programming", "coding", "computerscience", "math", "python", "shorts"],
         "script": (
-            "If you open your browser console or Python terminal and type zero point one plus zero point two, "
-            "you won't get zero point three! You get zero point three zero zero zero zero zero zero four! "
-            "This happens because computers use base two binary floating point math, where some decimals cannot be stored precisely."
+            "If you open your browser console, Python terminal, or C plus plus compiler right now and calculate zero point one plus zero point two, "
+            "you will not get zero point three! "
+            "Instead, you get zero point three zero zero zero zero zero zero zero zero zero zero zero zero zero zero four! "
+            "This is not a bug in your computer, it is a fundamental mathematical law of how microprocessors work. "
+            "Modern computers do not count in base ten decimals like humans. They use base two binary floating point numbers under the IEEE seven fifty four standard. "
+            "In binary math, fractions like one tenth create an infinite repeating sequence, exactly like trying to write one third in decimal! "
+            "Because computer memory is finite, the CPU has to round off the last binary bit. "
+            "This tiny precision error has famously crashed space exploration rockets and caused multi-million dollar banking glitches in financial trading algorithms. "
+            "Follow for more computer science revelations!"
         )
     },
     {
@@ -79,9 +95,15 @@ TECH_FACTS_DATABASE = [
         "voice": "en-US-ChristopherNeural",
         "tags": ["cybersecurity", "ssh", "encryption", "infosec", "linux", "shorts"],
         "script": (
-            "How do SSH keys log you into remote servers without sending your password? "
-            "The server generates a random cryptographic puzzle and encrypts it with your public key. "
-            "Only your local private key can solve it, proving your identity without ever leaking your secrets!"
+            "How do SSH keys log you into top secret cloud servers across the globe without ever transmitting your password across the internet? "
+            "It all comes down to an ingenious mathematical trapdoor known as asymmetric cryptography. "
+            "When you generate an SSH key pair, your computer creates a public key and a private key. "
+            "You place the public key on the remote server, while keeping your private key heavily guarded on your laptop. "
+            "When you log in, the server never asks for your secret password. "
+            "Instead, the server generates a random cryptographic challenge, locks it with your public key, and transmits it to your computer. "
+            "The mathematical magic is that only your private key has the unique mathematical power to decrypt and solve that challenge! "
+            "Your machine sends back the proof, and the server unlocks instantly, keeping your access completely immune to hacker eavesdropping. "
+            "Subscribe for more cybersecurity breakdowns!"
         )
     },
     {
@@ -91,38 +113,54 @@ TECH_FACTS_DATABASE = [
         "voice": "en-US-GuyNeural",
         "tags": ["techhistory", "programming", "debugging", "computerscience", "shorts"],
         "script": (
-            "In nineteen forty seven, computer pioneer Grace Hopper found an actual live moth trapped in the Harvard Mark Two relay. "
-            "They taped the dead moth into their logbook with the note: First actual case of bug being found. "
-            "And that is why we call fixing code debugging!"
+            "Have you ever wondered why software engineers call fixing a broken program debugging? "
+            "The origin story is completely literal and involves a real two-inch moth! "
+            "In nineteen forty seven, computer science pioneer Grace Hopper was working on the Harvard Mark Two electromechanical computer for the United States Navy. "
+            "Suddenly, the massive sixteen-ton machine stopped processing calculations correctly. "
+            "The engineering team spent hours meticulously inspecting thousands of electrical relays across the entire computer until they finally inspected relay number seventy in panel F. "
+            "Trapped between the metal contact points was an actual dead moth that was short-circuiting the electrical signal! "
+            "They removed the insect with tweezers, taped it into their official engineering logbook, and wrote: First actual case of bug being found. "
+            "From that exact moment in history, resolving software errors was officially crowned debugging. "
+            "Drop a follow for more tech history!"
         )
     }
 ]
 
 
-async def synthesize_tech_audio(script_text: str, output_mp3: Path, voice: str = "en-US-ChristopherNeural", rate: str = "+12%"):
-    """Synthesizes high quality voice narration and returns word-timed segments."""
+async def synthesize_tech_audio(script_text: str, output_mp3: Path, voice: str = "en-US-ChristopherNeural", rate: str = "+10%"):
+    """Synthesizes high quality voice narration and returns word-timed segments with automatic retry."""
     if not edge_tts:
         raise RuntimeError("edge-tts is not installed. Run `pip install edge-tts`")
 
     log(f"🎙️ Synthesizing tech narration voice using {voice} (rate: {rate})...")
-    comm = edge_tts.Communicate(script_text, voice=voice, rate=rate)
+    voices_to_try = [voice, "en-US-GuyNeural", "en-US-EricNeural", "en-US-AndrewNeural", "en-US-BrianNeural"]
     sentences = []
     
-    with open(output_mp3, "wb") as f:
-        async for chunk in comm.stream():
-            if chunk["type"] == "audio":
-                f.write(chunk["data"])
-            elif chunk["type"] in ("SentenceBoundary", "WordBoundary"):
-                s = chunk["offset"] / 10_000_000
-                d = chunk["duration"] / 10_000_000
-                sentences.append({"text": chunk["text"], "start": s, "end": s + d})
+    for v in voices_to_try:
+        try:
+            comm = edge_tts.Communicate(script_text, voice=v, rate=rate)
+            sentences = []
+            with open(output_mp3, "wb") as f:
+                async for chunk in comm.stream():
+                    if chunk["type"] == "audio":
+                        f.write(chunk["data"])
+                    elif chunk["type"] in ("SentenceBoundary", "WordBoundary"):
+                        s = chunk["offset"] / 10_000_000
+                        d = chunk["duration"] / 10_000_000
+                        sentences.append({"text": chunk["text"], "start": s, "end": s + d})
+            if output_mp3.exists() and output_mp3.stat().st_size > 10000:
+                break
+        except Exception as e:
+            log(f"TTS retry with alternate voice {v}: {e}")
+            await asyncio.sleep(1.0)
+            continue
 
     # If sentence boundaries weren't returned, fallback to total audio duration estimation
-    if not sentences:
+    if not sentences and output_mp3.exists():
         import subprocess
         probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(output_mp3)]
         res = subprocess.run(probe_cmd, capture_output=True, text=True)
-        total_dur = float(res.stdout.strip() or 15.0)
+        total_dur = float(res.stdout.strip() or 50.0)
         sentences = [{"text": script_text, "start": 0.0, "end": total_dur}]
 
     segments = []
