@@ -1,37 +1,36 @@
-# 🎙️ Auto Clipper Shorts
+# 💻 Auto Clipper Shorts — Tech Facts & Developer Tips Edition
 
-Automatically finds viral moments in top podcasts & talks, transcribes them with Whisper AI, selects viral hooks with Groq LLM, renders vertical 9:16 Shorts with dynamic karaoke subtitles via FFmpeg, and uploads them to your new YouTube Channel — **100% Free & Hands-Free via GitHub Actions**.
+Automatically finds viral moments in top tech, coding, and computer science channels (or generates standalone viral tech facts & developer tricks), transcribes them with Whisper AI, selects high-impact hooks with NVIDIA Nemotron / Groq LLM, renders vertical 9:16 Shorts with dynamic neon karaoke subtitles via FFmpeg, and uploads them to your YouTube Channel — **100% Free & Hands-Free via GitHub Actions**.
 
 ---
 
 ## ⚡ 100% Free & Open-Source Stack
 
-Just like our Roblox Shorts pipeline, this runs entirely on free tier tools:
+Just like our automated pipelines, this runs entirely on free tier tools:
 
 | Component | Technology | Cost |
 |---|---|---|
 | **Audio Extraction** | `yt-dlp` | Free / Open-Source |
 | **Transcription & Word Timestamps** | `faster-whisper` (CPU int8) | Free / Open-Source |
-| **Viral Hook Detection** | `Groq` (`llama-3.3-70b-versatile`) | Free Tier API |
+| **Viral Tech Hook Detection** | `NVIDIA Nemotron` / `Groq` | Free Tier API |
 | **9:16 Video & Karaoke Subtitles** | Pure `FFmpeg` + `ASS` engine | Free / Open-Source |
 | **YouTube Upload** | Google YouTube Data API v3 | Free (10,000 units/day) |
 | **Scheduled Automation** | GitHub Actions (`ubuntu-latest`) | Free (2,000 min/month) |
 
 ---
 
-## 🛡️ Copyright-Safe Creators & Content Policy
+## 🛡️ Curated Tech Sources & Creators
 
-To keep your channel 100% safe from copyright strikes, this pipeline uses curated channels and podcasts that operate under **Creative Commons**, **Public Domain / University Lectures**, or **explicit open clipping & attribution policies**:
+To keep your channel educational, high-retention, and copyright-safe, this pipeline uses curated tech, developer, and computer science creators:
 
-| Channel | Focus Area | Clipping Policy |
+| Channel / Topic | Focus Area | Tags & Badges |
 |---|---|---|
-| **Lex Fridman Podcast** | AI, Tech, Science, Philosophy | Explicitly allows clips with channel & guest attribution |
-| **Huberman Lab** | Neuroscience, Health, Protocols | Educational commentary / fair use attribution |
-| **Big Think** | Ideas, Psychology, Science | Creative Commons & educational thought leadership |
-| **Modern Wisdom** (Chris Williamson) | Mindset, Psychology, Self-Improvement | Open clipping policy with source link |
-| **Y Combinator** | Startups, Founders, Tech | Public startup school & founder lessons |
-| **Stanford Online & MIT OCW** | Science, Innovation, Lectures | Open educational resources (CC-BY) |
-| **Oxford Union** | World Debates & Addresses | Public discourse & educational commentary |
+| **Fireship** | Fast Tech Insights, Code in 100s | `DEV HACK ⚡`, `#Coding` |
+| **NetworkChuck** | Linux Superpowers, Cloud, Hacking | `LINUX TRICK 🐧`, `#Linux` |
+| **Computerphile** | Deep Computer Science & Cryptography | `TECH FACT 💡`, `#ComputerScience` |
+| **ByteByteGo (Alex Xu)** | System Design & Backend Architecture | `SYSTEM DESIGN 🏗️`, `#Developer` |
+| **ThePrimeTime (ThePrimeagen)** | Software Engineering & Dev Tools | `DEV PRO TIP 💻`, `#Programming` |
+| **Waveform Clips (MKBHD Team)** | Future Tech, AI Hardware & Gadgets | `AI INSIGHT 🤖`, `#FutureTech` |
 
 *All generated descriptions automatically credit the creator and link back to the full original episode.*
 
@@ -79,7 +78,10 @@ In your new GitHub repo: **Settings → Secrets and variables → Actions → Ne
 
 | Secret Name | Where to get it |
 |---|---|
-| `GROQ_API_KEY` | Free from [console.groq.com](https://console.groq.com) |
+| `NVIDIA_API_KEY` | Free / Developer API key from [build.nvidia.com](https://build.nvidia.com) (Nemotron 3 Ultra 550B) |
+| `GROQ_API_KEY` | Free from [console.groq.com](https://console.groq.com) (Fallback LLM) |
+| `MINIMAX_API_KEY` | Optional: [platform.minimax.io](https://platform.minimax.io) for H3 / Hailuo avatar gesture video generation |
+| `MINIMAX_VIDEO_MODEL` | Optional: `hailuo-h3` (default) or `video-01` |
 | `CLIENT_ID` | From Google Cloud Console |
 | `CLIENT_SECRET` | From Google Cloud Console |
 | `REFRESH_TOKEN` | From `auth_setup.py` |

@@ -1,11 +1,13 @@
 output/
 *.mp4
 !assets/backgrounds/*.mp4
+!assets/videos/**/*.mp4
 *.mp3
 !assets/bgm/*.mp3
 *.m4a
 *.ass
 *.wav
+!assets/sfx/*.wav
 *.aac
 __pycache__/
 *.pyc

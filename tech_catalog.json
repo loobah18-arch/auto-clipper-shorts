@@ -1,0 +1,97 @@
+{
+  "tech_channels": [
+    {
+      "id": "fireship",
+      "name": "Fireship",
+      "rss_feed": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA",
+      "search_query": "ytsearch8:Fireship 100 seconds tech code programming",
+      "channel_url": "https://www.youtube.com/@Fireship/videos",
+      "category": "Fast Tech Insights, Web Dev & Coding in 100s",
+      "safe_policy": "Educational commentary and fair use code analysis with full channel credit",
+      "default_tags": ["fireship", "techshorts", "programming", "coding", "developer", "softwareengineering", "techfacts"],
+      "attribution_template": "Clip from Fireship ({guest_or_title}). Full video: {video_url}"
+    },
+    {
+      "id": "networkchuck",
+      "name": "NetworkChuck",
+      "rss_feed": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9x0AN7BWHpCDHSm9NiJFJQ",
+      "search_query": "ytsearch8:NetworkChuck Linux Hacking Python Cloud tips",
+      "channel_url": "https://www.youtube.com/@NetworkChuck/videos",
+      "category": "Linux Hacks, Cybersecurity & Cloud Tricks",
+      "safe_policy": "Educational IT and networking tutorials with channel attribution",
+      "default_tags": ["networkchuck", "linux", "cybersecurity", "terminal", "python", "networking", "techhacks"],
+      "attribution_template": "Clip from NetworkChuck ({guest_or_title}). Full video: {video_url}"
+    },
+    {
+      "id": "computerphile",
+      "name": "Computerphile",
+      "rss_feed": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9-y-6csu5WGm29I7JiwpnA",
+      "search_query": "ytsearch8:Computerphile Computer Science algorithms security",
+      "channel_url": "https://www.youtube.com/@Computerphile/videos",
+      "category": "Deep Computer Science, Algorithms & Cryptography",
+      "safe_policy": "Educational computer science commentary with credit",
+      "default_tags": ["computerphile", "computerscience", "algorithms", "cryptography", "math", "hardware", "techfacts"],
+      "attribution_template": "Clip from Computerphile ({guest_or_title}). Full video: {video_url}"
+    },
+    {
+      "id": "bytebytego",
+      "name": "ByteByteGo (Alex Xu)",
+      "rss_feed": "https://www.youtube.com/feeds/videos.xml?channel_id=UCZgt6AzoyjslHTC9dz0UoTw",
+      "search_query": "ytsearch8:ByteByteGo System Design Architecture software",
+      "channel_url": "https://www.youtube.com/@ByteByteGo/videos",
+      "category": "System Design, Backend Architecture & Database Secrets",
+      "safe_policy": "Educational software engineering visuals with full attribution",
+      "default_tags": ["bytebytego", "systemdesign", "backend", "databases", "softwarearchitecture", "codingtips"],
+      "attribution_template": "Clip from ByteByteGo ({guest_or_title}). Full video: {video_url}"
+    },
+    {
+      "id": "theprimetime",
+      "name": "ThePrimeTime (ThePrimeagen)",
+      "rss_feed": "https://www.youtube.com/feeds/videos.xml?channel_id=UCm9K6rby98W8JigLoZOh6FQ",
+      "search_query": "ytsearch8:ThePrimeTime ThePrimeagen software engineering developer tips",
+      "channel_url": "https://www.youtube.com/@ThePrimeTimeagen/videos",
+      "category": "Developer Tools, Performance & Software Craftsmanship",
+      "safe_policy": "Developer reaction and educational commentary with link to full video",
+      "default_tags": ["theprimeagen", "programming", "neovim", "softwareengineering", "devlife", "codingtips"],
+      "attribution_template": "Clip from ThePrimeTime ({guest_or_title}). Full video: {video_url}"
+    },
+    {
+      "id": "waveform_tech",
+      "name": "Waveform Clips (MKBHD Team)",
+      "rss_feed": "https://www.youtube.com/feeds/videos.xml?channel_id=UC38Ihy0q_vD72s4rNfB4z2A",
+      "search_query": "ytsearch8:Waveform Clips MKBHD tech gadget AI",
+      "channel_url": "https://www.youtube.com/@WaveformClips/videos",
+      "category": "Consumer Tech, AI Hardware & Future Tech Facts",
+      "safe_policy": "Tech commentary with podcast attribution in description",
+      "default_tags": ["mkbhd", "waveform", "gadgets", "futuretech", "ai", "hardware", "techfacts"],
+      "attribution_template": "Clip from Waveform Clips ({guest_or_title}). Full episode: {video_url}"
+    }
+  ],
+  "curated_tech_categories": [
+    {
+      "topic": "Linux & Terminal Superpowers",
+      "badge": "LINUX TRICK 🐧",
+      "default_tags": ["linux", "terminal", "bash", "devtips", "sysadmin", "techfacts", "shorts"]
+    },
+    {
+      "topic": "Computer Science & Hardware Mysteries",
+      "badge": "TECH FACT 💡",
+      "default_tags": ["computerscience", "hardware", "cpu", "gpu", "coding", "techfacts", "shorts"]
+    },
+    {
+      "topic": "Practical Developer & Coding Tricks",
+      "badge": "DEV HACK ⚡",
+      "default_tags": ["programming", "coding", "developer", "python", "javascript", "devlife", "shorts"]
+    },
+    {
+      "topic": "Cybersecurity & Cryptography Secrets",
+      "badge": "CYBERSECURITY 🛡️",
+      "default_tags": ["cybersecurity", "infosec", "hacking", "encryption", "privacy", "techshorts", "shorts"]
+    },
+    {
+      "topic": "Artificial Intelligence & Neural Networks",
+      "badge": "AI INSIGHT 🤖",
+      "default_tags": ["ai", "machinelearning", "neuralnetworks", "deeplearning", "futuretech", "shorts"]
+    }
+  ]
+}

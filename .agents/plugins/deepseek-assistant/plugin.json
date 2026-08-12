@@ -1,0 +1,9 @@
+{
+  "name": "deepseek-assistant",
+  "version": "1.0.0",
+  "description": "DeepSeek R1/V3 AI Assistant with project memory and Termux CLI interface.",
+  "author": "Antigravity",
+  "skills": [
+    "../../skills/deepseek-assistant"
+  ]
+}

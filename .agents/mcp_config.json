@@ -1,13 +1,16 @@
 {
   "mcpServers": {
+    "multi-model-hub": {
+      "command": "/data/data/com.termux/files/usr/bin/python3",
+      "args": [
+        "/data/data/com.termux/files/home/antigravity/auto-clipper-shorts/.agents/plugins/multi-model-hub/mcp_server.py"
+      ]
+    },
     "nvidia-nemotron": {
       "command": "/data/data/com.termux/files/usr/bin/python3",
       "args": [
         "/data/data/com.termux/files/home/antigravity/auto-clipper-shorts/.agents/plugins/nvidia-nemotron/mcp_server.py"
-      ],
-      "env": {
-        "NVIDIA_API_KEY": "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"
-      }
+      ]
     }
   }
 }
