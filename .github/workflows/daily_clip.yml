@@ -60,9 +60,19 @@ jobs:
           key: ${{ runner.os }}-whisper-base-en-v1
 
       - name: 🦕 Set up Deno (JS runtime for yt-dlp)
+        continue-on-error: true
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: 🦕 Fallback Deno Setup if Needed
+        run: |
+          if ! command -v deno &> /dev/null; then
+            echo "Installing Deno via direct script..."
+            curl -fsSL https://deno.land/install.sh | sh || true
+            echo "$HOME/.deno/bin" >> $GITHUB_PATH
+          fi
+
 
       - name: 🎥 Install FFmpeg & System Tools
         run: |
