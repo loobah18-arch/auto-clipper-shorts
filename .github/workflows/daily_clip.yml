@@ -119,21 +119,29 @@ jobs:
           INPUT_CHANNEL: ${{ inputs.channel }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          ARGS=()
-          if [ -n "$INPUT_VIDEO_URL" ]; then
-            ARGS+=(--url "$INPUT_VIDEO_URL")
+          if [ -n "$INPUT_VIDEO_URL" ] || [ -n "$INPUT_CHANNEL" ]; then
+            echo "Running custom URL/Channel clip pipeline..."
+            ARGS=()
+            if [ -n "$INPUT_VIDEO_URL" ]; then ARGS+=(--url "$INPUT_VIDEO_URL"); fi
+            if [ -n "$INPUT_CHANNEL" ]; then ARGS+=(--channel "$INPUT_CHANNEL"); fi
+            if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
+            python main.py "${ARGS[@]}" > pipeline_debug.log 2>&1 || {
+              echo "Pipeline failed! Saving log..."
+              cat pipeline_debug.log
+              exit 1
+            }
+          else
+            echo "Running Tech Fact Short Generator (Neural TTS + Studio Visualizer)..."
+            GEN_ARGS=()
+            if [ "$INPUT_DRY_RUN" = "true" ]; then
+              GEN_ARGS+=(--dry-run)
+            fi
+            python generate_tech_fact_short.py "${GEN_ARGS[@]}" > pipeline_debug.log 2>&1 || {
+              echo "Pipeline failed! Saving log..."
+              cat pipeline_debug.log
+              exit 1
+            }
           fi
-          if [ -n "$INPUT_CHANNEL" ]; then
-            ARGS+=(--channel "$INPUT_CHANNEL")
-          fi
-          if [ "$INPUT_DRY_RUN" = "true" ]; then
-            ARGS+=(--dry-run)
-          fi
-          python main.py "${ARGS[@]}" > pipeline_debug.log 2>&1 || {
-            echo "Pipeline failed! Saving log..."
-            cat pipeline_debug.log
-            exit 1
-          }
 
       - name: 💾 Commit Updated History & State
         if: always()

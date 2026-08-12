@@ -26,6 +26,10 @@ from main import (
     create_word_timestamps_from_segment,
     generate_karaoke_ass_subtitles,
     render_studio_visualizer_short,
+    upload_to_youtube,
+    load_json,
+    save_json,
+    HISTORY_PATH,
     log,
     OUTPUT_DIR
 )
@@ -36,6 +40,7 @@ TECH_FACTS_DATABASE = [
         "badge": "TECH FACT 💡",
         "title": "How 99% of the Internet Travels Under the Ocean 🌊 #TechShorts",
         "voice": "en-US-ChristopherNeural",
+        "tags": ["techfacts", "technology", "internet", "cables", "networking", "shorts"],
         "script": (
             "Did you know that over ninety nine percent of all international internet traffic "
             "travels through underwater fiber optic cables? "
@@ -48,6 +53,7 @@ TECH_FACTS_DATABASE = [
         "badge": "DEV TRICK ⚡",
         "title": "The Secret Linux Shortcut Every Developer Needs 🐧 #Shorts",
         "voice": "en-US-GuyNeural",
+        "tags": ["linux", "terminal", "bash", "developer", "codingtips", "shorts"],
         "script": (
             "Stop scrolling up to find your old terminal commands! "
             "Just press Control plus R in any bash or zsh shell to trigger reverse history search. "
@@ -59,6 +65,7 @@ TECH_FACTS_DATABASE = [
         "badge": "CS FACT 💻",
         "title": "Why 0.1 + 0.2 Is NOT 0.3 In Computer Science 🤯 #Shorts",
         "voice": "en-US-EricNeural",
+        "tags": ["programming", "coding", "computerscience", "math", "python", "shorts"],
         "script": (
             "If you open your browser console or Python terminal and type zero point one plus zero point two, "
             "you won't get zero point three! You get zero point three zero zero zero zero zero zero four! "
@@ -70,6 +77,7 @@ TECH_FACTS_DATABASE = [
         "badge": "CYBERSECURITY 🛡️",
         "title": "How SSH Logs You In Without Sending Your Password 🔐 #Shorts",
         "voice": "en-US-ChristopherNeural",
+        "tags": ["cybersecurity", "ssh", "encryption", "infosec", "linux", "shorts"],
         "script": (
             "How do SSH keys log you into remote servers without sending your password? "
             "The server generates a random cryptographic puzzle and encrypts it with your public key. "
@@ -81,6 +89,7 @@ TECH_FACTS_DATABASE = [
         "badge": "TECH HISTORY 📜",
         "title": "The Crazy True Story of the First Computer Bug 🪲 #TechShorts",
         "voice": "en-US-GuyNeural",
+        "tags": ["techhistory", "programming", "debugging", "computerscience", "shorts"],
         "script": (
             "In nineteen forty seven, computer pioneer Grace Hopper found an actual live moth trapped in the Harvard Mark Two relay. "
             "They taped the dead moth into their logbook with the note: First actual case of bug being found. "
@@ -130,13 +139,21 @@ async def synthesize_tech_audio(script_text: str, output_mp3: Path, voice: str =
     return segments
 
 
-def render_tech_short(fact_index: int = None):
+def render_tech_short(fact_index: int = None, dry_run: bool = False):
     log("=======================================================")
     log(" 🎬 Generating Tech Fact & Developer Tip Short (TTS Narration)")
     log("=======================================================")
 
-    fact = TECH_FACTS_DATABASE[fact_index] if (fact_index is not None and 0 <= fact_index < len(TECH_FACTS_DATABASE)) else random.choice(TECH_FACTS_DATABASE)
-    log(f"Selected Tech Topic: {fact['topic']} ({fact['badge']})")
+    history = load_json(HISTORY_PATH, {"last_fact_index": -1, "processed_clips": []})
+    
+    if fact_index is not None and 0 <= fact_index < len(TECH_FACTS_DATABASE):
+        chosen_idx = fact_index
+    else:
+        last_idx = history.get("last_fact_index", -1)
+        chosen_idx = (last_idx + 1) % len(TECH_FACTS_DATABASE)
+
+    fact = TECH_FACTS_DATABASE[chosen_idx]
+    log(f"Selected Tech Topic [{chosen_idx + 1}/{len(TECH_FACTS_DATABASE)}]: {fact['topic']} ({fact['badge']})")
 
     # Output directories
     home_downloads = Path.home() / "downloads" / "auto_clipper_output"
@@ -163,7 +180,7 @@ def render_tech_short(fact_index: int = None):
 
     # 3. Render 1080x1920 Short via Studio Visualizer
     out_video = OUTPUT_DIR / "tech_fact_short.mp4"
-    log("🎨 Rendering 1080x1920 portrait Short with Tech Badge & Audio Waveform...")
+    log("🎨 Rendering 1080x1920 portrait Short with Studio Layout...")
     render_studio_visualizer_short(
         audio_full_path=voice_mp3,
         start_sec=start_sec,
@@ -194,6 +211,25 @@ def render_tech_short(fact_index: int = None):
             except Exception as e:
                 log(f"Phone copy notice: {e}")
 
+        # 4. Upload to YouTube if not dry-run
+        if not dry_run:
+            clip_info = {
+                "viral_title": fact["title"],
+                "speaker_badge": fact["badge"],
+                "tags": fact.get("tags", ["techshorts", "coding", "techfacts", "shorts"])
+            }
+            podcast_dummy = {
+                "name": "Tech Facts & Tips",
+                "default_tags": ["techshorts", "technology", "programming", "shorts"],
+                "attribution_template": "Original Tech Facts Series 💡"
+            }
+            log(f"🚀 Uploading Short to YouTube: {fact['title']}...")
+            upload_to_youtube(out_video, clip_info, podcast_dummy, original_video_url="https://youtube.com/@techfacts")
+
+        # Update History Rotation
+        history["last_fact_index"] = chosen_idx
+        save_json(HISTORY_PATH, history)
+
         log("=======================================================")
         log(f" 🎉 Video Ready: {fact['title']}")
         log("=======================================================")
@@ -202,5 +238,12 @@ def render_tech_short(fact_index: int = None):
 
 
 if __name__ == "__main__":
-    idx = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else None
-    render_tech_short(idx)
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate and upload Tech Fact Shorts.")
+    parser.add_argument("index", nargs="?", type=int, default=None, help="Index of fact to render")
+    parser.add_argument("--dry-run", action="store_true", help="Generate video without uploading")
+    parser.add_argument("--index", dest="fact_idx", type=int, default=None, help="Explicit fact index")
+    args = parser.parse_args()
+
+    chosen_index = args.fact_idx if args.fact_idx is not None else args.index
+    render_tech_short(chosen_index, dry_run=args.dry_run)
