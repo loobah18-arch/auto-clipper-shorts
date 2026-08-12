@@ -634,7 +634,7 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
 
 
 def download_audio_for_transcription(video_url: str, output_audio_path: Path) -> Path:
-    """Fast audio download (low bitrate m4a) with multi-profile and multi-format fallback."""
+    """Fast audio download (low bitrate mp3/m4a) with multi-profile direct streaming and fallback."""
     if output_audio_path.exists():
         output_audio_path.unlink()
         
@@ -651,19 +651,48 @@ def download_audio_for_transcription(video_url: str, output_audio_path: Path) ->
     ]
     
     formats_to_try = [
-        "bestaudio/140/251/139/249/ba/b/best",
+        "bestaudio/140/251/139/249/ba/18/22/b/best",
         "ba/b/best",
-        "18/22/best[height<=720]/best"
+        "18/22/best"
     ]
     
+    # Strategy 1: Direct Stream URL Resolution (yt-dlp -g) + Direct FFmpeg Capture (Bypasses yt-dlp postprocessor bot blocks)
     for client_name, cookie_args in client_profiles:
         for fmt in formats_to_try:
+            try:
+                g_cmd = ["yt-dlp", "-g", "-f", fmt, "--no-warnings"]
+                if client_name != "default":
+                    g_cmd += ["--extractor-args", f"youtube:player_client={client_name}"]
+                g_cmd += cookie_args + [video_url]
+                
+                res = subprocess.run(g_cmd, capture_output=True, text=True, check=True)
+                lines = [l.strip() for l in res.stdout.strip().split("\n") if l.strip().startswith("http")]
+                if lines:
+                    stream_url = lines[0]
+                    ff_cmd = [
+                        "ffmpeg", "-y",
+                        "-i", stream_url,
+                        "-t", "1200",
+                        "-vn",
+                        "-acodec", "libmp3lame",
+                        "-b:a", "64k",
+                        str(output_audio_path)
+                    ]
+                    subprocess.run(ff_cmd, check=True, capture_output=True)
+                    if output_audio_path.exists() and output_audio_path.stat().st_size > 10000:
+                        log(f"✅ Audio stream captured via [{client_name}] format [{fmt[:25]}] ({output_audio_path.stat().st_size} bytes)")
+                        return output_audio_path
+            except Exception:
+                continue
+
+    # Strategy 2: Direct yt-dlp file download
+    for client_name, cookie_args in client_profiles:
+        for fmt in ["ba/b/best", "18/22/best"]:
             cmd = [
                 "yt-dlp",
                 "-f", fmt,
                 "-x",
-                "--audio-format", "m4a",
-                "--audio-quality", "7",
+                "--audio-format", "mp3",
                 "--no-playlist",
                 "--no-warnings",
             ]
@@ -676,7 +705,7 @@ def download_audio_for_transcription(video_url: str, output_audio_path: Path) ->
             try:
                 subprocess.run(cmd, check=True, capture_output=True, text=True)
                 if output_audio_path.exists() and output_audio_path.stat().st_size > 1000:
-                    log(f"✅ Audio downloaded for transcription via [{client_name}] format [{fmt[:25]}] ({output_audio_path.stat().st_size} bytes)")
+                    log(f"✅ Audio downloaded via yt-dlp [{client_name}] ({output_audio_path.stat().st_size} bytes)")
                     return output_audio_path
             except Exception:
                 continue
