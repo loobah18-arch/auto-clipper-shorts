@@ -177,21 +177,102 @@ async def synthesize_tech_audio(script_text: str, output_mp3: Path, voice: str =
     return segments
 
 
+def generate_dynamic_tech_fact_with_groq(history: dict = None) -> dict:
+    """
+    Uses Groq Llama-3.3-70B (or fallback models) to dynamically invent a brand new,
+    viral, mind-blowing tech story / developer tip short (~50-55s / ~140 words).
+    Falls back to TECH_FACTS_DATABASE if Groq is unavailable.
+    """
+    groq_api_key = os.environ.get("GROQ_API_KEY")
+    if not groq_api_key:
+        return None
+
+    past_topics = []
+    if history:
+        past_topics = history.get("ai_past_topics", [])[-15:]
+
+    system_prompt = (
+        "You are an elite viral tech short-form storyteller (like Veritasium, Fireship, Kurzgesagt, and Cleo Abram).\n"
+        "Your mission is to generate a deeply fascinating, mind-blowing tech story, programming secret, "
+        "hardware mystery, cybersecurity breakdown, or computer science paradox for YouTube Shorts.\n"
+        "CRITICAL RULES:\n"
+        "1. Duration & Word Count: The script MUST be between 130 and 155 spoken words (~50 to 55 seconds spoken duration).\n"
+        "2. Structure: 3-Act structure: (Act 1: Attention-grabbing hook/paradox) -> (Act 2: Deep technical explanation with real history/numbers/mechanisms) -> (Act 3: Mind-blowing takeaway & CTA).\n"
+        "3. Spoken English: Write natural spoken English suitable for TTS narration. Do not use markdown, raw URLs, or code blocks in the script. Spell out numbers or acronyms where helpful.\n"
+        "4. Tone: High-energy, authoritative, thrilling, and educational."
+    )
+
+    user_prompt = f"""
+Generate a completely fresh, exciting Tech Short concept.
+Avoid repeating any of these recent topics: {json.dumps(past_topics)}
+
+JSON Output Schema:
+{{
+  "topic": "<Short 3-5 word header in ALL CAPS, e.g. 'HOW WI-FI SEES THROUGH WALLS'>",
+  "badge": "<Short 2-3 word badge with emoji, e.g. 'TECH SECRET ⚡' or 'CYBERSECURITY 🛡️' or 'CS FACT 💻'>",
+  "title": "<Viral YouTube Shorts title under 65 chars ending with #Shorts #TechShorts>",
+  "voice": "<One of: 'en-US-ChristopherNeural', 'en-US-GuyNeural', 'en-US-EricNeural'>",
+  "tags": ["techshorts", "technology", "programming", "coding", "developer", "shorts"],
+  "script": "<The complete 130-155 word narration script (~50-55 seconds)>"
+}}
+"""
+    log("🧠 Generating fresh viral tech topic with Groq Llama-3.3-70B...")
+    try:
+        from groq import Groq
+        from main import parse_llm_json
+        client = Groq(api_key=groq_api_key)
+        for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+            try:
+                resp = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.75,
+                    max_tokens=800
+                )
+                raw_text = resp.choices[0].message.content
+                fact_data = parse_llm_json(raw_text)
+                
+                if fact_data.get("script") and len(fact_data["script"].split()) >= 80:
+                    log(f"✅ Groq generated dynamic topic: {fact_data.get('topic')} ({fact_data.get('badge')})")
+                    return fact_data
+            except Exception as me:
+                log(f"⚠️ Groq model {model_name} notice: {me}")
+                continue
+    except Exception as ge:
+        log(f"⚠️ Groq dynamic generation error: {ge}")
+        
+    return None
+
+
 def render_tech_short(fact_index: int = None, dry_run: bool = False):
     log("=======================================================")
     log(" 🎬 Generating Tech Fact & Developer Tip Short (TTS Narration)")
     log("=======================================================")
 
-    history = load_json(HISTORY_PATH, {"last_fact_index": -1, "processed_clips": []})
+    history = load_json(HISTORY_PATH, {"last_fact_index": -1, "processed_clips": [], "ai_past_topics": []})
     
+    fact = None
     if fact_index is not None and 0 <= fact_index < len(TECH_FACTS_DATABASE):
         chosen_idx = fact_index
+        fact = TECH_FACTS_DATABASE[chosen_idx]
+        log(f"Selected Catalog Topic [{chosen_idx + 1}/{len(TECH_FACTS_DATABASE)}]: {fact['topic']} ({fact['badge']})")
     else:
-        last_idx = history.get("last_fact_index", -1)
-        chosen_idx = (last_idx + 1) % len(TECH_FACTS_DATABASE)
-
-    fact = TECH_FACTS_DATABASE[chosen_idx]
-    log(f"Selected Tech Topic [{chosen_idx + 1}/{len(TECH_FACTS_DATABASE)}]: {fact['topic']} ({fact['badge']})")
+        # Try dynamic AI generation with Groq first
+        fact = generate_dynamic_tech_fact_with_groq(history)
+        if fact:
+            chosen_idx = -1
+            past_list = history.get("ai_past_topics", [])
+            past_list.append(fact["topic"])
+            history["ai_past_topics"] = past_list[-30:]
+        else:
+            last_idx = history.get("last_fact_index", -1)
+            chosen_idx = (last_idx + 1) % len(TECH_FACTS_DATABASE)
+            fact = TECH_FACTS_DATABASE[chosen_idx]
+            log(f"Selected Fallback Topic [{chosen_idx + 1}/{len(TECH_FACTS_DATABASE)}]: {fact['topic']} ({fact['badge']})")
 
     # Output directories
     home_downloads = Path.home() / "downloads" / "auto_clipper_output"
