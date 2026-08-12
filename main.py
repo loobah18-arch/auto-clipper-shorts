@@ -572,7 +572,7 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
     sub_prefix = output_base / "subs_temp"
     
     # Try downloading JSON3 / VTT English subtitles
-    cmd = [
+    cmd_subs = [
         "yt-dlp",
         "--write-auto-subs",
         "--write-subs",
@@ -581,13 +581,12 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
         "--skip-download",
         "--no-playlist",
         "--no-warnings",
-        "--extractor-args", "youtube:player_client=mweb,web,default",
     ] + ytdlp_cookies_args() + [
         "-o", f"{sub_prefix}.%(ext)s",
         video_url
     ]
     try:
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
+        subprocess.run(cmd_subs, capture_output=True, text=True, check=True)
         # Check if json3 or vtt file was created
         json3_files = list(output_base.glob("subs_temp*.json3"))
         if json3_files:
@@ -597,7 +596,6 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
             segments = parse_json3_subtitles(data)
             if segments and len(segments) > 5:
                 log(f"Parsed {len(segments)} segments with word timestamps from YouTube captions.")
-                # Clean up
                 for jf in json3_files:
                     jf.unlink()
                 return segments
@@ -627,25 +625,46 @@ def fetch_youtube_subtitles_or_whisper(video_url: str, output_base: Path, podcas
 
 
 def download_audio_for_transcription(video_url: str, output_audio_path: Path) -> Path:
-    """Fast audio download (low bitrate m4a) for quick transcription."""
+    """Fast audio download (low bitrate m4a) with multi-strategy fallback for quick transcription."""
     if output_audio_path.exists():
         output_audio_path.unlink()
         
     log(f"Downloading audio track for transcription: {video_url}")
-    cmd = [
+    
+    # Strategy 1: Fast multi-format audio-only stream
+    cmd1 = [
         "yt-dlp",
-        "-f", "ba/b",
+        "-f", "bestaudio/140/251/139/249/ba/b/best",
         "-x",
         "--audio-format", "m4a",
         "--audio-quality", "7",
         "--no-playlist",
         "--no-warnings",
-        "--extractor-args", "youtube:player_client=mweb,web,default",
     ] + ytdlp_cookies_args() + [
         "-o", str(output_audio_path),
         video_url
     ]
-    subprocess.run(cmd, check=True)
+    
+    try:
+        subprocess.run(cmd1, check=True, capture_output=True, text=True)
+        if output_audio_path.exists():
+            return output_audio_path
+    except subprocess.CalledProcessError as e:
+        log(f"Audio download Strategy 1 failed: {e.stderr or e}. Trying Strategy 2 (fallback stream)...")
+        
+    # Strategy 2: Universal combined format extraction (18/22/best)
+    cmd2 = [
+        "yt-dlp",
+        "-f", "18/22/best[height<=720]/best",
+        "-x",
+        "--audio-format", "m4a",
+        "--no-playlist",
+        "--no-warnings",
+    ] + ytdlp_cookies_args() + [
+        "-o", str(output_audio_path),
+        video_url
+    ]
+    subprocess.run(cmd2, check=True)
     return output_audio_path
 
 
