@@ -253,14 +253,42 @@ TECH_FACTS_DATABASE = [p for s in FALLBACK_SERIES_DATABASE for p in s["parts"]]
 
 def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: int = 1500, temperature: float = 0.75) -> dict:
     """
-    Priority 1: Queries OpenCode DeepSeek v4 Flash (or OpenCode API / DeepSeek API / OpenRouter).
+    Priority 1: Queries OpenCode DeepSeek v4 Flash (CLI or HTTP API).
     """
+    import subprocess
+    import shutil
+    from main import parse_llm_json
+
+    # 1. Try local OpenCode CLI if available
+    opencode_bin = shutil.which("opencode") or str(Path.home() / ".opencode/bin/opencode")
+    if opencode_bin and Path(opencode_bin).exists():
+        try:
+            log("🧠 Querying OpenCode DeepSeek v4 Flash via OpenCode CLI (Priority 1)...")
+            full_prompt = (
+                f"{system_prompt}\n\n"
+                f"{user_prompt}\n\n"
+                "Return ONLY a single valid raw JSON object. No conversational preamble, no markdown wrappers."
+            )
+            res = subprocess.run(
+                [opencode_bin, "run", "-m", "opencode/deepseek-v4-flash-free", full_prompt],
+                capture_output=True,
+                text=True,
+                timeout=45
+            )
+            if res.returncode == 0 and res.stdout:
+                parsed = parse_llm_json(res.stdout)
+                if parsed and parsed.get("parts") and len(parsed["parts"]) >= 2:
+                    log(f"✅ OpenCode DeepSeek v4 Flash successfully generated series: '{parsed.get('topic')}' ({len(parsed['parts'])} Parts)")
+                    return parsed
+        except Exception as oe:
+            log(f"⚠️ OpenCode CLI execution notice: {oe}")
+
+    # 2. Try HTTP endpoints with OPENCODE_API_KEY / DEEPSEEK_API_KEY
     opencode_key = os.environ.get("OPENCODE_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
     if not opencode_key:
         return None
 
     import urllib.request
-    from main import parse_llm_json
 
     base_url = os.environ.get("OPENCODE_BASE_URL")
     endpoints = []
