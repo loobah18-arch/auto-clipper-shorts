@@ -245,7 +245,7 @@
         "script": "Welcome back to the finale of Linux Kernel Secrets! What happens when your server runs completely out of physical RAM? A typical operating system would freeze, lock up, or crash with a blue screen. Linux handles this situation with a brutal kernel algorithm known as the Out Of Memory Killer! Because Linux implements memory overcommitting to maximize server efficiency, processes can allocate more virtual memory than physically exists. When real physical RAM and swap space become exhausted, the kernel triggers an emergency page allocation failure. The OOM Killer instantly pauses system execution and scans the task list of every active process. It calculates a mathematical badness score based on the process's physical memory footprint, runtime duration, and its oom score adjustment setting. Once the worst offender is calculated, the kernel sends an uncatchable, unignorable SIGKILL signal nine, instantly annihilating the offending application and freeing up its memory pages to protect the core operating system! This ruthless architectural efficiency laid the groundwork for modern container runtimes like Docker and Kubernetes. In our next series, we'll be exploring how modern cryptography, elliptic curves, and zero-knowledge proofs protect global privacy, so stay tuned and make sure to like and subscribe!"
       }
     ],
-    "current_part_index": 1
+    "current_part_index": 2
   },
   "last_fact_index": -1,
   "last_series_index": 1,
