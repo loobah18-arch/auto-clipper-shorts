@@ -189,9 +189,46 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": null,
+  "active_series": {
+    "topic": "DEEPFAKE DETECTION",
+    "badge_base": "AI INSPECTOR 🕵️",
+    "next_topic_teaser": "the future of digital watermarks",
+    "total_parts": 2,
+    "parts": [
+      {
+        "part_number": 1,
+        "title": "Unmasking Deepfakes • Part 1 #Shorts #TechShorts",
+        "badge": "AI INSPECTOR 🕵️ • PART 1",
+        "voice": "en-US-ChristopherNeural",
+        "tags": [
+          "techshorts",
+          "technology",
+          "part1",
+          "shorts",
+          "developer"
+        ],
+        "script": "Deepfakes are becoming increasingly realistic, but can we detect them? Researchers have been working on AI-powered detection tools. But how do they work? We're about to dive into the world of deepfake detection. From reverse engineering to AI-powered analysis, we'll explore it all. But just as we thought we had the upper hand, a new challenge emerges. Can our detection tools keep up? Like and subscribe so you don't miss Part 2!"
+      },
+      {
+        "part_number": 2,
+        "title": "The Future of Deepfake Detection • Part 2 #Shorts #TechShorts",
+        "badge": "AI INSPECTOR 🕵️ • PART 2",
+        "voice": "en-US-ChristopherNeural",
+        "tags": [
+          "techshorts",
+          "technology",
+          "part2",
+          "shorts",
+          "developer"
+        ],
+        "script": "The battle against deepfakes is far from over. In part one, we explored the current state of detection tools. Now, we're looking to the future. With advancements in AI and machine learning, we may soon have the upper hand. But what does this mean for our digital landscape? In our next video, we will be discussing the future of digital watermarks, so stay tuned and make sure to like and subscribe!"
+      }
+    ],
+    "current_part_index": 1
+  },
   "last_fact_index": -1,
   "ai_past_topics": [
-    "QUANTUM COMPUTER LEAP"
+    "QUANTUM COMPUTER LEAP",
+    "DEEPFAKE DETECTION"
   ]
 }
