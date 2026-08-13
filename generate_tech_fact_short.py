@@ -533,7 +533,9 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
     # 1. Synthesize Audio Narration with exact word timestamps
     segments = asyncio.run(synthesize_tech_audio(part_info["script"], voice_mp3, voice=part_info.get("voice", "en-US-ChristopherNeural")))
     start_sec = 0.0
-    end_sec = segments[-1]["end"] + 0.6  # slight buffer at end
+    # Add comfortable 1.8s post-speech buffer so YouTube loop playback never clips the final words
+    last_word_end = segments[-1]["end"] if segments else 10.0
+    end_sec = last_word_end + 1.8
     duration = end_sec - start_sec
 
     log(f"✅ Tech voice synthesis complete ({duration:.1f}s narration across {len(segments)} segments).")

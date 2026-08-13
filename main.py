@@ -2165,13 +2165,14 @@ def render_studio_visualizer_short(
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
     log(f"🎨 Rendering Multi-Gesture Animated Storytime Short ({duration:.1f}s)...")
     
-    # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy
+    # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy with padding
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
     
     subprocess.run([
         "ffmpeg", "-y",
         "-i", str(audio_full_path),
         "-ss", start_str,
+        "-af", f"apad=whole_dur={duration:.2f}",
         "-t", dur_str,
         "-c:a", "pcm_s16le",
         str(audio_slice_path)
@@ -2352,13 +2353,17 @@ def render_studio_visualizer_short(
             
         cmd.extend(cmd_avatar_inputs)
             
+        fade_out_start = max(0.0, duration - 0.6)
         a_filter_parts = ["[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice]"]
         if has_bgm:
             a_filter_parts.append(f"[{bgm_idx}:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm]")
         if has_whoosh:
             a_filter_parts.append(f"[{whoosh_idx}:a]adelay=150|150,volume=0.30[whoosh]")
             
-        a_filter_parts.append(f"{''.join(audio_mix_inputs)}amix=inputs={len(audio_mix_inputs)}:duration=first:dropout_transition=0:normalize=0[aout]")
+        a_filter_parts.append(
+            f"{''.join(audio_mix_inputs)}amix=inputs={len(audio_mix_inputs)}:duration=first:dropout_transition=0:normalize=0,"
+            f"afade=t=out:st={fade_out_start:.2f}:d=0.6[aout]"
+        )
         filtergraph = f"{v_filter};{';'.join(a_filter_parts)}"
         
         cmd.extend([
