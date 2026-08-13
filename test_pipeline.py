@@ -155,24 +155,44 @@ is setting clear non-negotiable boundaries.
         self.assertIsInstance(font_path, str)
         self.assertTrue(len(font_path) > 0)
 
-    def test_episodic_series_state_transitions(self):
-        # Part 1 -> Part 2 transition
-        series = {
-            "video_id": "test_vid_1",
-            "current_part": 1,
-            "max_parts": 3,
-            "last_clip_end_sec": 45.0,
-            "topic_title": "The First Principle"
-        }
-        self.assertLess(series["current_part"], series["max_parts"])
-        # Next part computation
-        next_part = series["current_part"] + 1
-        self.assertEqual(next_part, 2)
+    def test_multi_part_series_database_structure(self):
+        from generate_tech_fact_short import FALLBACK_SERIES_DATABASE
+        self.assertGreaterEqual(len(FALLBACK_SERIES_DATABASE), 3)
+        for s in FALLBACK_SERIES_DATABASE:
+            self.assertIn("topic", s)
+            self.assertIn("badge_base", s)
+            self.assertIn("next_topic_teaser", s)
+            self.assertGreaterEqual(s["total_parts"], 2)
+            self.assertEqual(len(s["parts"]), s["total_parts"])
+            
+            # Verify Part 1 has cliffhanger / Part 2 hook
+            p1_script = s["parts"][0]["script"].lower()
+            self.assertTrue("part 2" in p1_script or "next part" in p1_script)
+            self.assertTrue("subscribe" in p1_script or "like" in p1_script)
+            
+            # Verify Final Part has next topic teaser & CTA
+            final_script = s["parts"][-1]["script"].lower()
+            self.assertTrue("next video" in final_script or "next topic" in final_script or "stay tuned" in final_script)
+            self.assertTrue("subscribe" in final_script or "like" in final_script)
+
+    def test_multi_part_series_state_progression(self):
+        from generate_tech_fact_short import FALLBACK_SERIES_DATABASE
+        series = json.loads(json.dumps(FALLBACK_SERIES_DATABASE[0]))
+        series["current_part_index"] = 0
         
-        # Part 3 (Final part) completion
-        series["current_part"] = 3
-        is_finished = series["current_part"] >= series["max_parts"]
-        self.assertTrue(is_finished)
+        # Step 1: Part 1 -> Part 2
+        p1 = series["parts"][series["current_part_index"]]
+        self.assertEqual(p1["part_number"], 1)
+        next_part_idx = series["current_part_index"] + 1
+        self.assertLess(next_part_idx, len(series["parts"]))
+        series["current_part_index"] = next_part_idx
+        
+        # Step 2: Part 2 -> Conclude
+        p2 = series["parts"][series["current_part_index"]]
+        self.assertEqual(p2["part_number"], 2)
+        next_part_idx = series["current_part_index"] + 1
+        is_series_complete = (next_part_idx >= len(series["parts"]))
+        self.assertTrue(is_series_complete)
 
 
     def test_minimax_h3_fallback_when_no_api_key(self):

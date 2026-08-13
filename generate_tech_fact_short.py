@@ -34,97 +34,306 @@ from main import (
     OUTPUT_DIR
 )
 
-TECH_FACTS_DATABASE = [
+FALLBACK_SERIES_DATABASE = [
     {
-        "topic": "UNDERWATER INTERNET CABLES",
-        "badge": "TECH FACT 💡",
-        "title": "How 99% of the Internet Travels Under the Ocean 🌊 #TechShorts",
-        "voice": "en-US-ChristopherNeural",
-        "tags": ["techfacts", "technology", "internet", "cables", "networking", "shorts"],
-        "script": (
-            "Did you know that over ninety nine percent of all international internet traffic does not travel through satellites in space, "
-            "but through massive fiber optic cables resting on the pitch black ocean floor? "
-            "There are over five hundred active subsea cables stretching eight hundred thousand miles across the Earth, connecting every continent. "
-            "These glass lines are barely as thick as a garden hose, yet they transmit petabits of financial transactions, streaming video, and cloud data every single millisecond. "
-            "Here is the crazy part. If a deep sea anchor accidentally snags one of these cables, or an underwater earthquake shifts the seabed, "
-            "entire nations can instantly lose their internet connection overnight! "
-            "Specialized repair ships have to spend weeks in rough seas grappling the ocean floor to pull the severed glass fibers back to the surface for microscopic laser welding. "
-            "Subscribe for more mind blowing tech secrets!"
-        )
+        "series_id": "underwater_internet",
+        "topic": "HOW THE INTERNET ACTUALLY WORKS",
+        "badge_base": "INTERNET SECRETS 🌐",
+        "next_topic_teaser": "the secret Linux superpower shortcuts that hackers use",
+        "total_parts": 2,
+        "parts": [
+            {
+                "part_number": 1,
+                "title": "How 99% of the Internet Flows Underwater • Part 1 🌊 #Shorts #TechShorts",
+                "badge": "INTERNET SECRETS • PART 1",
+                "voice": "en-US-ChristopherNeural",
+                "tags": ["techshorts", "technology", "internet", "cables", "networking", "shorts"],
+                "script": (
+                    "Did you know that over ninety nine percent of all international internet traffic does not travel through satellites in space, "
+                    "but through massive fiber optic cables resting on the pitch black ocean floor? "
+                    "There are over five hundred active subsea cables stretching eight hundred thousand miles across the Earth, connecting every continent. "
+                    "These glass lines are barely as thick as a garden hose, yet they transmit petabits of financial transactions, streaming video, and cloud data every single millisecond. "
+                    "Here is the crazy part. If a deep sea anchor accidentally snags one of these cables, or an underwater earthquake shifts the seabed, "
+                    "entire nations can instantly lose their internet connection overnight! "
+                    "In Part 2, we uncover how specialized deep-sea robotic ships laser weld severed glass cables miles underwater. "
+                    "Like and subscribe so you don't miss Part 2!"
+                )
+            },
+            {
+                "part_number": 2,
+                "title": "How Undersea Fiber Cables Are Repaired • Part 2 🚢 #Shorts #TechShorts",
+                "badge": "INTERNET SECRETS • PART 2",
+                "voice": "en-US-ChristopherNeural",
+                "tags": ["techshorts", "technology", "internet", "cables", "engineering", "shorts"],
+                "script": (
+                    "Welcome back to Part 2 of how the global internet stays online! "
+                    "When a deep sea fiber optic cable snaps thousands of feet below the ocean surface, how do engineers fix it without draining the ocean? "
+                    "They deploy specialized hundred-million-dollar cable ships equipped with heavy-duty robotic submarines. "
+                    "These robots dive into the freezing abyss, slice into the seabed with high pressure water jets, and grapple both severed ends of the cable. "
+                    "They hoist the lines to the ship's cleanroom deck, where technicians meticulously laser weld individual glass fibers thinner than a human hair! "
+                    "And that is the invisible engineering keeping our planet connected. "
+                    "In our next video, we'll be discussing the secret Linux superpower shortcuts that hackers use, so stay tuned and make sure to like and subscribe!"
+                )
+            }
+        ]
     },
     {
-        "topic": "LINUX TERMINAL SUPERPOWER",
-        "badge": "DEV TRICK ⚡",
-        "title": "The Secret Linux Shortcut Every Developer Needs 🐧 #Shorts",
-        "voice": "en-US-GuyNeural",
-        "tags": ["linux", "terminal", "bash", "developer", "codingtips", "shorts"],
-        "script": (
-            "Stop frantically hitting the up arrow fifty times just to find a terminal command you ran three weeks ago! "
-            "Every programmer needs to know this secret Linux superpower. "
-            "Inside any bash or zsh terminal, just press Control plus R on your keyboard. "
-            "This instantly activates the recursive history search engine. "
-            "The moment you start typing a single keyword like docker, git, or ssh, Linux instantly searches your entire shell history and auto-completes your longest, most complicated command with zero typos! "
-            "If you press Control plus R again, it cycles backwards through every past variation you ever executed. "
-            "Once you find it, just press Enter to run it immediately, or hit the Right Arrow key to edit your parameters. "
-            "This one shortcut will save you hours of command line frustration every single month. "
-            "Drop a like if you did not know this trick!"
-        )
+        "series_id": "linux_superpowers",
+        "topic": "LINUX TERMINAL SECRETS",
+        "badge_base": "LINUX HACKS 🐧",
+        "next_topic_teaser": "why 0.1 plus 0.2 is not 0.3 in computer science",
+        "total_parts": 2,
+        "parts": [
+            {
+                "part_number": 1,
+                "title": "The Secret Linux Shortcut Every Developer Needs • Part 1 🐧 #Shorts",
+                "badge": "LINUX HACKS • PART 1",
+                "voice": "en-US-GuyNeural",
+                "tags": ["linux", "terminal", "bash", "developer", "codingtips", "shorts"],
+                "script": (
+                    "Stop frantically hitting the up arrow fifty times just to find a terminal command you ran three weeks ago! "
+                    "Every programmer needs to know this secret Linux superpower. "
+                    "Inside any bash or zsh terminal, just press Control plus R on your keyboard. "
+                    "This instantly activates the recursive history search engine. "
+                    "The moment you start typing a single keyword like docker, git, or ssh, Linux instantly searches your entire shell history and auto-completes your longest, most complicated command with zero typos! "
+                    "If you press Control plus R again, it cycles backwards through every past variation you ever executed. "
+                    "More mind-blowing Linux terminal secrets are coming in Part 2! "
+                    "Drop a like and subscribe so you don't miss Part 2!"
+                )
+            },
+            {
+                "part_number": 2,
+                "title": "The Hidden Power of Linux /proc & Pipes • Part 2 ⚡ #Shorts",
+                "badge": "LINUX HACKS • PART 2",
+                "voice": "en-US-GuyNeural",
+                "tags": ["linux", "terminal", "sysadmin", "coding", "developer", "shorts"],
+                "script": (
+                    "Welcome back to Part 2 of Linux Superpowers! "
+                    "Did you know that in Linux, literally everything in your operating system is treated as a plain text file? "
+                    "If you navigate to slash proc on your machine, you are looking directly into your live computer RAM. "
+                    "You can inspect active CPU temperatures, memory allocations, and even inject data into running processes without a debugger! "
+                    "Combine this with the Unix pipe operator, and you can stream terabytes of data between programs without ever touching your hard drive. "
+                    "That is why Linux powers ninety percent of the world's cloud servers. "
+                    "In our next video, we'll be discussing why zero point one plus zero point two is not zero point three in computer science, so stay tuned and make sure to like and subscribe!"
+                )
+            }
+        ]
     },
     {
+        "series_id": "floating_point_math",
         "topic": "FLOATING POINT SECRETS",
-        "badge": "CS FACT 💻",
-        "title": "Why 0.1 + 0.2 Is NOT 0.3 In Computer Science 🤯 #Shorts",
-        "voice": "en-US-EricNeural",
-        "tags": ["programming", "coding", "computerscience", "math", "python", "shorts"],
-        "script": (
-            "If you open your browser console, Python terminal, or C plus plus compiler right now and calculate zero point one plus zero point two, "
-            "you will not get zero point three! "
-            "Instead, you get zero point three zero zero zero zero zero zero zero zero zero zero zero zero zero zero four! "
-            "This is not a bug in your computer, it is a fundamental mathematical law of how microprocessors work. "
-            "Modern computers do not count in base ten decimals like humans. They use base two binary floating point numbers under the IEEE seven fifty four standard. "
-            "In binary math, fractions like one tenth create an infinite repeating sequence, exactly like trying to write one third in decimal! "
-            "Because computer memory is finite, the CPU has to round off the last binary bit. "
-            "This tiny precision error has famously crashed space exploration rockets and caused multi-million dollar banking glitches in financial trading algorithms. "
-            "Follow for more computer science revelations!"
-        )
+        "badge_base": "CS DEEP DIVE 💻",
+        "next_topic_teaser": "how SSH keys log you in without ever sending your password",
+        "total_parts": 2,
+        "parts": [
+            {
+                "part_number": 1,
+                "title": "Why 0.1 + 0.2 Is NOT 0.3 In Computer Science • Part 1 🤯 #Shorts",
+                "badge": "CS DEEP DIVE • PART 1",
+                "voice": "en-US-EricNeural",
+                "tags": ["programming", "coding", "computerscience", "math", "python", "shorts"],
+                "script": (
+                    "If you open your browser console, Python terminal, or C plus plus compiler right now and calculate zero point one plus zero point two, "
+                    "you will not get zero point three! "
+                    "Instead, you get zero point three zero zero zero zero zero zero zero zero zero zero zero zero zero zero four! "
+                    "This is not a bug in your computer, it is a fundamental mathematical law of how microprocessors work. "
+                    "Modern computers do not count in base ten decimals like humans. They use base two binary floating point numbers under the IEEE seven fifty four standard. "
+                    "In binary math, fractions like one tenth create an infinite repeating sequence, exactly like trying to write one third in decimal! "
+                    "In Part 2, we explore how this exact floating point error blew up a five hundred million dollar space rocket thirty seven seconds after launch. "
+                    "Hit like and subscribe for Part 2!"
+                )
+            },
+            {
+                "part_number": 2,
+                "title": "The $500M Floating Point Rocket Crash • Part 2 🚀 #Shorts",
+                "badge": "CS DEEP DIVE • PART 2",
+                "voice": "en-US-EricNeural",
+                "tags": ["programming", "engineering", "space", "rockets", "computerscience", "shorts"],
+                "script": (
+                    "Welcome back to Part 2 of Floating Point Secrets! "
+                    "In nineteen ninety six, the European Space Agency launched the Ariane Five rocket carrying a five hundred million dollar scientific payload. "
+                    "Just thirty seven seconds after liftoff, the rocket suddenly flipped ninety degrees and disintegrated in a massive fireball! "
+                    "The post-crash investigation revealed that the guidance software tried to convert a sixty-four bit floating point number representing horizontal velocity into a sixteen bit signed integer. "
+                    "The number was larger than thirty two thousand seven hundred sixty seven, causing an integer overflow exception that paralyzed the onboard computers! "
+                    "And that is why type safety and float precision are critical. "
+                    "In our next video, we'll be discussing how SSH keys log you in without sending your password, so stay tuned and make sure to like and subscribe!"
+                )
+            }
+        ]
     },
     {
+        "series_id": "ssh_cryptography",
         "topic": "HOW SSH KEYS WORK",
-        "badge": "CYBERSECURITY 🛡️",
-        "title": "How SSH Logs You In Without Sending Your Password 🔐 #Shorts",
-        "voice": "en-US-ChristopherNeural",
-        "tags": ["cybersecurity", "ssh", "encryption", "infosec", "linux", "shorts"],
-        "script": (
-            "How do SSH keys log you into top secret cloud servers across the globe without ever transmitting your password across the internet? "
-            "It all comes down to an ingenious mathematical trapdoor known as asymmetric cryptography. "
-            "When you generate an SSH key pair, your computer creates a public key and a private key. "
-            "You place the public key on the remote server, while keeping your private key heavily guarded on your laptop. "
-            "When you log in, the server never asks for your secret password. "
-            "Instead, the server generates a random cryptographic challenge, locks it with your public key, and transmits it to your computer. "
-            "The mathematical magic is that only your private key has the unique mathematical power to decrypt and solve that challenge! "
-            "Your machine sends back the proof, and the server unlocks instantly, keeping your access completely immune to hacker eavesdropping. "
-            "Subscribe for more cybersecurity breakdowns!"
-        )
+        "badge_base": "CYBERSECURITY 🛡️",
+        "next_topic_teaser": "the crazy true story of the very first computer bug",
+        "total_parts": 2,
+        "parts": [
+            {
+                "part_number": 1,
+                "title": "How SSH Logs You In Without Sending Your Password • Part 1 🔐 #Shorts",
+                "badge": "CYBERSECURITY • PART 1",
+                "voice": "en-US-ChristopherNeural",
+                "tags": ["cybersecurity", "ssh", "encryption", "infosec", "linux", "shorts"],
+                "script": (
+                    "How do SSH keys log you into top secret cloud servers across the globe without ever transmitting your password across the internet? "
+                    "It all comes down to an ingenious mathematical trapdoor known as asymmetric cryptography. "
+                    "When you generate an SSH key pair, your computer creates a public key and a private key. "
+                    "You place the public key on the remote server, while keeping your private key heavily guarded on your laptop. "
+                    "When you log in, the server never asks for your secret password. "
+                    "Instead, the server generates a random cryptographic challenge, locks it with your public key, and transmits it to your computer. "
+                    "In Part 2, we uncover how your private key solves this mathematical puzzle in milliseconds and why even supercomputers cannot crack it. "
+                    "Drop a like and subscribe for Part 2!"
+                )
+            },
+            {
+                "part_number": 2,
+                "title": "Why Even Supercomputers Cannot Crack SSH • Part 2 🛡️ #Shorts",
+                "badge": "CYBERSECURITY • PART 2",
+                "voice": "en-US-ChristopherNeural",
+                "tags": ["cybersecurity", "encryption", "math", "infosec", "techfacts", "shorts"],
+                "script": (
+                    "Welcome back to Part 2 of How SSH Keys Work! "
+                    "Once the server encrypts the challenge with your public key, why can't a hacker intercept it and solve it? "
+                    "Because modern SSH encryption is based on the mathematical difficulty of elliptic curve discrete logarithms and prime factorization. "
+                    "Encrypting the message is as easy as mixing two cans of paint together, but finding the original colors without your private key requires checking billions of combinations! "
+                    "Even if you combined all the world's supercomputers together, cracking a single modern elliptic curve key would take longer than the age of the entire universe. "
+                    "And that is how global cybersecurity protects your server access. "
+                    "In our next video, we'll be discussing the crazy true story of the very first computer bug, so stay tuned and make sure to like and subscribe!"
+                )
+            }
+        ]
     },
     {
-        "topic": "THE FIRST COMPUTER BUG",
-        "badge": "TECH HISTORY 📜",
-        "title": "The Crazy True Story of the First Computer Bug 🪲 #TechShorts",
-        "voice": "en-US-GuyNeural",
-        "tags": ["techhistory", "programming", "debugging", "computerscience", "shorts"],
-        "script": (
-            "Have you ever wondered why software engineers call fixing a broken program debugging? "
-            "The origin story is completely literal and involves a real two-inch moth! "
-            "In nineteen forty seven, computer science pioneer Grace Hopper was working on the Harvard Mark Two electromechanical computer for the United States Navy. "
-            "Suddenly, the massive sixteen-ton machine stopped processing calculations correctly. "
-            "The engineering team spent hours meticulously inspecting thousands of electrical relays across the entire computer until they finally inspected relay number seventy in panel F. "
-            "Trapped between the metal contact points was an actual dead moth that was short-circuiting the electrical signal! "
-            "They removed the insect with tweezers, taped it into their official engineering logbook, and wrote: First actual case of bug being found. "
-            "From that exact moment in history, resolving software errors was officially crowned debugging. "
-            "Drop a follow for more tech history!"
-        )
+        "series_id": "first_computer_bug",
+        "topic": "THE HISTORY OF COMPUTER BUGS",
+        "badge_base": "TECH HISTORY 📜",
+        "next_topic_teaser": "how ninety nine percent of the internet travels under the ocean",
+        "total_parts": 2,
+        "parts": [
+            {
+                "part_number": 1,
+                "title": "The Crazy True Story of the First Computer Bug • Part 1 🪲 #TechShorts",
+                "badge": "TECH HISTORY • PART 1",
+                "voice": "en-US-GuyNeural",
+                "tags": ["techhistory", "programming", "debugging", "computerscience", "shorts"],
+                "script": (
+                    "Have you ever wondered why software engineers call fixing a broken program debugging? "
+                    "The origin story is completely literal and involves a real two-inch moth! "
+                    "In nineteen forty seven, computer science pioneer Grace Hopper was working on the Harvard Mark Two electromechanical computer for the United States Navy. "
+                    "Suddenly, the massive sixteen-ton machine stopped processing calculations correctly. "
+                    "The engineering team spent hours meticulously inspecting thousands of electrical relays across the entire computer until they finally inspected relay number seventy in panel F. "
+                    "Trapped between the metal contact points was an actual dead moth that was short-circuiting the electrical signal! "
+                    "In Part 2, we uncover the historic engineering logbook note that changed computer science forever. "
+                    "Like and subscribe so you don't miss Part 2!"
+                )
+            },
+            {
+                "part_number": 2,
+                "title": "The Historic Note That Defined Debugging Forever • Part 2 📜 #Shorts",
+                "badge": "TECH HISTORY • PART 2",
+                "voice": "en-US-GuyNeural",
+                "tags": ["techhistory", "programming", "debugging", "gracehopper", "shorts"],
+                "script": (
+                    "Welcome back to Part 2 of The First Computer Bug! "
+                    "After Grace Hopper's team extracted the dead moth with tweezers, they didn't just throw it away. "
+                    "They carefully taped the charred insect directly into their official engineering logbook and wrote: First actual case of bug being found. "
+                    "That original nineteen forty seven logbook and the actual moth are still preserved today in the Smithsonian National Museum of American History! "
+                    "From that exact moment onward, finding errors in software was officially crowned debugging, and problem-solving became the core of software engineering. "
+                    "And that is the origin of the word debugging! "
+                    "In our next video, we'll be discussing how ninety nine percent of the internet travels under the ocean, so stay tuned and make sure to like and subscribe!"
+                )
+            }
+        ]
     }
 ]
+
+# Backward compatibility alias
+TECH_FACTS_DATABASE = [p for s in FALLBACK_SERIES_DATABASE for p in s["parts"]]
+
+
+def generate_dynamic_series_with_groq(history: dict = None) -> dict:
+    """
+    Uses Groq Llama-3.3-70B to dynamically generate a cohesive 2-part or 3-part
+    deep-dive series with progressive cliffhangers, next-part hooks, and next-topic teasers.
+    """
+    groq_api_key = os.environ.get("GROQ_API_KEY")
+    if not groq_api_key:
+        return None
+
+    past_topics = []
+    if history:
+        past_topics = history.get("ai_past_topics", [])[-15:]
+
+    system_prompt = (
+        "You are an elite viral YouTube Shorts series creator (like Veritasium, Fireship, Kurzgesagt, and Cleo Abram).\n"
+        "Your mission is to create a complete, cohesive 2-part or 3-part deep-dive tech series on ONE fascinating topic.\n"
+        "SERIES CONTINUATION RULES:\n"
+        "1. Part 1 (and intermediate parts): Must hook the audience, build the mystery, and end with a cliffhanger + clear hook for Part 2 + 'Like and subscribe for Part 2!' CTA.\n"
+        "2. Final Part: Must resolve the mystery satisfyingly, deliver the big takeaway, and give a heads-up about the NEXT upcoming topic: 'In our next video, we will be discussing [Next Topic], so stay tuned and make sure to like and subscribe!'\n"
+        "3. Every part MUST be 130 to 155 words (~50 to 55 seconds spoken narration).\n"
+        "4. Spoken English: Pure natural spoken text for TTS. No markdown symbols, no raw URLs."
+    )
+
+    user_prompt = f"""
+Generate a brand new 2-Part Tech Short Series.
+Avoid repeating any of these recent topics: {json.dumps(past_topics)}
+
+JSON Output Schema:
+{{
+  "topic": "<Core topic name in ALL CAPS, e.g. 'HOW WI-FI SEES THROUGH WALLS'>",
+  "badge_base": "<Short 2-3 word badge with emoji, e.g. 'WI-FI RADAR 📡' or 'QUANTUM SECRETS 💻'>",
+  "next_topic_teaser": "<Short teaser of what the next upcoming series will explore, e.g. 'how quantum computers will break global encryption'>",
+  "total_parts": 2,
+  "parts": [
+    {{
+      "part_number": 1,
+      "title": "<Catchy title under 65 chars including '• Part 1' and #Shorts #TechShorts>",
+      "badge": "<badge_base> • PART 1",
+      "voice": "en-US-ChristopherNeural",
+      "tags": ["techshorts", "technology", "part1", "shorts", "developer"],
+      "script": "<130-155 word script ending with a cliffhanger for Part 2 and 'Like and subscribe so you don't miss Part 2!'>"
+    }},
+    {{
+      "part_number": 2,
+      "title": "<Catchy title under 65 chars including '• Part 2' and #Shorts #TechShorts>",
+      "badge": "<badge_base> • PART 2",
+      "voice": "en-US-ChristopherNeural",
+      "tags": ["techshorts", "technology", "part2", "shorts", "developer"],
+      "script": "<130-155 word script resolving the topic, giving the next-topic teaser, and ending with 'stay tuned and make sure to like and subscribe!'>"
+    }}
+  ]
+}}
+"""
+    log("🧠 Generating cohesive multi-part series with Groq Llama-3.3-70B...")
+    try:
+        from groq import Groq
+        from main import parse_llm_json
+        client = Groq(api_key=groq_api_key)
+        for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+            try:
+                resp = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.75,
+                    max_tokens=1500
+                )
+                raw_text = resp.choices[0].message.content
+                series_data = parse_llm_json(raw_text)
+                
+                if series_data.get("parts") and len(series_data["parts"]) >= 2:
+                    log(f"✅ Groq generated dynamic series: {series_data.get('topic')} ({len(series_data['parts'])} Parts)")
+                    return series_data
+            except Exception as me:
+                log(f"⚠️ Groq model {model_name} notice: {me}")
+                continue
+    except Exception as ge:
+        log(f"⚠️ Groq dynamic series generation error: {ge}")
+        
+    return None
 
 
 async def synthesize_tech_audio(script_text: str, output_mp3: Path, voice: str = "en-US-ChristopherNeural", rate: str = "+10%"):
@@ -250,29 +459,65 @@ JSON Output Schema:
 
 def render_tech_short(fact_index: int = None, dry_run: bool = False):
     log("=======================================================")
-    log(" 🎬 Generating Tech Fact & Developer Tip Short (TTS Narration)")
+    log(" 🎬 Generating Multi-Part Tech Story Short (TTS Narration)")
     log("=======================================================")
 
-    history = load_json(HISTORY_PATH, {"last_fact_index": -1, "processed_clips": [], "ai_past_topics": []})
+    history = load_json(HISTORY_PATH, {
+        "last_series_index": -1,
+        "active_series": None,
+        "completed_series": [],
+        "ai_past_topics": []
+    })
+
+    active_series = history.get("active_series")
     
-    fact = None
+    # Check if we need to start a fresh series:
+    needs_new_series = False
+    if not active_series:
+        needs_new_series = True
+    elif not active_series.get("parts"):
+        needs_new_series = True
+    elif active_series.get("current_part_index", 0) >= len(active_series.get("parts", [])):
+        needs_new_series = True
+
     if fact_index is not None and 0 <= fact_index < len(TECH_FACTS_DATABASE):
-        chosen_idx = fact_index
-        fact = TECH_FACTS_DATABASE[chosen_idx]
-        log(f"Selected Catalog Topic [{chosen_idx + 1}/{len(TECH_FACTS_DATABASE)}]: {fact['topic']} ({fact['badge']})")
+        # Override mode: render specific isolated fact
+        fact = TECH_FACTS_DATABASE[fact_index]
+        part_info = fact
+        series_topic = fact.get("topic", "TECH FACT")
+        log(f"Selected Explicit Topic [{fact_index + 1}/{len(TECH_FACTS_DATABASE)}]: {fact['topic']} ({fact['badge']})")
     else:
-        # Try dynamic AI generation with Groq first
-        fact = generate_dynamic_tech_fact_with_groq(history)
-        if fact:
-            chosen_idx = -1
-            past_list = history.get("ai_past_topics", [])
-            past_list.append(fact["topic"])
-            history["ai_past_topics"] = past_list[-30:]
-        else:
-            last_idx = history.get("last_fact_index", -1)
-            chosen_idx = (last_idx + 1) % len(TECH_FACTS_DATABASE)
-            fact = TECH_FACTS_DATABASE[chosen_idx]
-            log(f"Selected Fallback Topic [{chosen_idx + 1}/{len(TECH_FACTS_DATABASE)}]: {fact['topic']} ({fact['badge']})")
+        if needs_new_series:
+            log("🔄 No active series in progress. Starting a brand new deep-dive tech series...")
+            # Try Groq first for dynamic series
+            new_series = generate_dynamic_series_with_groq(history)
+            if new_series and new_series.get("parts"):
+                active_series = new_series
+                active_series["current_part_index"] = 0
+                past_list = history.get("ai_past_topics", [])
+                past_list.append(active_series["topic"])
+                history["ai_past_topics"] = past_list[-30:]
+            else:
+                last_s_idx = history.get("last_series_index", -1)
+                next_s_idx = (last_s_idx + 1) % len(FALLBACK_SERIES_DATABASE)
+                active_series = json.loads(json.dumps(FALLBACK_SERIES_DATABASE[next_s_idx]))
+                active_series["current_part_index"] = 0
+                history["last_series_index"] = next_s_idx
+                log(f"Selected Fallback Series [{next_s_idx + 1}/{len(FALLBACK_SERIES_DATABASE)}]: {active_series['topic']}")
+            
+            history["active_series"] = active_series
+
+        # Retrieve current part to render
+        part_idx = active_series.get("current_part_index", 0)
+        parts_list = active_series.get("parts", [])
+        if part_idx >= len(parts_list):
+            part_idx = 0
+            active_series["current_part_index"] = 0
+            
+        part_info = parts_list[part_idx]
+        total_p = len(parts_list)
+        series_topic = active_series.get("topic", "TECH DEEP DIVE")
+        log(f"🎬 Series: '{series_topic}' ➔ Rendering Part {part_info.get('part_number', part_idx + 1)} of {total_p}...")
 
     # Output directories
     home_downloads = Path.home() / "downloads" / "auto_clipper_output"
@@ -286,7 +531,7 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
     voice_mp3 = OUTPUT_DIR / "tech_narration.mp3"
     
     # 1. Synthesize Audio Narration with exact word timestamps
-    segments = asyncio.run(synthesize_tech_audio(fact["script"], voice_mp3, voice=fact.get("voice", "en-US-ChristopherNeural")))
+    segments = asyncio.run(synthesize_tech_audio(part_info["script"], voice_mp3, voice=part_info.get("voice", "en-US-ChristopherNeural")))
     start_sec = 0.0
     end_sec = segments[-1]["end"] + 0.6  # slight buffer at end
     duration = end_sec - start_sec
@@ -306,17 +551,17 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
         end_sec=end_sec,
         ass_subtitle_path=ass_path,
         output_final_path=out_video,
-        speaker_badge=fact["badge"],
+        speaker_badge=part_info.get("badge", "TECH FACT 💡"),
         transcript_segments=segments,
         speaker_gender="male",
         host_gender="male",
-        topic_title=fact["topic"],
+        topic_title=series_topic,
         video_reference_path=None
     )
 
     if out_video.exists() and out_video.stat().st_size > 50000:
         size_mb = out_video.stat().st_size / (1024 * 1024)
-        log(f"✅ Tech Fact Short generated successfully! ({size_mb:.2f} MB)")
+        log(f"✅ Tech Short generated successfully! ({size_mb:.2f} MB)")
 
         dest_1 = home_downloads / "tech_fact_short.mp4"
         shutil.copy2(out_video, dest_1)
@@ -333,24 +578,40 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
         # 4. Upload to YouTube if not dry-run
         if not dry_run:
             clip_info = {
-                "viral_title": fact["title"],
-                "speaker_badge": fact["badge"],
-                "tags": fact.get("tags", ["techshorts", "coding", "techfacts", "shorts", "technology"])
+                "viral_title": part_info["title"],
+                "speaker_badge": part_info.get("badge", "TECH FACT 💡"),
+                "tags": part_info.get("tags", ["techshorts", "coding", "techfacts", "shorts", "technology"])
             }
             podcast_dummy = {
                 "name": "Tech Facts & Developer Tips",
                 "default_tags": ["techshorts", "technology", "programming", "shorts", "developer", "coding"],
                 "attribution_template": "Curated by @woosclips ⚡ Subscribe for daily tech revelations!"
             }
-            log(f"🚀 Uploading Short to YouTube channel @woosclips: {fact['title']}...")
+            log(f"🚀 Uploading Short to YouTube channel @woosclips: {part_info['title']}...")
             upload_to_youtube(out_video, clip_info, podcast_dummy, original_video_url="https://youtube.com/@woosclips")
 
-        # Update History Rotation
-        history["last_fact_index"] = chosen_idx
+        # 5. Advance Series State Rotation
+        if fact_index is None and active_series:
+            next_part = active_series.get("current_part_index", 0) + 1
+            if next_part >= len(active_series.get("parts", [])):
+                log(f"🎉 Series '{active_series.get('topic')}' concluded ({len(active_series['parts'])}/{len(active_series['parts'])} Parts complete)!")
+                completed = history.get("completed_series", [])
+                completed.append({
+                    "topic": active_series.get("topic"),
+                    "total_parts": len(active_series.get("parts", [])),
+                    "completed_at": str(Path.cwd())
+                })
+                history["completed_series"] = completed[-20:]
+                history["active_series"] = None  # Ready to start next topic on next run!
+            else:
+                active_series["current_part_index"] = next_part
+                history["active_series"] = active_series
+                log(f"📌 Series state saved: next run will render Part {next_part + 1} of {len(active_series['parts'])}.")
+
         save_json(HISTORY_PATH, history)
 
         log("=======================================================")
-        log(f" 🎉 Video Ready: {fact['title']}")
+        log(f" 🎉 Video Ready: {part_info['title']}")
         log("=======================================================")
     else:
         log("❌ Video generation failed or output file is empty.")
@@ -358,8 +619,8 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Generate and upload Tech Fact Shorts.")
-    parser.add_argument("index", nargs="?", type=int, default=None, help="Index of fact to render")
+    parser = argparse.ArgumentParser(description="Generate and upload Multi-Part Tech Story Shorts.")
+    parser.add_argument("index", nargs="?", type=int, default=None, help="Explicit fact index (optional override)")
     parser.add_argument("--dry-run", action="store_true", help="Generate video without uploading")
     parser.add_argument("--index", dest="fact_idx", type=int, default=None, help="Explicit fact index")
     args = parser.parse_args()
