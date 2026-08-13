@@ -866,6 +866,63 @@ def select_viral_clip_with_groq(
             "The clip MUST start right where they begin explaining the technical insight or practical tip (skip any intro banter/merch). Duration: 35-55 seconds."
         )
 
+    # 0. Priority 1: OpenCode DeepSeek v4 Flash
+    opencode_api_key = os.environ.get("OPENCODE_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
+    if opencode_api_key:
+        opencode_endpoints = []
+        custom_base = os.environ.get("OPENCODE_BASE_URL")
+        if custom_base:
+            opencode_endpoints.append((custom_base, ["opencode/deepseek-v4-flash-free", "deepseek-v4-flash", "deepseek-chat"]))
+        opencode_endpoints.extend([
+            ("https://api.opencode.ai/v1/chat/completions", ["opencode/deepseek-v4-flash-free", "deepseek-v4-flash", "deepseek-ai/deepseek-v4-flash"]),
+            ("https://api.deepseek.com/chat/completions", ["deepseek-chat", "deepseek-reasoner"]),
+            ("https://openrouter.ai/api/v1/chat/completions", ["deepseek/deepseek-v4-flash", "deepseek/deepseek-chat", "deepseek/deepseek-r1"])
+        ])
+        for ep_url, ep_models in opencode_endpoints:
+            for ep_model in ep_models:
+                try:
+                    ep_host = ep_url.split("/")[2]
+                    log(f"🧠 Querying OpenCode DeepSeek v4 Flash (Priority 1: {ep_model} @ {ep_host}, Part {part_number})...")
+                    ds_payload = json.dumps({
+                        "model": ep_model,
+                        "messages": [
+                            {"role": "system", "content": "You are an expert viral YouTube Shorts content strategist. Return ONLY a single raw JSON object with keys: start_seconds, end_seconds, topic_title, viral_title, hook_reason, tags, speaker_badge."},
+                            {"role": "user", "content": f"Tech Channel: {podcast_entry.get('name', 'Tech')}\nVideo Title: {video_meta.get('title', 'Episode')}\nGoal: {goal_instruction}\n\nTranscript:\n{formatted_transcript}"}
+                        ],
+                        "temperature": 0.1,
+                        "max_tokens": 1024
+                    }).encode("utf-8")
+                    ds_req = urllib.request.Request(
+                        ep_url,
+                        data=ds_payload,
+                        headers={
+                            "Authorization": f"Bearer {opencode_api_key}",
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://github.com/auto-clipper-shorts",
+                            "X-Title": "Auto Clipper Shorts"
+                        }
+                    )
+                    with urllib.request.urlopen(ds_req, timeout=30) as ds_resp:
+                        ds_data = json.loads(ds_resp.read().decode("utf-8"))
+                        ds_content = ds_data["choices"][0]["message"]["content"]
+                        ds_parsed = parse_llm_json(ds_content)
+                        if ds_parsed and "start_seconds" in ds_parsed and "end_seconds" in ds_parsed:
+                            min_start = max(0.0, continuation_start_sec + 0.5 if (continuation_start_sec and part_number > 1) else 0.0)
+                            raw_start = max(min_start, float(ds_parsed.get("start_seconds", min_start)))
+                            raw_end = float(ds_parsed.get("end_seconds", raw_start + 45.0))
+                            
+                            start_sec, end_sec = snap_clip_to_sentence_boundary(transcript_segments, raw_start, raw_end)
+                            clip_dur = end_sec - start_sec
+                            
+                            ds_parsed["start_seconds"] = start_sec
+                            ds_parsed["end_seconds"] = end_sec
+                            ds_parsed["duration"] = clip_dur
+                            log(f"✅ OpenCode DeepSeek selected clip (Part {part_number}): {ds_parsed['start_seconds']}s -> {ds_parsed['end_seconds']}s ({clip_dur:.1f}s)")
+                            return ds_parsed
+                except Exception as dse:
+                    log(f"⚠️ OpenCode DeepSeek notice ({ep_model}): {dse}")
+                    continue
+
     # 1. Check if NVIDIA Nemotron is configured
     if nvidia_api_key:
         try:

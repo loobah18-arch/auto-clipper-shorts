@@ -251,15 +251,116 @@ FALLBACK_SERIES_DATABASE = [
 TECH_FACTS_DATABASE = [p for s in FALLBACK_SERIES_DATABASE for p in s["parts"]]
 
 
-def generate_dynamic_series_with_groq(history: dict = None) -> dict:
+def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: int = 1500, temperature: float = 0.75) -> dict:
     """
-    Uses Groq Llama-3.3-70B to dynamically generate a cohesive 2-part or 3-part
-    deep-dive series with progressive cliffhangers, next-part hooks, and next-topic teasers.
+    Priority 1: Queries OpenCode DeepSeek v4 Flash (or OpenCode API / DeepSeek API / OpenRouter).
+    """
+    opencode_key = os.environ.get("OPENCODE_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
+    if not opencode_key:
+        return None
+
+    import urllib.request
+    from main import parse_llm_json
+
+    base_url = os.environ.get("OPENCODE_BASE_URL")
+    endpoints = []
+    
+    if base_url:
+        endpoints.append((base_url, ["opencode/deepseek-v4-flash-free", "deepseek-v4-flash", "deepseek-chat"]))
+    
+    endpoints.extend([
+        ("https://api.opencode.ai/v1/chat/completions", ["opencode/deepseek-v4-flash-free", "deepseek-v4-flash", "deepseek-ai/deepseek-v4-flash"]),
+        ("https://api.deepseek.com/chat/completions", ["deepseek-chat", "deepseek-reasoner"]),
+        ("https://openrouter.ai/api/v1/chat/completions", ["deepseek/deepseek-v4-flash", "deepseek/deepseek-chat", "deepseek/deepseek-r1"])
+    ])
+
+    for url, model_list in endpoints:
+        for model in model_list:
+            try:
+                host_label = url.split("/")[2]
+                log(f"🧠 Querying OpenCode DeepSeek v4 Flash (Priority 1: {model} @ {host_label})...")
+                payload = json.dumps({
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
+                }).encode("utf-8")
+
+                req = urllib.request.Request(
+                    url,
+                    data=payload,
+                    headers={
+                        "Authorization": f"Bearer {opencode_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://github.com/auto-clipper-shorts",
+                        "X-Title": "Auto Clipper Shorts"
+                    }
+                )
+                with urllib.request.urlopen(req, timeout=35) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    raw_text = data["choices"][0]["message"]["content"]
+                    parsed = parse_llm_json(raw_text)
+                    if parsed and parsed.get("parts") and len(parsed["parts"]) >= 2:
+                        log(f"✅ OpenCode DeepSeek v4 Flash successfully generated series: '{parsed.get('topic')}' ({len(parsed['parts'])} Parts)")
+                        return parsed
+            except Exception as e:
+                log(f"⚠️ OpenCode DeepSeek notice ({model}): {e}")
+                continue
+    return None
+
+
+def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
+    """
+    Priority 2 & 3 Fallback: Groq Llama-3.3-70B and Llama-3.1-8B.
     """
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
         return None
 
+    try:
+        from groq import Groq
+        from main import parse_llm_json
+        client = Groq(api_key=groq_api_key)
+        
+        # Priority 2: Llama-3.3-70B | Priority 3: Llama-3.1-8B
+        for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+            try:
+                log(f"🦙 Querying Groq Fallback ({model_name})...")
+                resp = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.75,
+                    max_tokens=1500
+                )
+                raw_text = resp.choices[0].message.content
+                series_data = parse_llm_json(raw_text)
+                if series_data and series_data.get("parts") and len(series_data["parts"]) >= 2:
+                    log(f"✅ Groq ({model_name}) successfully generated series: '{series_data.get('topic')}' ({len(series_data['parts'])} Parts)")
+                    return series_data
+            except Exception as me:
+                log(f"⚠️ Groq model {model_name} notice: {me}")
+                continue
+    except Exception as ge:
+        log(f"⚠️ Groq dynamic series generation error: {ge}")
+
+    return None
+
+
+def generate_dynamic_series_with_groq(history: dict = None) -> dict:
+    """
+    Generates a cohesive multi-part series with cascading model priority:
+    1. OpenCode DeepSeek v4 Flash (Priority 1)
+    2. Groq Llama-3.3-70B (Priority 2 Fallback)
+    3. Groq Llama-3.1-8B (Priority 3 Fallback)
+    4. Database Catalog (Safety Net)
+    """
     past_topics = []
     if history:
         past_topics = history.get("ai_past_topics", [])[-15:]
@@ -304,35 +405,17 @@ JSON Output Schema:
   ]
 }}
 """
-    log("🧠 Generating cohesive multi-part series with Groq Llama-3.3-70B...")
-    try:
-        from groq import Groq
-        from main import parse_llm_json
-        client = Groq(api_key=groq_api_key)
-        for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
-            try:
-                resp = client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    response_format={"type": "json_object"},
-                    temperature=0.75,
-                    max_tokens=1500
-                )
-                raw_text = resp.choices[0].message.content
-                series_data = parse_llm_json(raw_text)
-                
-                if series_data.get("parts") and len(series_data["parts"]) >= 2:
-                    log(f"✅ Groq generated dynamic series: {series_data.get('topic')} ({len(series_data['parts'])} Parts)")
-                    return series_data
-            except Exception as me:
-                log(f"⚠️ Groq model {model_name} notice: {me}")
-                continue
-    except Exception as ge:
-        log(f"⚠️ Groq dynamic series generation error: {ge}")
-        
+    # Priority 1: OpenCode DeepSeek v4 Flash
+    series = query_opencode_deepseek(system_prompt, user_prompt)
+    if series:
+        return series
+
+    # Priority 2 & 3: Groq Llama-3.3-70B & 8B Fallback
+    log("⚠️ OpenCode DeepSeek limit reached or unavailable. Falling back to Groq Llama-3.3-70B (Priority 2)...")
+    series = query_groq_fallback(system_prompt, user_prompt)
+    if series:
+        return series
+
     return None
 
 
