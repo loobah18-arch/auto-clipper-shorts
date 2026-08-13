@@ -2392,6 +2392,7 @@ def render_studio_visualizer_short(
         
         cmd = [
             "ffmpeg", "-y",
+            "-stream_loop", "-1",
             "-ss", f"{bg_start:.2f}",
             "-i", str(bg_path),
             "-i", str(audio_slice_path)

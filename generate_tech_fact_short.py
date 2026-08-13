@@ -39,98 +39,120 @@ FALLBACK_SERIES_DATABASE = [
         "series_id": "underwater_internet",
         "topic": "HOW THE INTERNET ACTUALLY WORKS",
         "badge_base": "INTERNET SECRETS 🌐",
-        "next_topic_teaser": "the secret Linux kernel superpowers that power ninety percent of cloud servers",
+        "next_topic_teaser": "the secret Linux kernel process architecture and memory management subsystems",
         "total_parts": 3,
         "parts": [
             {
                 "part_number": 1,
-                "title": "How 99% of the Internet Flows Underwater • Part 1 🌊 #Shorts #TechShorts",
+                "title": "How 99% of the Global Internet Flows Underwater • Part 1 🌊 #Shorts #TechShorts",
                 "badge": "INTERNET SECRETS • PART 1",
                 "voice": "en-US-ChristopherNeural",
-                "tags": ["techshorts", "technology", "internet", "cables", "networking", "shorts"],
+                "tags": ["techshorts", "technology", "internet", "cables", "networking", "engineering", "shorts"],
                 "script": (
-                    "Did you know that over ninety nine percent of all international internet traffic does not travel through satellites in space, "
+                    "Did you know that over ninety nine percent of all international internet traffic does not travel through satellites or wireless cell towers, "
                     "but through massive fiber optic cables resting on the pitch black ocean floor? "
-                    "There are over five hundred active subsea cables stretching eight hundred thousand miles across the Earth, connecting every continent. "
-                    "These glass lines are barely as thick as a garden hose, yet they transmit petabits of financial transactions, streaming video, and cloud data every single millisecond. "
-                    "Here is the crazy part. If a deep sea anchor accidentally snags one of these cables, or an underwater earthquake shifts the seabed, "
-                    "entire nations can instantly lose their internet connection overnight! "
-                    "In Part 2, we uncover how subsea cables survive immense oceanic pressure and why sharks constantly bite them. "
+                    "Right now, there are over five hundred active subsea cables stretching eight hundred thousand miles across the globe, connecting every continent on Earth. "
+                    "These glass lines are barely as thick as a garden hose, yet they transmit petabits of financial transactions, streaming videos, and cloud database queries every single millisecond. "
+                    "Inside each cable, data travels as pulses of infrared laser light reflecting through ultra-pure silica glass cores thinner than a single human hair. "
+                    "Because laser photons gradually lose energy and scatter as they travel thousands of miles through the ocean abyss, "
+                    "engineers must run ten thousand volts of high-voltage direct current electricity directly alongside the glass fibers. "
+                    "Every fifty miles along the seabed, this power feeds massive titanium optical repeaters containing erbium-doped laser amplifiers that excite the incoming photons and boost the light signals back to full strength! "
+                    "Here is the terrifying reality: if an underwater earthquake triggers a submarine landslide, or a rogue ship anchor accidentally drags across the seabed, "
+                    "entire nations and banking networks can instantly lose their internet connection in an instant! "
+                    "In Part 2, we uncover why high-voltage seabed power lines attract deep-sea sharks and the extreme multi-layer armor engineered to stop them. "
                     "Like and subscribe so you don't miss Part 2!"
                 )
             },
             {
                 "part_number": 2,
-                "title": "Why Sharks Bite Undersea Cables & Optical Repeaters • Part 2 🦈 #Shorts",
+                "title": "Why Sharks Attack Undersea Cables & Extreme Armor • Part 2 🦈 #Shorts",
                 "badge": "INTERNET SECRETS • PART 2",
                 "voice": "en-US-ChristopherNeural",
-                "tags": ["techshorts", "technology", "internet", "cables", "engineering", "shorts"],
+                "tags": ["techshorts", "technology", "internet", "cables", "engineering", "sharks", "shorts"],
                 "script": (
-                    "Welcome back to Part 2 of How the Internet Actually Works! "
-                    "Why do subsea fiber optic cables require ten thousand volts of electricity running directly through the ocean? "
-                    "Because as light signals travel thousands of miles through glass fibers, the photons attenuate and fade. "
-                    "Every fifty miles along the seabed, engineers install massive titanium optical repeaters containing erbium-doped laser amplifiers to boost the light signals back to full strength! "
-                    "However, the magnetic fields generated by this high-voltage power line confuse deep-sea sharks, causing them to aggressively bite the cables! "
-                    "Engineers now wrap every line in double-layered Kevlar and steel armor. "
-                    "In Part 3, we reveal how hundred-million-dollar robotic ships laser weld snapped fibers miles under the ocean. "
+                    "Welcome back to Part 2 of How the Global Internet Actually Works! "
+                    "Why do deep-sea sharks aggressively attack and bite undersea fiber optic cables? "
+                    "The answer lies in biological electroreception. Sharks possess specialized gel-filled sensory organs in their snouts known as the Ampullae of Lorenzini, "
+                    "which detect microscopic electrical fields emitted by the muscle twitches of prey. "
+                    "When thousands of volts of electricity pulse through the subsea cable's copper conductor to power optical repeaters, "
+                    "it creates a faint electromagnetic field in the surrounding salt water. "
+                    "Deep-sea predators mistake these electromagnetic pulses for wounded marine animals and bite down with thousands of pounds of pressure! "
+                    "To prevent catastrophic blackouts, telecommunications engineers designed an extreme multi-layered armored fortress. "
+                    "At the core lies water-resistant petroleum jelly surrounding the delicate glass strands. "
+                    "This is encased inside a solid welded copper tube for power transmission, followed by a polycarbonate insulator, "
+                    "a thick aluminum water barrier, high-tensile braided steel wire strands, and an outer double-layer of ballistic Kevlar and waterproof polyethylene tar. "
+                    "In shallow coastal waters, specialized robotic plows even bury the armored cables several meters deep into the ocean bedrock. "
+                    "In Part 3, we reveal how hundred-million-dollar autonomous robotic ships locate severed fibers miles underwater and laser weld them with micron precision. "
                     "Drop a like and subscribe for Part 3!"
                 )
             },
             {
                 "part_number": 3,
-                "title": "How Robotic Ships Repair Snapped Undersea Fibers • Part 3 🚢 #Shorts",
+                "title": "How Robotic Ships Laser Weld Severed Cables in the Abyss • Part 3 🚢 #Shorts",
                 "badge": "INTERNET SECRETS • PART 3",
                 "voice": "en-US-ChristopherNeural",
-                "tags": ["techshorts", "technology", "internet", "cables", "engineering", "shorts"],
+                "tags": ["techshorts", "technology", "internet", "cables", "engineering", "deepsea", "shorts"],
                 "script": (
-                    "Welcome back to the finale of How the Internet Actually Works! "
-                    "When a deep sea fiber optic cable snaps thousands of feet below the surface, how do engineers fix it without draining the ocean? "
-                    "They deploy specialized hundred-million-dollar cable ships equipped with heavy-duty robotic submarines. "
-                    "These robots dive into the freezing abyss, slice into the seabed with high pressure water jets, and grapple both severed ends of the cable. "
-                    "They hoist the lines to the ship's cleanroom deck, where technicians meticulously laser weld individual glass fibers thinner than a human hair! "
+                    "Welcome back to the finale of How the Global Internet Actually Works! "
+                    "When a deep sea fiber optic cable snaps twenty thousand feet below the surface, how do engineers fix it without draining the entire ocean? "
+                    "They deploy specialized hundred-million-dollar cable repair ships equipped with five-ton robotic submarines. "
+                    "First, engineers on land shoot optical time-domain reflectometer light pulses down the broken line. "
+                    "By measuring the exact microsecond the laser bounce returns, they pinpoint the break location within a few meters! "
+                    "The ship navigates to the coordinate using satellite dynamic positioning, and launches a remote-operated submarine equipped with diamond-tipped saws and heavy hydraulic grapples. "
+                    "The robot cuts the severed cable, seals the open end, and hoists it to the surface ship's dust-free cleanroom deck. "
+                    "There, specialized optical technicians use microscopic fusion splicers to laser weld each individual glass strand together with sub-micron alignment. "
+                    "While repairs take weeks at sea, global Border Gateway Protocol routers automatically reroute internet traffic across alternate trans-oceanic routes in milliseconds, "
+                    "ensuring you never notice a single dropped connection! "
                     "And that is the invisible engineering keeping our planet connected. "
-                    "In our next series, we'll be breaking down the secret Linux kernel superpowers that power ninety percent of cloud servers, so stay tuned and make sure to like and subscribe!"
+                    "In our next series, we'll be breaking down the secret Linux kernel process architecture and memory management subsystems, so stay tuned and make sure to like and subscribe!"
                 )
             }
         ]
     },
     {
         "series_id": "linux_superpowers",
-        "topic": "LINUX KERNEL & TERMINAL SECRETS",
+        "topic": "LINUX KERNEL & ARCHITECTURE SECRETS",
         "badge_base": "LINUX HACKS 🐧",
-        "next_topic_teaser": "how modern cryptography and zero-knowledge proofs protect global privacy",
+        "next_topic_teaser": "how modern cryptography, elliptic curves, and zero-knowledge proofs protect global privacy",
         "total_parts": 3,
         "parts": [
             {
                 "part_number": 1,
-                "title": "The Secret Linux Shortcut Every Developer Needs • Part 1 🐧 #Shorts",
+                "title": "The Unix Philosophy & Stream Pipelines Explained • Part 1 🐧 #Shorts",
                 "badge": "LINUX HACKS • PART 1",
                 "voice": "en-US-GuyNeural",
-                "tags": ["linux", "terminal", "bash", "developer", "codingtips", "shorts"],
+                "tags": ["linux", "terminal", "bash", "developer", "codingtips", "sysadmin", "shorts"],
                 "script": (
-                    "Stop frantically hitting the up arrow fifty times just to find a terminal command you ran three weeks ago! "
-                    "Every programmer needs to know this secret Linux superpower. "
-                    "Inside any bash or zsh terminal, just press Control plus R on your keyboard. "
-                    "This instantly activates the recursive history search engine. "
-                    "The moment you start typing a single keyword like docker, git, or ssh, Linux instantly searches your entire shell history and auto-completes your longest, most complicated command with zero typos! "
-                    "If you press Control plus R again, it cycles backwards through every past variation you ever executed. "
-                    "In Part 2, we uncover how the Linux slash proc filesystem lets you inspect live computer RAM without a debugger. "
+                    "Stop frantically pressing the up arrow key fifty times just to find a complex command you ran three weeks ago! "
+                    "Every software developer and system administrator needs to understand the fundamental architecture of the Unix shell. "
+                    "Inside any bash or zsh terminal, pressing Control plus R activates the recursive incremental history search engine. "
+                    "The moment you type a single keyword like docker, git, or ssh, the kernel scans your history buffer and auto-completes the exact syntax with zero typos. "
+                    "If you press Control plus R again, it cycles backwards through every past execution in memory. "
+                    "Even more powerful is the Unix pipeline concept developed by Doug McIlroy in nineteen seventy-three. "
+                    "Under the hood, the pipe operator creates an inter-process communication ring buffer in kernel memory. "
+                    "When you chain commands like grep, awk, and sort together, Linux runs all processes concurrently in parallel, "
+                    "streaming gigabytes of data between programs via standard input and standard output without ever writing temporary files to your physical disk! "
+                    "In Part 2, we uncover how the Linux slash proc virtual filesystem lets you inspect live computer RAM and running CPU registers as plain text. "
                     "Drop a like and subscribe for Part 2!"
                 )
             },
             {
                 "part_number": 2,
-                "title": "The Magic of Linux /proc & Live RAM Files • Part 2 ⚡ #Shorts",
+                "title": "The Magic of Linux /proc & Live RAM Filesystem • Part 2 ⚡ #Shorts",
                 "badge": "LINUX HACKS • PART 2",
                 "voice": "en-US-GuyNeural",
-                "tags": ["linux", "terminal", "sysadmin", "coding", "developer", "shorts"],
+                "tags": ["linux", "terminal", "sysadmin", "kernel", "coding", "developer", "shorts"],
                 "script": (
                     "Welcome back to Part 2 of Linux Kernel Secrets! "
-                    "Did you know that in Linux, literally everything in your operating system is treated as a plain text file? "
-                    "If you navigate to slash proc on your machine, you are looking directly into your live computer RAM. "
-                    "You can inspect active CPU temperatures, memory allocations, and even inject data into running processes without opening a debugger! "
-                    "Combine this with the Unix pipe operator, and you can stream terabytes of data between programs without ever touching your hard drive. "
-                    "In Part 3, we reveal the terrifying Linux Out-Of-Memory Killer that secretly terminates background apps when RAM runs low. "
+                    "Did you know that in Linux, literally everything in your operating system is represented as a plain text file? "
+                    "If you open your terminal and navigate to slash proc on your machine, you are looking directly into your live computer RAM. "
+                    "The proc directory does not consume a single byte of hard drive space. It is a dynamic pseudo-filesystem generated on the fly by the Linux kernel. "
+                    "When you read slash proc slash cpuinfo or slash proc slash meminfo, the kernel intercepts the read system call and formats its internal hardware state into text in real time. "
+                    "Every running program on your system gets its own dedicated folder matching its Process ID. "
+                    "Inside slash proc slash PID, you can view the application's open file descriptors, active environment variables, CPU execution time, "
+                    "and even inspect raw virtual memory pages via the mem file without opening a debugger! "
+                    "This transparent abstraction is why Linux dominates ninety percent of global cloud infrastructure and supercomputers. "
+                    "In Part 3, we reveal the terrifying Linux Out-Of-Memory Killer algorithm that secretly hunts down and terminates background apps when RAM runs out. "
                     "Hit like and subscribe for Part 3!"
                 )
             },
@@ -139,14 +161,20 @@ FALLBACK_SERIES_DATABASE = [
                 "title": "The Terrifying Linux OOM Killer Algorithm • Part 3 💀 #Shorts",
                 "badge": "LINUX HACKS • PART 3",
                 "voice": "en-US-GuyNeural",
-                "tags": ["linux", "kernel", "sysadmin", "coding", "developer", "shorts"],
+                "tags": ["linux", "kernel", "sysadmin", "coding", "developer", "containers", "shorts"],
                 "script": (
                     "Welcome back to the finale of Linux Kernel Secrets! "
-                    "What happens when your server runs completely out of RAM? "
-                    "Linux doesn't crash or freeze. Instead, it unleashes a brutal kernel algorithm known as the Out Of Memory Killer! "
-                    "The OOM Killer scans every active process on your machine, calculates a ruthless badness score based on memory usage and runtime privilege, and sends an uncatchable kill signal nine to instantly execute the biggest offender! "
-                    "This savage efficiency is why Linux powers ninety percent of the world's cloud servers and supercomputers. "
-                    "In our next series, we'll be exploring how modern cryptography and zero-knowledge proofs protect global privacy, so stay tuned and make sure to like and subscribe!"
+                    "What happens when your server runs completely out of physical RAM? "
+                    "A typical operating system would freeze, lock up, or crash with a blue screen. "
+                    "Linux handles this situation with a brutal kernel algorithm known as the Out Of Memory Killer! "
+                    "Because Linux implements memory overcommitting to maximize server efficiency, processes can allocate more virtual memory than physically exists. "
+                    "When real physical RAM and swap space become exhausted, the kernel triggers an emergency page allocation failure. "
+                    "The OOM Killer instantly pauses system execution and scans the task list of every active process. "
+                    "It calculates a mathematical badness score based on the process's physical memory footprint, runtime duration, and its oom score adjustment setting. "
+                    "Once the worst offender is calculated, the kernel sends an uncatchable, unignorable SIGKILL signal nine, "
+                    "instantly annihilating the offending application and freeing up its memory pages to protect the core operating system! "
+                    "This ruthless architectural efficiency laid the groundwork for modern container runtimes like Docker and Kubernetes. "
+                    "In our next series, we'll be exploring how modern cryptography, elliptic curves, and zero-knowledge proofs protect global privacy, so stay tuned and make sure to like and subscribe!"
                 )
             }
         ]
@@ -163,15 +191,18 @@ FALLBACK_SERIES_DATABASE = [
                 "title": "How SSH Logs You In Without Sending Your Password • Part 1 🔐 #Shorts",
                 "badge": "CYBERSECURITY • PART 1",
                 "voice": "en-US-ChristopherNeural",
-                "tags": ["cybersecurity", "ssh", "encryption", "infosec", "linux", "shorts"],
+                "tags": ["cybersecurity", "ssh", "encryption", "infosec", "linux", "networking", "shorts"],
                 "script": (
                     "How do SSH keys log you into top secret cloud servers across the globe without ever transmitting your password across the internet? "
-                    "It all comes down to an ingenious mathematical trapdoor known as asymmetric cryptography. "
-                    "When you generate an SSH key pair, your computer creates a public key and a private key. "
-                    "You place the public key on the remote server, while keeping your private key heavily guarded on your laptop. "
-                    "When you log in, the server never asks for your secret password. "
-                    "Instead, the server generates a random cryptographic challenge, locks it with your public key, and transmits it to your computer. "
-                    "In Part 2, we uncover why even a billion supercomputers running for trillions of years cannot crack elliptic curve math. "
+                    "It all comes down to an ingenious mathematical concept known as asymmetric public key cryptography. "
+                    "When you generate an SSH key pair on your computer, your machine uses a cryptographically secure random number generator to create two mathematically linked keys: a public key and a private key. "
+                    "You freely share the public key and store it on any remote server in the world, while your private key remains encrypted and heavily guarded on your local machine. "
+                    "When you initiate a connection, the server never asks for your secret passphrase. "
+                    "Instead, the server generates a random string of numbers called a cryptographic nonce, encrypts it using your public key, and sends the scrambled puzzle back to your computer. "
+                    "Only the corresponding private key on your machine possesses the mathematical trapdoor required to decrypt that challenge! "
+                    "Your computer decrypts the number, signs it with your private key, and sends back the proof. "
+                    "The server verifies the signature and opens access instantly, without a single sensitive credential ever traversing the network! "
+                    "In Part 2, we uncover why even a billion supercomputers running for trillions of years cannot crack elliptic curve cryptography. "
                     "Drop a like and subscribe for Part 2!"
                 )
             },
@@ -183,11 +214,15 @@ FALLBACK_SERIES_DATABASE = [
                 "tags": ["cybersecurity", "encryption", "math", "infosec", "techfacts", "shorts"],
                 "script": (
                     "Welcome back to Part 2 of The Cryptography Revolution! "
-                    "Once a cryptographic challenge is locked with your public key, why can't a hacker intercept and solve it? "
-                    "Because modern encryption is based on the mathematical difficulty of elliptic curve discrete logarithms and prime factorization. "
-                    "Multiplying points on an algebraic curve is lightning fast in one direction, but reversing the calculation without your private key requires checking billions of combinations! "
-                    "Even if you combined all the supercomputers on Earth, cracking a modern two hundred fifty six bit elliptic curve key would take longer than the age of the universe! "
-                    "In Part 3, we reveal Zero-Knowledge Proofs and how they prove secret passwords without revealing a single letter. "
+                    "Once a cryptographic challenge is locked with your public key, why can't a hacker intercept the transmission and solve it? "
+                    "Because modern security relies on Elliptic Curve Cryptography and the mathematical hardness of the discrete logarithm problem. "
+                    "An elliptic curve is defined by the algebraic formula y squared equals x cubed plus ax plus b, plotted over a finite prime field. "
+                    "When you multiply a point on this geometric curve by a secret scalar number, the resulting point bounces unpredictably across the grid. "
+                    "Calculating the final point in the forward direction takes less than a millisecond on a smartphone processor. "
+                    "However, if an attacker is given the starting point and the ending point, finding the original secret multiplier requires checking every single possibility one by one! "
+                    "For a standard 256-bit elliptic curve key, there are more possible combinations than the estimated number of atoms in the entire observable universe! "
+                    "Even if you networked every supercomputer on Earth running continuously until the death of our sun, they could not brute force your private key. "
+                    "In Part 3, we reveal Zero-Knowledge Proofs and how computers mathematically prove secret knowledge without revealing a single letter. "
                     "Like and subscribe for Part 3!"
                 )
             },
@@ -196,13 +231,17 @@ FALLBACK_SERIES_DATABASE = [
                 "title": "Zero-Knowledge Proofs: Proving Secrets Without Sharing Them • Part 3 🤯 #Shorts",
                 "badge": "CYBERSECURITY • PART 3",
                 "voice": "en-US-ChristopherNeural",
-                "tags": ["cybersecurity", "zkp", "encryption", "privacy", "math", "shorts"],
+                "tags": ["cybersecurity", "zkp", "encryption", "privacy", "math", "blockchain", "shorts"],
                 "script": (
                     "Welcome back to the finale of The Cryptography Revolution! "
-                    "Imagine proving you know the secret password to a top-secret vault without ever saying the password out loud or writing it down. "
-                    "This mathematical miracle is called a Zero-Knowledge Proof! "
-                    "Using advanced polynomial equations and homomorphic commitments, your computer can mathematically prove it possesses a secret answer with ninety nine point nine nine percent certainty, without leaking even a single bit of information! "
-                    "Zero-Knowledge Proofs are now revolutionizing private digital identity, decentralized finance, and confidential voting systems worldwide. "
+                    "Imagine proving you know the secret combination to a bank vault without ever typing the code, speaking the numbers, or giving away a single clue. "
+                    "This mathematical breakthrough is known as a Zero-Knowledge Proof! "
+                    "First conceptualized by Shafi Goldwasser, Silvio Micali, and Charles Rackoff in nineteen eighty-five, zero-knowledge protocols allow a prover to mathematically demonstrate the truth of a statement to a verifier without conveying any additional information. "
+                    "Modern implementations like zk-SNARKs convert computational statements into quadratic arithmetic programs and polynomial commitments. "
+                    "By sampling random evaluation points on these polynomials, a computer can prove that a complex calculation was executed correctly with ninety-nine point nine nine nine percent mathematical certainty, "
+                    "while keeping the underlying data completely confidential! "
+                    "Zero-knowledge technology is currently transforming digital identity, private electronic voting, and scaling decentralized computing networks worldwide. "
+                    "And that is how advanced mathematics protects human freedom in the digital age. "
                     "In our next series, we'll be discussing why zero point one plus zero point two is not zero point three and the space rockets it exploded, so stay tuned and make sure to like and subscribe!"
                 )
             }
@@ -220,31 +259,39 @@ FALLBACK_SERIES_DATABASE = [
                 "title": "Why 0.1 + 0.2 Is NOT 0.3 In Computer Science • Part 1 🤯 #Shorts",
                 "badge": "CS DEEP DIVE • PART 1",
                 "voice": "en-US-EricNeural",
-                "tags": ["programming", "coding", "computerscience", "math", "python", "shorts"],
+                "tags": ["programming", "coding", "computerscience", "math", "python", "javascript", "shorts"],
                 "script": (
-                    "If you open your browser console, Python terminal, or C plus plus compiler right now and calculate zero point one plus zero point two, "
-                    "you will not get zero point three! "
-                    "Instead, you get zero point three zero zero zero zero zero zero zero zero zero zero zero zero zero zero four! "
-                    "This is not a bug in your computer, it is a fundamental mathematical law of how microprocessors work. "
-                    "Modern computers do not count in base ten decimals like humans. They use base two binary floating point numbers under the IEEE seven fifty four standard. "
-                    "In binary math, fractions like one tenth create an infinite repeating sequence, exactly like trying to write one third in decimal! "
-                    "In Part 2, we explore how this exact floating point error blew up a five hundred million dollar space rocket thirty seven seconds after launch. "
+                    "If you open your browser console, Python interpreter, or C compiler right now and evaluate zero point one plus zero point two, "
+                    "you will not receive zero point three! "
+                    "Instead, your machine will print zero point three zero zero zero zero zero zero zero zero zero zero zero zero zero zero four! "
+                    "This is not a software bug or a compiler flaw. It is a fundamental law of binary microprocessors governed by the IEEE seven fifty-four floating-point standard. "
+                    "Humans count in base ten decimals because we have ten fingers. In base ten, fractions like one half and one fifth terminate cleanly. "
+                    "However, computers count strictly in base two binary bits: ones and zeroes. "
+                    "In binary arithmetic, numbers are represented as sums of powers of two, such as one half, one fourth, one eighth, and one sixteenth. "
+                    "When you attempt to write the decimal number zero point one in binary, it produces an infinite repeating fraction: zero point zero zero zero one one zero zero one one recurring infinitely! "
+                    "Because physical silicon registers have a finite number of bits, the processor must truncate and round the infinite binary string, "
+                    "introducing a microscopic rounding discrepancy into every calculation! "
+                    "In Part 2, we explore how this exact microscopic rounding error caused a five hundred million dollar space rocket to explode thirty-seven seconds after liftoff. "
                     "Hit like and subscribe for Part 2!"
                 )
             },
             {
                 "part_number": 2,
-                "title": "The $500M Floating Point Rocket Crash • Part 2 🚀 #Shorts",
+                "title": "The $500M Ariane 5 Floating Point Rocket Explosion • Part 2 🚀 #Shorts",
                 "badge": "CS DEEP DIVE • PART 2",
                 "voice": "en-US-EricNeural",
-                "tags": ["programming", "engineering", "space", "rockets", "computerscience", "shorts"],
+                "tags": ["programming", "engineering", "space", "rockets", "computerscience", "disasters", "shorts"],
                 "script": (
                     "Welcome back to Part 2 of Floating Point Disasters! "
-                    "In nineteen ninety six, the European Space Agency launched the Ariane Five rocket carrying a five hundred million dollar scientific payload. "
-                    "Just thirty seven seconds after liftoff, the rocket suddenly flipped ninety degrees and disintegrated in a massive fireball! "
-                    "The post-crash investigation revealed that the guidance software tried to convert a sixty-four bit floating point number representing horizontal velocity into a sixteen bit signed integer. "
-                    "The number was larger than thirty two thousand seven hundred sixty seven, causing an integer overflow exception that paralyzed the onboard flight computers! "
-                    "In Part 3, we reveal how a floating point clock drift caused a tragic military missile defense failure. "
+                    "On June fourth, nineteen ninety-six, the European Space Agency launched the maiden flight of the Ariane Five rocket, carrying four cutting-edge scientific satellites valued at half a billion dollars. "
+                    "Just thirty-seven seconds after liftoff, the rocket suddenly veered sharply off course, flipped ninety degrees at supersonic speed, and disintegrated in a colossal fireball! "
+                    "The post-flight inquiry uncovered one of the most infamous software bugs in human history. "
+                    "The rocket's inertial reference guidance system reused legacy software from the older, slower Ariane Four rocket. "
+                    "The algorithm attempted to convert a sixty-four bit floating-point variable measuring horizontal velocity into a sixteen-bit signed integer. "
+                    "Because the Ariane Five accelerated much faster than its predecessor, the horizontal velocity value exceeded thirty-two thousand seven hundred sixty-seven, the maximum limit of a sixteen-bit integer! "
+                    "The hardware suffered an integer overflow exception, causing the flight computer to crash and send full diagnostic error data directly to the rocket's aerodynamic thrusters, "
+                    "which interpreted the error codes as flight commands and ripped the vehicle apart! "
+                    "In Part 3, we reveal how a zero point thirty-four second clock drift caused a tragic military missile defense failure. "
                     "Like and subscribe for Part 3!"
                 )
             },
@@ -253,14 +300,18 @@ FALLBACK_SERIES_DATABASE = [
                 "title": "The 0.34 Second Clock Drift Disaster • Part 3 ⚠️ #Shorts",
                 "badge": "CS DEEP DIVE • PART 3",
                 "voice": "en-US-EricNeural",
-                "tags": ["programming", "computerscience", "engineering", "history", "shorts"],
+                "tags": ["programming", "computerscience", "engineering", "history", "military", "shorts"],
                 "script": (
                     "Welcome back to the finale of Floating Point Disasters! "
-                    "In nineteen ninety one, a Patriot missile battery failed to intercept an incoming Scud missile due to a tiny rounding error. "
-                    "The system's internal clock measured time in tenths of a second using a twenty-four bit register. "
-                    "Because one tenth has an infinite repeating binary expansion, the system lost zero point zero zero zero zero zero zero zero nine five seconds every single tick! "
-                    "After one hundred hours of continuous operation, that tiny error accumulated into a zero point thirty-four second delay, causing the radar to look over six hundred meters away from the actual incoming target! "
-                    "And that is why numerical precision is a matter of life and death in computer engineering. "
+                    "In nineteen ninety-one, during the Gulf War, an incoming Scud missile struck a military barracks in Dhahran, Saudi Arabia, after a Patriot missile defense battery failed to intercept it. "
+                    "The government investigation revealed that the catastrophic failure was caused by a minute floating-point rounding error in the system's internal tracking clock. "
+                    "The radar computer measured time in tenths of a second by multiplying the integer clock ticks by the value zero point one using a twenty-four bit fixed-point register. "
+                    "Because zero point one cannot be represented with exact precision in binary, the calculation lost approximately zero point zero zero zero zero zero zero zero nine five seconds per tick. "
+                    "Under normal conditions with frequent reboots, this tiny error went unnoticed. "
+                    "However, the battery had been running continuously for over one hundred hours without a restart! "
+                    "Over one hundred hours, that microscopic rounding error accumulated into a total clock drift of zero point thirty-four seconds! "
+                    "At hypersonic speeds, a zero point thirty-four second timing discrepancy meant the radar looked more than six hundred meters away from the actual incoming missile! "
+                    "And that is why mathematical precision and numeric type safety are matters of life and death in computer engineering. "
                     "In our next series, we'll be discussing the crazy true history of the very first computer bug, so stay tuned and make sure to like and subscribe!"
                 )
             }
@@ -278,15 +329,17 @@ FALLBACK_SERIES_DATABASE = [
                 "title": "The Crazy True Story of the First Computer Bug • Part 1 🪲 #TechShorts",
                 "badge": "TECH HISTORY • PART 1",
                 "voice": "en-US-GuyNeural",
-                "tags": ["techhistory", "programming", "debugging", "computerscience", "shorts"],
+                "tags": ["techhistory", "programming", "debugging", "computerscience", "gracehopper", "shorts"],
                 "script": (
-                    "Have you ever wondered why software engineers call fixing a broken program debugging? "
-                    "The origin story is completely literal and involves a real two-inch moth! "
-                    "In nineteen forty seven, computer science pioneer Grace Hopper was working on the Harvard Mark Two electromechanical computer for the United States Navy. "
-                    "Suddenly, the massive sixteen-ton machine stopped processing calculations correctly. "
-                    "The engineering team spent hours meticulously inspecting thousands of electrical relays across the entire computer until they finally inspected relay number seventy in panel F. "
-                    "Trapped between the metal contact points was an actual dead moth that was short-circuiting the electrical signal! "
-                    "In Part 2, we uncover how a computer bug nearly triggered World War Three during the Cold War. "
+                    "Have you ever wondered why software engineers and developers across the world call fixing broken code debugging? "
+                    "The origin story is completely literal and involves a real two-inch moth trapped inside an electromechanical supercomputer! "
+                    "In nineteen forty-seven, computing pioneer Grace Hopper and her engineering team were operating the Harvard Mark Two computer for the United States Navy. "
+                    "The Mark Two was a massive sixteen-ton machine composed of thousands of mechanical relays, vacuum tubes, and rotating shafts that filled an entire room. "
+                    "Suddenly, the computer began producing severe calculation errors and halted operations. "
+                    "The engineering team spent hours manually testing electrical circuits across hundreds of relay panels until they reached panel F. "
+                    "Wedged tightly between the electrical contact points of relay number seventy was an actual dead moth that had flown in through an open window and short-circuited the electrical signal! "
+                    "The team carefully extracted the insect with tweezers, taped it into their official Navy logbook, and penned the famous line: First actual case of bug being found. "
+                    "In Part 2, we uncover how a satellite software glitch nearly triggered a full-scale nuclear world war during the Cold War. "
                     "Like and subscribe so you don't miss Part 2!"
                 )
             },
@@ -295,15 +348,17 @@ FALLBACK_SERIES_DATABASE = [
                 "title": "The Satellite Bug That Nearly Started WWIII • Part 2 🛰️ #Shorts",
                 "badge": "TECH HISTORY • PART 2",
                 "voice": "en-US-GuyNeural",
-                "tags": ["techhistory", "history", "computerscience", "bugs", "shorts"],
+                "tags": ["techhistory", "history", "computerscience", "bugs", "coldwar", "shorts"],
                 "script": (
                     "Welcome back to Part 2 of Computer Bug History! "
-                    "In nineteen eighty three, Soviet early-warning computers suddenly sounded an emergency siren, alerting officers that the United States had launched five nuclear intercontinental ballistic missiles! "
-                    "Protocol demanded an immediate retaliatory nuclear strike. "
-                    "However, duty officer Stanislav Petrov suspected a computer glitch because a real attack would involve hundreds of missiles, not just five. "
-                    "He defied protocol and reported a false alarm. "
-                    "Later investigations proved he was right: the early warning satellite software had misidentified high-altitude sunlight reflections off cloud tops as missile plumes! "
-                    "In Part 3, we reveal the Year 2038 Unix Time Bomb that threatens millions of legacy servers. "
+                    "On September twenty-sixth, nineteen eighty-three, Soviet early-warning computers inside the secret Serpukhov-15 bunker suddenly flashed flashing red emergency sirens. "
+                    "The automated Oko satellite detection software reported that the United States had launched five nuclear intercontinental ballistic missiles directly at Soviet territory! "
+                    "Military protocol and chain of command dictated an immediate retaliatory nuclear strike that would have triggered World War Three within minutes. "
+                    "However, duty officer Stanislav Petrov noticed that the satellite system was relatively new and reasoned that a genuine first-strike attack would involve hundreds of simultaneous missiles, not just five. "
+                    "Petrov bravely defied military protocol, declared the alerts a false alarm, and held back the nuclear retaliation. "
+                    "Subsequent software audits proved he was right: the satellite's orbital tracking software contained a catastrophic false-positive edge case! "
+                    "When the high-altitude Molniya satellite reached a specific orbital alignment, sunlight glinting off high-altitude storm clouds was misinterpreted by the optical sensor algorithms as thermal rocket plumes! "
+                    "In Part 3, we reveal the Year 2038 Unix Epoch Time Bomb that threatens millions of legacy servers worldwide. "
                     "Drop a like and subscribe for Part 3!"
                 )
             },
@@ -312,14 +367,17 @@ FALLBACK_SERIES_DATABASE = [
                 "title": "The Year 2038 Unix Epoch Time Bomb • Part 3 ⏳ #Shorts",
                 "badge": "TECH HISTORY • PART 3",
                 "voice": "en-US-GuyNeural",
-                "tags": ["techhistory", "y2k38", "linux", "programming", "shorts"],
+                "tags": ["techhistory", "y2k38", "linux", "programming", "clocks", "shorts"],
                 "script": (
                     "Welcome back to the finale of Computer Bug History! "
-                    "On January nineteenth, twenty thirty-eight, millions of 32-bit computers worldwide will face a catastrophic digital rollover known as the Year 2038 Problem! "
-                    "Unix systems store time as the number of seconds elapsed since January first, nineteen seventy, using a signed thirty-two bit integer. "
-                    "At three fourteen AM UTC on that day, the counter will exceed two billion one hundred forty-seven million four hundred eighty-three thousand six hundred forty-seven seconds! "
-                    "When it overflows into the negative sign bit, unpatched systems will suddenly believe it is December thirteenth, nineteen zero-one, causing power grids, medical devices, and embedded controllers to crash! "
-                    "Software engineers are currently racing to upgrade all infrastructure to sixty-four bit timestamps. "
+                    "On January nineteenth, twenty thirty-eight, millions of 32-bit operating systems, banking mainframes, and embedded industrial controllers will face a digital apocalypse known as the Year 2038 Problem! "
+                    "Unix-based operating systems store time as the number of elapsed seconds since the Unix Epoch: midnight UTC on January first, nineteen seventy. "
+                    "In 32-bit systems, this timestamp is stored as a signed thirty-two bit integer. "
+                    "At exactly three fourteen AM and seven seconds UTC on January nineteenth, twenty thirty-eight, the counter will reach its maximum positive limit of two billion one hundred forty-seven million four hundred eighty-three thousand six hundred forty-seven seconds! "
+                    "On the very next second, the integer will overflow into the negative sign bit, instantly resetting the system clock to December thirteenth, nineteen zero-one! "
+                    "Unpatched servers, industrial power grids, medical devices, and aviation controllers will experience catastrophic scheduling logic failures. "
+                    "Global software engineers are currently undertaking massive infrastructure migrations to sixty-four bit time integers, "
+                    "which will extend the clock's overflow safety threshold by another two hundred ninety-two billion years! "
                     "In our next series, we'll be exploring how ninety nine percent of the global internet travels under the ocean, so stay tuned and make sure to like and subscribe!"
                 )
             }
@@ -351,7 +409,8 @@ BANNED_META_PHRASES = [
 
 def validate_series_quality(series_data: dict) -> bool:
     """
-    Strictly validates that generated series is high-depth, rich, and free of shallow meta-talk.
+    Strictly validates that generated series is in-depth, thorough, and free of shallow meta-talk.
+    Each part must be a comprehensive 2.5-3 minute mini-documentary (~240+ words per part, no upper cap).
     """
     if not series_data or not isinstance(series_data, dict):
         return False
@@ -364,9 +423,9 @@ def validate_series_quality(series_data: dict) -> bool:
         script = p.get("script", "").strip()
         word_count = len(script.split())
         
-        # 1. Word count check: Must be 125-165 words for true depth (50-55s spoken)
-        if word_count < 125:
-            log(f"⚠️ Quality check failed: Part {p.get('part_number')} script too short ({word_count} words < 125 words). Needs more technical explanation.")
+        # 1. Word count check: Must be at least 240 words for genuine 2.5-3 min depth
+        if word_count < 240:
+            log(f"⚠️ Quality check failed: Part {p.get('part_number')} script too short ({word_count} words < 240 words). Needs full technical depth.")
             return False
             
         # 2. Anti-meta check: Must not contain hollow filler phrases
@@ -384,7 +443,7 @@ def validate_series_quality(series_data: dict) -> bool:
     return True
 
 
-def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: int = 2500, temperature: float = 0.75) -> dict:
+def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: int = 6500, temperature: float = 0.75) -> dict:
     """
     Priority 1: Queries OpenCode DeepSeek v4 Flash (CLI or HTTP API) with strict quality validation.
     """
@@ -406,12 +465,12 @@ def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: in
                 [opencode_bin, "run", "-m", "opencode/deepseek-v4-flash-free", full_prompt],
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=120
             )
             if res.returncode == 0 and res.stdout:
                 parsed = parse_llm_json(res.stdout)
                 if validate_series_quality(parsed):
-                    log(f"✅ OpenCode DeepSeek v4 Flash successfully generated in-depth series: '{parsed.get('topic')}' ({len(parsed['parts'])} Parts)")
+                    log(f"✅ OpenCode DeepSeek v4 Flash successfully generated in-depth 3-min series: '{parsed.get('topic')}' ({len(parsed['parts'])} Parts)")
                     return parsed
         except Exception as oe:
             log(f"⚠️ OpenCode CLI execution notice: {oe}")
@@ -460,12 +519,12 @@ def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: in
                         "X-Title": "Auto Clipper Shorts"
                     }
                 )
-                with urllib.request.urlopen(req, timeout=40) as resp:
+                with urllib.request.urlopen(req, timeout=60) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     raw_text = data["choices"][0]["message"]["content"]
                     parsed = parse_llm_json(raw_text)
                     if validate_series_quality(parsed):
-                        log(f"✅ OpenCode DeepSeek v4 Flash successfully generated in-depth series: '{parsed.get('topic')}' ({len(parsed['parts'])} Parts)")
+                        log(f"✅ OpenCode DeepSeek v4 Flash successfully generated in-depth 3-min series: '{parsed.get('topic')}' ({len(parsed['parts'])} Parts)")
                         return parsed
             except Exception as e:
                 log(f"⚠️ OpenCode DeepSeek notice ({model}): {e}")
@@ -498,12 +557,12 @@ def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
                     ],
                     response_format={"type": "json_object"},
                     temperature=0.75,
-                    max_tokens=2500
+                    max_tokens=6500
                 )
                 raw_text = resp.choices[0].message.content
                 series_data = parse_llm_json(raw_text)
                 if validate_series_quality(series_data):
-                    log(f"✅ Groq ({model_name}) successfully generated in-depth series: '{series_data.get('topic')}' ({len(series_data['parts'])} Parts)")
+                    log(f"✅ Groq ({model_name}) successfully generated in-depth 3-min series: '{series_data.get('topic')}' ({len(series_data['parts'])} Parts)")
                     return series_data
             except Exception as me:
                 log(f"⚠️ Groq model {model_name} notice: {me}")
@@ -516,7 +575,7 @@ def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
 
 def generate_dynamic_series_with_groq(history: dict = None) -> dict:
     """
-    Generates an in-depth, thorough multi-part series (3-5 parts) on ONE technical topic:
+    Generates an in-depth, thorough 3-to-4 part mini-documentary series (2.5-3 minutes per video, no word cap) on ONE technical topic:
     1. OpenCode DeepSeek v4 Flash (Priority 1)
     2. Groq Llama-3.3-70B (Priority 2 Fallback)
     3. Groq Llama-3.1-8B (Priority 3 Fallback)
@@ -528,20 +587,20 @@ def generate_dynamic_series_with_groq(history: dict = None) -> dict:
 
     system_prompt = (
         "You are an elite, world-class technical documentary storyteller (like Veritasium, Fireship, and Kurzgesagt).\n"
-        "Your mission is to create a deeply technical, high-retention 3-part masterclass series on ONE fascinating engineering, programming, or computer science subject.\n"
+        "Your mission is to create a deeply technical, high-retention 3-part or 4-part masterclass mini-documentary series on ONE fascinating engineering, programming, or computer science subject.\n"
         "STRICT CONTENT & ANTI-SLOP RULES (CRITICAL):\n"
-        "1. NO META-TALK OR INTRO FILLER: NEVER say 'in this video we will explore', 'in this series we delve', 'from X to Y we cover it all', or 'let us talk about'. NEVER tease a topic without explaining it immediately. Dive STRAIGHT into the real technical mechanisms, numbers, hardware, or code from word one!\n"
-        "2. EXPLAIN THE REAL MECHANISMS IN FULL DETAIL: Every part must explain the actual technical science: exact math, algorithms, protocols, memory registers, voltages, frequencies, physical constraints, historical disasters, or dollar losses.\n"
-        "3. WORD COUNT: Every single part script MUST be between 135 and 155 spoken words (~50 to 55 seconds spoken narration). Never generate short, rushed summaries.\n"
-        "4. NARRATIVE PROGRESSION ACROSS 3 PARTS:\n"
-        "   - Part 1: Concrete Paradox & The Core Mechanism (Hook + Deep explanation of why this is counter-intuitive + Cliffhanger for Part 2 + 'Like and subscribe for Part 2!').\n"
-        "   - Part 2: Under-The-Hood Architecture & Real-World Engineering (Exact step-by-step mechanism, algorithms, physical hardware + Cliffhanger for Part 3 + 'Like and subscribe for Part 3!').\n"
-        "   - Part 3 (Finale): Real-World Catastrophe, Legendary Glitch, or Modern Breakthrough + Master Takeaway + Next Series Teaser + 'Like and subscribe to stay tuned!'.\n"
+        "1. FULL 2.5 TO 3-MINUTE DURATION PER VIDEO: Every part MUST be an exhaustive, long-form explanation between 320 and 420 words (~2.5 to 3 minutes of spoken audio). NO low word caps, no rushing, and no summarizing!\n"
+        "2. NO META-TALK OR INTRO FILLER: NEVER say 'in this video we will explore', 'in this series we delve', 'from X to Y we cover it all', or 'let us talk about'. NEVER tease a topic without explaining it immediately. Dive STRAIGHT into the real technical mechanisms, numbers, hardware, or code from word one!\n"
+        "3. EXPLAIN THE REAL MECHANISMS IN FULL DETAIL: Every part must explain the actual technical science: exact math, algorithms, protocols, memory registers, voltages, frequencies, physical constraints, historical disasters, or dollar losses.\n"
+        "4. NARRATIVE PROGRESSION ACROSS 3-4 PARTS:\n"
+        "   - Part 1: Concrete Paradox & Physical/Algorithmic Foundation (Hook + Deep explanation of why this is counter-intuitive + Full technical mechanics + Cliffhanger for Part 2 + 'Like and subscribe for Part 2!').\n"
+        "   - Part 2: Under-The-Hood Architecture & Real-World Engineering (Exact step-by-step mechanism, algorithms, physical hardware, memory subsystems + Cliffhanger for Part 3 + 'Like and subscribe for Part 3!').\n"
+        "   - Part 3 (or Finale): Real-World Catastrophe, Legendary Glitch, or Modern Breakthrough + Master Takeaway + Next Series Teaser + 'Like and subscribe to stay tuned!'.\n"
         "5. Spoken English: Pure natural spoken text for TTS. No markdown symbols, no raw URLs."
     )
 
     user_prompt = f"""
-Generate an in-depth 3-Part Tech Masterclass Series with zero meta-talk.
+Generate an in-depth 3-Part Tech Masterclass Series with full 2.5-3 minute depth per video (~350-420 words per part).
 Avoid repeating any of these recent topics: {json.dumps(past_topics)}
 
 JSON Output Schema:
@@ -557,7 +616,7 @@ JSON Output Schema:
       "badge": "<badge_base> • PART 1",
       "voice": "en-US-ChristopherNeural",
       "tags": ["techshorts", "technology", "part1", "shorts", "developer"],
-      "script": "<EXACTLY 135-155 words directly explaining the core technical concept and ending with cliffhanger for Part 2 + 'Like and subscribe for Part 2!'>"
+      "script": "<EXACTLY 320-420 words directly explaining the core technical concept in full depth and ending with cliffhanger for Part 2 + 'Like and subscribe for Part 2!'>"
     }},
     {{
       "part_number": 2,
@@ -565,7 +624,7 @@ JSON Output Schema:
       "badge": "<badge_base> • PART 2",
       "voice": "en-US-ChristopherNeural",
       "tags": ["techshorts", "technology", "part2", "shorts", "developer"],
-      "script": "<EXACTLY 135-155 words explaining the deeper inner architecture and ending with cliffhanger for Part 3 + 'Like and subscribe for Part 3!'>"
+      "script": "<EXACTLY 320-420 words explaining the deeper inner architecture in full depth and ending with cliffhanger for Part 3 + 'Like and subscribe for Part 3!'>"
     }},
     {{
       "part_number": 3,
@@ -573,7 +632,7 @@ JSON Output Schema:
       "badge": "<badge_base> • PART 3",
       "voice": "en-US-ChristopherNeural",
       "tags": ["techshorts", "technology", "part3", "shorts", "developer"],
-      "script": "<EXACTLY 135-155 words delivering the master resolution, giving the next-topic teaser, and ending with 'stay tuned and make sure to like and subscribe!'>"
+      "script": "<EXACTLY 320-420 words delivering the master resolution in full depth, giving the next-topic teaser, and ending with 'stay tuned and make sure to like and subscribe!'>"
     }}
   ]
 }}
