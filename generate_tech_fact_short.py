@@ -331,9 +331,62 @@ FALLBACK_SERIES_DATABASE = [
 TECH_FACTS_DATABASE = [p for s in FALLBACK_SERIES_DATABASE for p in s["parts"]]
 
 
+BANNED_META_PHRASES = [
+    "in this series",
+    "in this video we",
+    "we will delve",
+    "we'll delve",
+    "we will explore",
+    "we'll explore",
+    "we'll cover it all",
+    "we will cover it all",
+    "we're about to dive",
+    "we will dive into",
+    "delve into the world",
+    "let's talk about the",
+    "let us talk about",
+    "in our final part, we'll explore"
+]
+
+
+def validate_series_quality(series_data: dict) -> bool:
+    """
+    Strictly validates that generated series is high-depth, rich, and free of shallow meta-talk.
+    """
+    if not series_data or not isinstance(series_data, dict):
+        return False
+    parts = series_data.get("parts", [])
+    if len(parts) < 3:
+        log("⚠️ Quality check failed: Series has fewer than 3 parts.")
+        return False
+
+    for p in parts:
+        script = p.get("script", "").strip()
+        word_count = len(script.split())
+        
+        # 1. Word count check: Must be 125-165 words for true depth (50-55s spoken)
+        if word_count < 125:
+            log(f"⚠️ Quality check failed: Part {p.get('part_number')} script too short ({word_count} words < 125 words). Needs more technical explanation.")
+            return False
+            
+        # 2. Anti-meta check: Must not contain hollow filler phrases
+        script_lower = script.lower()
+        for banned in BANNED_META_PHRASES:
+            if banned in script_lower:
+                log(f"⚠️ Quality check failed: Part {p.get('part_number')} contains hollow meta-talk ('{banned}'). Must directly explain real facts.")
+                return False
+                
+        # 3. Call-to-action check
+        if not ("like" in script_lower or "subscribe" in script_lower):
+            log(f"⚠️ Quality check failed: Part {p.get('part_number')} missing CTA.")
+            return False
+
+    return True
+
+
 def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: int = 2500, temperature: float = 0.75) -> dict:
     """
-    Priority 1: Queries OpenCode DeepSeek v4 Flash (CLI or HTTP API).
+    Priority 1: Queries OpenCode DeepSeek v4 Flash (CLI or HTTP API) with strict quality validation.
     """
     import subprocess
     import shutil
@@ -353,11 +406,11 @@ def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: in
                 [opencode_bin, "run", "-m", "opencode/deepseek-v4-flash-free", full_prompt],
                 capture_output=True,
                 text=True,
-                timeout=55
+                timeout=60
             )
             if res.returncode == 0 and res.stdout:
                 parsed = parse_llm_json(res.stdout)
-                if parsed and parsed.get("parts") and len(parsed["parts"]) >= 3:
+                if validate_series_quality(parsed):
                     log(f"✅ OpenCode DeepSeek v4 Flash successfully generated in-depth series: '{parsed.get('topic')}' ({len(parsed['parts'])} Parts)")
                     return parsed
         except Exception as oe:
@@ -411,7 +464,7 @@ def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: in
                     data = json.loads(resp.read().decode("utf-8"))
                     raw_text = data["choices"][0]["message"]["content"]
                     parsed = parse_llm_json(raw_text)
-                    if parsed and parsed.get("parts") and len(parsed["parts"]) >= 3:
+                    if validate_series_quality(parsed):
                         log(f"✅ OpenCode DeepSeek v4 Flash successfully generated in-depth series: '{parsed.get('topic')}' ({len(parsed['parts'])} Parts)")
                         return parsed
             except Exception as e:
@@ -422,7 +475,7 @@ def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: in
 
 def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
     """
-    Priority 2 & 3 Fallback: Groq Llama-3.3-70B and Llama-3.1-8B.
+    Priority 2 & 3 Fallback: Groq Llama-3.3-70B and Llama-3.1-8B with strict quality validation.
     """
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
@@ -449,7 +502,7 @@ def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
                 )
                 raw_text = resp.choices[0].message.content
                 series_data = parse_llm_json(raw_text)
-                if series_data and series_data.get("parts") and len(series_data["parts"]) >= 3:
+                if validate_series_quality(series_data):
                     log(f"✅ Groq ({model_name}) successfully generated in-depth series: '{series_data.get('topic')}' ({len(series_data['parts'])} Parts)")
                     return series_data
             except Exception as me:
@@ -474,22 +527,21 @@ def generate_dynamic_series_with_groq(history: dict = None) -> dict:
         past_topics = history.get("ai_past_topics", [])[-15:]
 
     system_prompt = (
-        "You are an elite viral YouTube Shorts documentary creator (like Veritasium, Fireship, Kurzgesagt, and Cleo Abram).\n"
-        "Your mission is to create a complete, THOROUGH, in-depth multi-part masterclass series on ONE deep technical subject.\n"
-        "IN-DEPTH SERIES RULES:\n"
-        "1. Do NOT make shallow 2-part summaries. The series MUST be 3 to 5 in-depth parts (or however many parts are required to explain the topic thoroughly).\n"
-        "2. Progressive Narrative Structure:\n"
-        "   - Part 1: The Core Paradox / Mind-Blowing Hook & Foundation\n"
-        "   - Part 2: Inner Mechanical / Algorithmic Architecture (How it works under the hood)\n"
-        "   - Part 3: Real-World Failures / Epic Glitches / Legendary Case Studies / Exploits\n"
-        "   - Final Part: Master Resolution + Next Upcoming Topic Teaser + 'Like and subscribe to stay tuned!'\n"
-        "3. Every intermediate part (Part 1, 2, ... N-1) MUST end with a cliffhanger for the next part + 'Like and subscribe so you don't miss Part X!'\n"
-        "4. Every part MUST be 130 to 155 words (~50 to 55 seconds spoken narration).\n"
+        "You are an elite, world-class technical documentary storyteller (like Veritasium, Fireship, and Kurzgesagt).\n"
+        "Your mission is to create a deeply technical, high-retention 3-part masterclass series on ONE fascinating engineering, programming, or computer science subject.\n"
+        "STRICT CONTENT & ANTI-SLOP RULES (CRITICAL):\n"
+        "1. NO META-TALK OR INTRO FILLER: NEVER say 'in this video we will explore', 'in this series we delve', 'from X to Y we cover it all', or 'let us talk about'. NEVER tease a topic without explaining it immediately. Dive STRAIGHT into the real technical mechanisms, numbers, hardware, or code from word one!\n"
+        "2. EXPLAIN THE REAL MECHANISMS IN FULL DETAIL: Every part must explain the actual technical science: exact math, algorithms, protocols, memory registers, voltages, frequencies, physical constraints, historical disasters, or dollar losses.\n"
+        "3. WORD COUNT: Every single part script MUST be between 135 and 155 spoken words (~50 to 55 seconds spoken narration). Never generate short, rushed summaries.\n"
+        "4. NARRATIVE PROGRESSION ACROSS 3 PARTS:\n"
+        "   - Part 1: Concrete Paradox & The Core Mechanism (Hook + Deep explanation of why this is counter-intuitive + Cliffhanger for Part 2 + 'Like and subscribe for Part 2!').\n"
+        "   - Part 2: Under-The-Hood Architecture & Real-World Engineering (Exact step-by-step mechanism, algorithms, physical hardware + Cliffhanger for Part 3 + 'Like and subscribe for Part 3!').\n"
+        "   - Part 3 (Finale): Real-World Catastrophe, Legendary Glitch, or Modern Breakthrough + Master Takeaway + Next Series Teaser + 'Like and subscribe to stay tuned!'.\n"
         "5. Spoken English: Pure natural spoken text for TTS. No markdown symbols, no raw URLs."
     )
 
     user_prompt = f"""
-Generate an in-depth 3-to-4 Part Tech Masterclass Series.
+Generate an in-depth 3-Part Tech Masterclass Series with zero meta-talk.
 Avoid repeating any of these recent topics: {json.dumps(past_topics)}
 
 JSON Output Schema:
@@ -505,7 +557,7 @@ JSON Output Schema:
       "badge": "<badge_base> • PART 1",
       "voice": "en-US-ChristopherNeural",
       "tags": ["techshorts", "technology", "part1", "shorts", "developer"],
-      "script": "<130-155 word script building the hook and ending with cliffhanger for Part 2 + 'Like and subscribe for Part 2!'>"
+      "script": "<EXACTLY 135-155 words directly explaining the core technical concept and ending with cliffhanger for Part 2 + 'Like and subscribe for Part 2!'>"
     }},
     {{
       "part_number": 2,
@@ -513,7 +565,7 @@ JSON Output Schema:
       "badge": "<badge_base> • PART 2",
       "voice": "en-US-ChristopherNeural",
       "tags": ["techshorts", "technology", "part2", "shorts", "developer"],
-      "script": "<130-155 word script explaining the deeper inner architecture and ending with cliffhanger for Part 3 + 'Like and subscribe for Part 3!'>"
+      "script": "<EXACTLY 135-155 words explaining the deeper inner architecture and ending with cliffhanger for Part 3 + 'Like and subscribe for Part 3!'>"
     }},
     {{
       "part_number": 3,
@@ -521,7 +573,7 @@ JSON Output Schema:
       "badge": "<badge_base> • PART 3",
       "voice": "en-US-ChristopherNeural",
       "tags": ["techshorts", "technology", "part3", "shorts", "developer"],
-      "script": "<130-155 word script delivering the master resolution, giving the next-topic teaser, and ending with 'stay tuned and make sure to like and subscribe!'>"
+      "script": "<EXACTLY 135-155 words delivering the master resolution, giving the next-topic teaser, and ending with 'stay tuned and make sure to like and subscribe!'>"
     }}
   ]
 }}

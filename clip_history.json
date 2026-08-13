@@ -189,57 +189,7 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": {
-    "topic": "THE FUTURE OF COMPUTER VISION",
-    "badge_base": "VISION AI 🤖",
-    "next_topic_teaser": "the untold story of neural network pruning algorithms",
-    "total_parts": 3,
-    "parts": [
-      {
-        "part_number": 1,
-        "title": "Unveiling VISION AI • Part 1 #Shorts #TechShorts",
-        "badge": "VISION AI 🤖 • PART 1",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "part1",
-          "shorts",
-          "developer"
-        ],
-        "script": "Have you ever wondered how self-driving cars can detect pedestrians or how facial recognition systems work? It all starts with computer vision, a field that has been rapidly advancing in recent years. But what makes it so powerful? In this series, we'll delve into the world of computer vision and explore its inner workings. From image processing to object detection, we'll cover it all. But first, let's talk about the core paradox of computer vision. Like and subscribe for Part 2!"
-      },
-      {
-        "part_number": 2,
-        "title": "Decoding VISION AI • Part 2 #Shorts #TechShorts",
-        "badge": "VISION AI 🤖 • PART 2",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "part2",
-          "shorts",
-          "developer"
-        ],
-        "script": "Now that we've introduced the core paradox of computer vision, let's dive deeper into its inner architecture. We'll explore the various algorithms and techniques used in image processing, object detection, and segmentation. From convolutional neural networks to transfer learning, we'll cover the key concepts that make computer vision so powerful. But as we'll see, this power comes with a price. The algorithms are only as good as the data they're trained on, and this is where things can go terribly wrong. Like and subscribe for Part 3!"
-      },
-      {
-        "part_number": 3,
-        "title": "Mastering VISION AI • Part 3 #Shorts #TechShorts",
-        "badge": "VISION AI 🤖 • PART 3",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "part3",
-          "shorts",
-          "developer"
-        ],
-        "script": "In our final part, we'll explore the real-world failures and epic glitches of computer vision systems. From misclassified images to biased algorithms, we'll see how these systems can go wrong. But we'll also learn how to master computer vision by understanding its limitations and designing more robust systems. As we conclude this series, we'll take a glimpse into the future of computer vision and the exciting possibilities it holds. Next, we'll be exploring the untold story of neural network pruning algorithms. Stay tuned and make sure to like and subscribe!"
-      }
-    ],
-    "current_part_index": 2
-  },
+  "active_series": null,
   "last_fact_index": -1,
   "last_series_index": 0,
   "ai_past_topics": [
