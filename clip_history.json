@@ -227,6 +227,7 @@
     "current_part_index": 1
   },
   "last_fact_index": -1,
+  "last_series_index": 0,
   "ai_past_topics": [
     "QUANTUM COMPUTER LEAP",
     "DEEPFAKE DETECTION"
