@@ -389,28 +389,11 @@ FALLBACK_SERIES_DATABASE = [
 TECH_FACTS_DATABASE = [p for s in FALLBACK_SERIES_DATABASE for p in s["parts"]]
 
 
-BANNED_META_PHRASES = [
-    "in this series",
-    "in this video we",
-    "we will delve",
-    "we'll delve",
-    "we will explore",
-    "we'll explore",
-    "we'll cover it all",
-    "we will cover it all",
-    "we're about to dive",
-    "we will dive into",
-    "delve into the world",
-    "let's talk about the",
-    "let us talk about",
-    "in our final part, we'll explore"
-]
-
-
 def validate_series_quality(series_data: dict) -> bool:
     """
-    Strictly validates that generated series is in-depth, thorough, and free of shallow meta-talk.
-    Each part must be a comprehensive 2.5-3 minute mini-documentary (~240+ words per part, no upper cap).
+    Strictly validates that generated series is in-depth, thorough, and high quality.
+    Each part must be a comprehensive 2.5-3 minute mini-documentary (~240+ words per part, no upper cap),
+    with natural episodic framing and clear CTAs.
     """
     if not series_data or not isinstance(series_data, dict):
         return False
@@ -428,14 +411,8 @@ def validate_series_quality(series_data: dict) -> bool:
             log(f"⚠️ Quality check failed: Part {p.get('part_number')} script too short ({word_count} words < 240 words). Needs full technical depth.")
             return False
             
-        # 2. Anti-meta check: Must not contain hollow filler phrases
+        # 2. Call-to-action check
         script_lower = script.lower()
-        for banned in BANNED_META_PHRASES:
-            if banned in script_lower:
-                log(f"⚠️ Quality check failed: Part {p.get('part_number')} contains hollow meta-talk ('{banned}'). Must directly explain real facts.")
-                return False
-                
-        # 3. Call-to-action check
         if not ("like" in script_lower or "subscribe" in script_lower):
             log(f"⚠️ Quality check failed: Part {p.get('part_number')} missing CTA.")
             return False
