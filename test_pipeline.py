@@ -162,17 +162,19 @@ is setting clear non-negotiable boundaries.
             self.assertIn("topic", s)
             self.assertIn("badge_base", s)
             self.assertIn("next_topic_teaser", s)
-            self.assertGreaterEqual(s["total_parts"], 2)
+            self.assertGreaterEqual(s["total_parts"], 3)
             self.assertEqual(len(s["parts"]), s["total_parts"])
             
-            # Verify Part 1 has cliffhanger / Part 2 hook
-            p1_script = s["parts"][0]["script"].lower()
-            self.assertTrue("part 2" in p1_script or "next part" in p1_script)
-            self.assertTrue("subscribe" in p1_script or "like" in p1_script)
+            # Verify intermediate parts have cliffhangers / next part hooks
+            for p_idx in range(len(s["parts"]) - 1):
+                p_script = s["parts"][p_idx]["script"].lower()
+                next_p_num = p_idx + 2
+                self.assertTrue(f"part {next_p_num}" in p_script or "next part" in p_script or "part 3" in p_script)
+                self.assertTrue("subscribe" in p_script or "like" in p_script)
             
             # Verify Final Part has next topic teaser & CTA
             final_script = s["parts"][-1]["script"].lower()
-            self.assertTrue("next video" in final_script or "next topic" in final_script or "stay tuned" in final_script)
+            self.assertTrue("next series" in final_script or "next video" in final_script or "next topic" in final_script or "stay tuned" in final_script)
             self.assertTrue("subscribe" in final_script or "like" in final_script)
 
     def test_multi_part_series_state_progression(self):
@@ -183,13 +185,16 @@ is setting clear non-negotiable boundaries.
         # Step 1: Part 1 -> Part 2
         p1 = series["parts"][series["current_part_index"]]
         self.assertEqual(p1["part_number"], 1)
-        next_part_idx = series["current_part_index"] + 1
-        self.assertLess(next_part_idx, len(series["parts"]))
-        series["current_part_index"] = next_part_idx
+        series["current_part_index"] += 1
         
-        # Step 2: Part 2 -> Conclude
+        # Step 2: Part 2 -> Part 3
         p2 = series["parts"][series["current_part_index"]]
         self.assertEqual(p2["part_number"], 2)
+        series["current_part_index"] += 1
+        
+        # Step 3: Part 3 (Final Part) -> Conclude
+        p3 = series["parts"][series["current_part_index"]]
+        self.assertEqual(p3["part_number"], 3)
         next_part_idx = series["current_part_index"] + 1
         is_series_complete = (next_part_idx >= len(series["parts"]))
         self.assertTrue(is_series_complete)
