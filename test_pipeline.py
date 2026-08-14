@@ -105,6 +105,35 @@ is setting clear non-negotiable boundaries.
         if test_ass_path.exists():
             test_ass_path.unlink()
 
+    def test_karaoke_ass_landscape_subtitle_generation(self):
+        sample_segments = [
+            {
+                "id": 0,
+                "start": 10.0,
+                "end": 15.0,
+                "text": "Artificial intelligence transforms software engineering",
+                "words": [
+                    {"word": "ARTIFICIAL", "start": 10.0, "end": 10.8},
+                    {"word": "INTELLIGENCE", "start": 10.9, "end": 11.8},
+                    {"word": "TRANSFORMS", "start": 11.9, "end": 12.8},
+                    {"word": "SOFTWARE", "start": 12.9, "end": 13.8},
+                    {"word": "ENGINEERING", "start": 13.9, "end": 14.8}
+                ]
+            }
+        ]
+        test_landscape_ass = OUTPUT_DIR / "test_landscape.ass"
+        generate_karaoke_ass_subtitles(sample_segments, start_sec=10.0, end_sec=15.0, output_ass_path=test_landscape_ass, is_landscape=True)
+        
+        self.assertTrue(test_landscape_ass.exists())
+        with open(test_landscape_ass, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("[Script Info]", content)
+        self.assertIn("PlayResX: 1920", content)
+        self.assertIn("PlayResY: 1080", content)
+        self.assertIn("MarginV, Encoding\nStyle: Default,DejaVu Sans,52", content)
+        if test_landscape_ass.exists():
+            test_landscape_ass.unlink()
+
     def test_parse_llm_json_variants(self):
         # Plain json
         j1 = parse_llm_json('{"start_seconds": 45.0, "end_seconds": 85.0, "viral_title": "Epic #shorts"}')

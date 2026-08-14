@@ -468,7 +468,7 @@ def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: in
     endpoints.extend([
         ("https://api.opencode.ai/v1/chat/completions", ["opencode/deepseek-v4-flash-free", "deepseek-v4-flash", "deepseek-ai/deepseek-v4-flash"]),
         ("https://api.deepseek.com/chat/completions", ["deepseek-chat", "deepseek-reasoner"]),
-        ("https://openrouter.ai/api/v1/chat/completions", ["deepseek/deepseek-v4-flash", "deepseek/deepseek-chat", "deepseek/deepseek-r1"])
+        ("https://openrouter.ai/api/v1/chat/completions", ["deepseek/deepseek-v4-flash", "openai/gpt-oss-20b:free", "openai/gpt-oss-20b", "deepseek/deepseek-chat", "deepseek/deepseek-r1"])
     ])
 
     for url, model_list in endpoints:
@@ -511,7 +511,7 @@ def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: in
 
 def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
     """
-    Priority 2 & 3 Fallback: Groq Llama-3.3-70B and Llama-3.1-8B with strict quality validation.
+    Priority 2 & 3 Fallback: Groq Llama-3.3-70B and GPT OSS 20B with strict quality validation.
     """
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
@@ -522,8 +522,8 @@ def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
         from main import parse_llm_json
         client = Groq(api_key=groq_api_key)
         
-        # Priority 2: Llama-3.3-70B | Priority 3: Llama-3.1-8B
-        for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+        # Priority 2: Llama-3.3-70B | Priority 3: GPT OSS 20B
+        for model_name in ["llama-3.3-70b-versatile", "openai/gpt-oss-20b", "openai/gpt-oss-20b:free", "gpt-oss-20b"]:
             try:
                 log(f"🦙 Querying Groq Fallback ({model_name})...")
                 resp = client.chat.completions.create(
@@ -555,7 +555,7 @@ def generate_dynamic_series_with_groq(history: dict = None) -> dict:
     Generates an in-depth, thorough 3-to-4 part mini-documentary series (2.5-3 minutes per video, no word cap) on ONE technical topic:
     1. OpenCode DeepSeek v4 Flash (Priority 1)
     2. Groq Llama-3.3-70B (Priority 2 Fallback)
-    3. Groq Llama-3.1-8B (Priority 3 Fallback)
+    3. GPT OSS 20B (Priority 3 Fallback)
     4. Database Catalog (Safety Net)
     """
     past_topics = []
@@ -722,7 +722,7 @@ JSON Output Schema:
         from groq import Groq
         from main import parse_llm_json
         client = Groq(api_key=groq_api_key)
-        for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+        for model_name in ["llama-3.3-70b-versatile", "openai/gpt-oss-20b", "openai/gpt-oss-20b:free", "gpt-oss-20b"]:
             try:
                 resp = client.chat.completions.create(
                     model=model_name,
@@ -832,12 +832,17 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
 
     log(f"✅ Tech voice synthesis complete ({duration:.1f}s narration across {len(segments)} segments).")
 
-    # 2. Generate Neon Karaoke ASS Subtitles
+    # 2. Generate Neon Karaoke ASS Subtitles (Portrait 9:16 and Landscape 16:9)
     ass_path = OUTPUT_DIR / "tech_fact_subtitles.ass"
-    generate_karaoke_ass_subtitles(segments, start_sec, end_sec, ass_path)
+    generate_karaoke_ass_subtitles(segments, start_sec, end_sec, ass_path, is_landscape=False)
 
-    # 3. Render 1080x1920 Short via Studio Visualizer
+    ass_landscape_path = OUTPUT_DIR / "tech_fact_landscape_subtitles.ass"
+    generate_karaoke_ass_subtitles(segments, start_sec, end_sec, ass_landscape_path, is_landscape=True)
+
+    # 3. Render 1080x1920 Short and 1920x1080 Normal Video via Studio Visualizer
     out_video = OUTPUT_DIR / "tech_fact_short.mp4"
+    out_landscape_video = OUTPUT_DIR / "tech_fact_video_169.mp4"
+
     log("🎨 Rendering 1080x1920 portrait Short with Studio Layout...")
     render_studio_visualizer_short(
         audio_full_path=voice_mp3,
@@ -850,7 +855,24 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
         speaker_gender="male",
         host_gender="male",
         topic_title=series_topic,
-        video_reference_path=None
+        video_reference_path=None,
+        is_landscape=False
+    )
+
+    log("🎨 Rendering 1920x1080 widescreen Normal Video with Studio Layout...")
+    render_studio_visualizer_short(
+        audio_full_path=voice_mp3,
+        start_sec=start_sec,
+        end_sec=end_sec,
+        ass_subtitle_path=ass_landscape_path,
+        output_final_path=out_landscape_video,
+        speaker_badge=part_info.get("badge", "TECH FACT 💡"),
+        transcript_segments=segments,
+        speaker_gender="male",
+        host_gender="male",
+        topic_title=series_topic,
+        video_reference_path=None,
+        is_landscape=True
     )
 
     if out_video.exists() and out_video.stat().st_size > 50000:
@@ -859,17 +881,26 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
 
         dest_1 = home_downloads / "tech_fact_short.mp4"
         shutil.copy2(out_video, dest_1)
-        log(f"📁 Copied to: {dest_1}")
+        log(f"📁 Copied Short to: {dest_1}")
+
+        if out_landscape_video.exists() and out_landscape_video.stat().st_size > 50000:
+            dest_1_ls = home_downloads / "tech_fact_video_169.mp4"
+            shutil.copy2(out_landscape_video, dest_1_ls)
+            log(f"📁 Copied Normal Video to: {dest_1_ls}")
 
         if phone_downloads.exists():
             try:
                 dest_2 = phone_downloads / "tech_fact_short.mp4"
                 shutil.copy2(out_video, dest_2)
-                log(f"📱 Copied to Phone Downloads: {dest_2}")
+                log(f"📱 Copied Short to Phone Downloads: {dest_2}")
+                if out_landscape_video.exists():
+                    dest_2_ls = phone_downloads / "tech_fact_video_169.mp4"
+                    shutil.copy2(out_landscape_video, dest_2_ls)
+                    log(f"📱 Copied Normal Video to Phone Downloads: {dest_2_ls}")
             except Exception as e:
                 log(f"Phone copy notice: {e}")
 
-        # 4. Upload to YouTube if not dry-run
+        # 4. Upload to YouTube if not dry-run (Dual Upload: Short + Normal Video)
         if not dry_run:
             clip_info = {
                 "viral_title": part_info["title"],
@@ -881,8 +912,20 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
                 "default_tags": ["techshorts", "technology", "programming", "shorts", "developer", "coding"],
                 "attribution_template": "Curated by @woosclips ⚡ Subscribe for daily tech revelations!"
             }
-            log(f"🚀 Uploading Short to YouTube channel @woosclips: {part_info['title']}...")
-            upload_to_youtube(out_video, clip_info, podcast_dummy, original_video_url="https://youtube.com/@woosclips")
+            log(f"🚀 Uploading Short (9:16) to YouTube channel @woosclips: {part_info['title']}...")
+            upload_to_youtube(out_video, clip_info, podcast_dummy, original_video_url="https://youtube.com/@woosclips", is_short=True)
+            
+            if out_landscape_video.exists() and out_landscape_video.stat().st_size > 50000:
+                log(f"🚀 Uploading Normal Video (16:9) to YouTube channel @woosclips: {part_info['title']}...")
+                upload_to_youtube(out_landscape_video, clip_info, podcast_dummy, original_video_url="https://youtube.com/@woosclips", is_short=False)
+
+        # Clean up temporary subtitle files
+        for p in [ass_path, ass_landscape_path]:
+            if p.exists():
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
 
         # 5. Advance Series State Rotation
         if fact_index is None and active_series:
@@ -905,7 +948,7 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
         save_json(HISTORY_PATH, history)
 
         log("=======================================================")
-        log(f" 🎉 Video Ready: {part_info['title']}")
+        log(f" 🎉 Videos Ready (Short + Normal Video): {part_info['title']}")
         log("=======================================================")
     else:
         log("❌ Video generation failed or output file is empty.")

@@ -50,7 +50,7 @@ PROVIDERS = {
         "models": [
             "llama-3.3-70b-versatile",
             "deepseek-r1-distill-llama-70b",
-            "llama-3.1-8b-instant",
+            "openai/gpt-oss-20b",
             "gemma2-9b-it"
         ]
     },
