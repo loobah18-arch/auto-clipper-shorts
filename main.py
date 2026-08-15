@@ -2472,6 +2472,87 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
     return images
 
 
+def build_topic_documentary_timeline(
+    topic_title: str,
+    transcript_segments: list = None,
+    duration: float = 10.0,
+    output_path: Path = None,
+    target_count: int = 5
+) -> Path:
+    """
+    Builds a concatenated Ken Burns video of real Wikipedia lead photos,
+    Wikimedia Commons photos, and research article cards matching the exact duration.
+    """
+    if output_path is None:
+        output_path = Path(tempfile.gettempdir()) / f"doc_bg_{abs(hash(topic_title)) % 10000}.mp4"
+    if output_path.exists():
+        try:
+            output_path.unlink()
+        except Exception:
+            pass
+        
+    calc_target = max(3, min(8, int(duration // 8))) if target_count is None else target_count
+    images = fetch_topic_documentary_visuals(topic_title, transcript_segments, target_count=calc_target)
+    
+    temp_dir = Path(tempfile.gettempdir()) / f"doc_build_{output_path.stem}_{abs(hash(topic_title)) % 10000}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    seg_dur = duration / max(1, len(images))
+    fps = 25
+    frames_per_seg = max(25, int(seg_dur * fps))
+    
+    seg_videos = []
+    for idx, img_path in enumerate(images):
+        seg_vid = temp_dir / f"seg_{idx}.mp4"
+        if idx % 2 == 0:
+            zoom_expr = "min(zoom+0.0006,1.15)"
+        else:
+            zoom_expr = "max(1.15-0.0006*on,1.0)"
+        x_expr = "iw/2-(iw/zoom/2)"
+        y_expr = "ih/2-(ih/zoom/2)"
+            
+        cmd_seg = [
+            "ffmpeg", "-y",
+            "-loop", "1", "-i", str(img_path),
+            "-filter_complex",
+            f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,"
+            f"zoompan=z='{zoom_expr}':d={frames_per_seg}:x='{x_expr}':y='{y_expr}':s=1920x1080:fps={fps},"
+            f"eq=contrast=1.04:brightness=-0.02[v]",
+            "-map", "[v]",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "20",
+            "-pix_fmt", "yuv420p",
+            "-t", f"{seg_dur:.3f}",
+            str(seg_vid)
+        ]
+        subprocess.run(cmd_seg, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        seg_videos.append(seg_vid)
+        
+    concat_manifest = temp_dir / "concat_list.txt"
+    with open(concat_manifest, "w") as f:
+        for sv in seg_videos:
+            f.write(f"file '{sv.resolve()}'\n")
+            
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0", "-i", str(concat_manifest),
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "19",
+        "-pix_fmt", "yuv420p",
+        "-t", f"{duration:.2f}",
+        str(output_path)
+    ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    try:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    except Exception:
+        pass
+        
+    return output_path
+
+
 def render_topic_documentary_169_video(
     audio_full_path: Path,
     start_sec: float,
@@ -2509,56 +2590,11 @@ def render_topic_documentary_169_video(
         str(audio_slice_path)
     ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
-    # 2. Fetch real topic images and article headline cards
-    target_img_count = max(3, min(8, int(duration // 8)))
-    images = fetch_topic_documentary_visuals(resolved_topic, transcript_segments, target_count=target_img_count)
-    log(f"📽️ Assembling {len(images)} real topic visuals into 16:9 Ken Burns documentary timeline...")
+    # 2. Build topic documentary timeline
+    doc_timeline_tmp = output_final_path.with_name(f"doc_temp_{output_final_path.stem}.mp4")
+    build_topic_documentary_timeline(resolved_topic, transcript_segments, duration, doc_timeline_tmp)
     
-    # 3. Render Ken Burns pan/zoom clips for each image
-    temp_dir = Path(tempfile.gettempdir()) / f"doc_render_{output_final_path.stem}"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    
-    seg_dur = duration / len(images)
-    fps = 25
-    frames_per_seg = max(25, int(seg_dur * fps))
-    
-    seg_videos = []
-    for idx, img_path in enumerate(images):
-        seg_vid = temp_dir / f"seg_{idx}.mp4"
-        if idx % 2 == 0:
-            zoom_expr = "min(zoom+0.0006,1.15)"
-            x_expr = "iw/2-(iw/zoom/2)"
-            y_expr = "ih/2-(ih/zoom/2)"
-        else:
-            zoom_expr = "max(1.15-0.0006*on,1.0)"
-            x_expr = "iw/2-(iw/zoom/2)"
-            y_expr = "ih/2-(ih/zoom/2)"
-            
-        cmd_seg = [
-            "ffmpeg", "-y",
-            "-loop", "1", "-i", str(img_path),
-            "-filter_complex",
-            f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,"
-            f"zoompan=z='{zoom_expr}':d={frames_per_seg}:x='{x_expr}':y='{y_expr}':s=1920x1080:fps={fps},"
-            f"eq=contrast=1.04:brightness=-0.02[v]",
-            "-map", "[v]",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "20",
-            "-pix_fmt", "yuv420p",
-            "-t", f"{seg_dur:.3f}",
-            str(seg_vid)
-        ]
-        subprocess.run(cmd_seg, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        seg_videos.append(seg_vid)
-        
-    # Write concat manifest
-    concat_manifest = temp_dir / "concat_list.txt"
-    with open(concat_manifest, "w") as f:
-        for sv in seg_videos:
-            f.write(f"file '{sv.resolve()}'\n")
-            
-    # 4. Composite final 16:9 documentary with Subtitles, Top Badge, Progress Bar & Audio
+    # 3. Composite final 16:9 documentary with Subtitles, Top Badge, Progress Bar & Audio
     ass_filter_path = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
     badge_text = (speaker_badge or resolved_topic).replace(":", " ").replace("'", "").replace("%", "").replace("\\", "").upper()[:45]
     
@@ -2588,7 +2624,7 @@ def render_topic_documentary_169_video(
         filtergraph = f"{v_filter};{a_filter}"
         cmd_final = [
             "ffmpeg", "-y",
-            "-f", "concat", "-safe", "0", "-i", str(concat_manifest),
+            "-i", str(doc_timeline_tmp),
             "-i", str(audio_slice_path),
             "-i", str(bgm_path),
             "-filter_complex", filtergraph,
@@ -2606,7 +2642,7 @@ def render_topic_documentary_169_video(
     else:
         cmd_final = [
             "ffmpeg", "-y",
-            "-f", "concat", "-safe", "0", "-i", str(concat_manifest),
+            "-i", str(doc_timeline_tmp),
             "-i", str(audio_slice_path),
             "-filter_complex", v_filter,
             "-map", "[v]",
@@ -2625,15 +2661,14 @@ def render_topic_documentary_169_video(
     subprocess.run(cmd_final, check=True)
     log(f"✅ 16:9 Topic Documentary Normal Video render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
     
-    # 5. Clean up temporary render folder
     try:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        if doc_timeline_tmp.exists():
+            doc_timeline_tmp.unlink()
         if audio_slice_path.exists():
             audio_slice_path.unlink()
     except Exception:
         pass
 
-    # 6. Generate 16:9 Custom Stamped Thumbnail
     thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
     generate_custom_thumbnail(output_final_path, thumb_path, resolved_topic, is_landscape=True)
 
@@ -2654,28 +2689,16 @@ def render_studio_visualizer_short(
 ):
     """
     Renders an animated studio visualizer video (1080x1920 Short or 1920x1080 Normal Video):
-    - When is_landscape=True: Renders 16:9 Topic Documentary with real web photos and article cards.
-    - When is_landscape=False: Renders 9:16 Portrait Studio Visualizer with dynamic avatars and motion.
+    - When is_landscape=True: 16:9 Widescreen Studio Layout with Host & Reactor Avatars and center Wikipedia documentary visuals.
+    - When is_landscape=False: 9:16 Portrait Studio Visualizer with top dynamic avatars and motion.
     """
-    if is_landscape:
-        return render_topic_documentary_169_video(
-            audio_full_path=audio_full_path,
-            start_sec=start_sec,
-            end_sec=end_sec,
-            ass_subtitle_path=ass_subtitle_path,
-            output_final_path=output_final_path,
-            speaker_badge=speaker_badge,
-            transcript_segments=transcript_segments,
-            topic_title=topic_title
-        )
-
     if output_final_path.exists():
         output_final_path.unlink()
         
     duration = max(10.0, end_sec - start_sec)
     dur_str = f"{duration:.2f}"
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
-    log(f"🎨 Rendering Multi-Gesture Animated Storytime 9:16 Short ({duration:.1f}s)...")
+    log(f"🎨 Rendering Multi-Gesture Animated Storytime {'16:9 Normal Video' if is_landscape else '9:16 Short'} ({duration:.1f}s)...")
     
     # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy with padding
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
@@ -2746,9 +2769,31 @@ def render_studio_visualizer_short(
     # Lion (Reactor) shock timing powered by Acoustic Energy & Revelation Peak Sync:
     lion_shock_cond = compute_intelligent_shock_condition(transcript_segments, vocal_peaks, duration, start_sec)
     
-    if bg_path and bg_path.exists() and host_pack.get("closed") and guest_pack.get("closed"):
-        bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🐱 Using Phonetic Viseme Studio Layout (Wolf: Host Speaker | Lion: Reactor)...")
+    # 2. Build real Wikipedia & Editorial Topic Visuals Timeline to replace gameplay
+    doc_bg_path = None
+    resolved_topic = topic_title or speaker_badge or "Technology Documentary"
+    try:
+        doc_tmp = output_final_path.with_name(f"doc_bg_{output_final_path.stem}.mp4")
+        doc_bg_path = build_topic_documentary_timeline(
+            topic_title=resolved_topic,
+            transcript_segments=transcript_segments,
+            duration=duration,
+            output_path=doc_tmp
+        )
+    except Exception as dbe:
+        log(f"⚠️ Notice building documentary background: {dbe}")
+        doc_bg_path = None
+
+    bg_path_to_use = doc_bg_path if (doc_bg_path and doc_bg_path.exists()) else bg_path
+    is_doc_bg = bool(bg_path_to_use == doc_bg_path)
+    
+    if bg_path_to_use and bg_path_to_use.exists() and host_pack.get("closed") and guest_pack.get("closed"):
+        if is_doc_bg:
+            bg_start = 0.0
+            log(f"📚 Using Wikipedia & Editorial Topic Visuals with Avatars ({'16:9 Landscape' if is_landscape else '9:16 Portrait'})...")
+        else:
+            bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
+            log(f"🐱 Using Phonetic Viseme Studio Layout (Wolf: Host Speaker | Lion: Reactor)...")
         
         curr_inp_idx = 2
         bgm_idx = None
@@ -2801,15 +2846,17 @@ def render_studio_visualizer_short(
             v_filter = (
                 f"{left_av_filter};{right_av_filter};"
                 f"color=c=#1A1C22:s=1920x1080[studio_bg];"
-                f"[0:v]scale=720:860:force_original_aspect_ratio=increase,crop=720:860,eq=contrast=1.04:brightness=-0.04[center_game];"
+                f"[0:v]scale=720:860:force_original_aspect_ratio=increase,crop=720:860,eq=contrast=1.04:brightness=-0.02[center_game];"
                 f"[studio_bg][center_game]overlay=600:50[bg_with_game];"
                 f"[bg_with_game][left_av]overlay=80:50[bg_left];"
                 f"[bg_left][right_av]overlay=1380:50[bg_both];"
                 f"[bg_both]drawbox=x=76:y=46:w=468:h=868:color=#00D2FF@0.85:t=4:enable='{spk_host}',"
                 f"drawbox=x=1376:y=46:w=468:h=868:color=#FF0055@0.95:t=6:enable='{lion_shock_cond}',"
                 f"drawbox=x=596:y=46:w=728:h=868:color=#00D2FF@0.4:t=2,"
+                f"drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
+                f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54,"
                 f"drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
-                f"ass='{ass_filter_path}'[v]"
+                f"ass={ass_filter_path}[v]"
             )
         else:
             # 9:16 Vertical Portrait Studio Layout (1080x1920)
@@ -2840,14 +2887,14 @@ def render_studio_visualizer_short(
                 f"[top_glow][bot]vstack[stacked];"
                 f"[stacked]drawbox=y=956:color=#00D2FF@0.9:width=iw:height=8:t=fill,"
                 f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
-                f"ass='{ass_filter_path}'[v]"
+                f"ass={ass_filter_path}[v]"
             )
         
         cmd = [
             "ffmpeg", "-y",
             "-stream_loop", "-1",
             "-ss", f"{bg_start:.2f}",
-            "-i", str(bg_path),
+            "-i", str(bg_path_to_use),
             "-i", str(audio_slice_path)
         ]
         
@@ -2891,17 +2938,17 @@ def render_studio_visualizer_short(
             "-t", dur_str,
             str(output_final_path)
         ])
-    elif bg_path and bg_path.exists():
-        bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🎮 Using gameplay background ({'16:9 Landscape' if is_landscape else '9:16 Portrait'})...")
+    elif bg_path_to_use and bg_path_to_use.exists():
+        bg_start = 0.0 if is_doc_bg else random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
+        log(f"🎮 Using background video ({'16:9 Landscape' if is_landscape else '9:16 Portrait'})...")
         
         if is_landscape:
             v_filter = (
                 "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=contrast=1.04:brightness=-0.04[bg];"
-                f"[bg]drawbox=x=40:y=40:w=auto:h=56:color=black@0.75:t=fill,"
+                f"[bg]drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
                 f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54,"
                 f"drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
-                f"ass='{ass_filter_path}'[v]"
+                f"ass={ass_filter_path}[v]"
             )
         else:
             v_filter = (
@@ -2909,7 +2956,7 @@ def render_studio_visualizer_short(
                 f"[bg]drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
                 f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
                 f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
-                f"ass='{ass_filter_path}'[v]"
+                f"ass={ass_filter_path}[v]"
             )
         
         if bgm_path and bgm_path.exists():
@@ -2922,7 +2969,7 @@ def render_studio_visualizer_short(
             cmd = [
                 "ffmpeg", "-y",
                 "-ss", f"{bg_start:.2f}",
-                "-i", str(bg_path),
+                "-i", str(bg_path_to_use),
                 "-i", str(audio_slice_path),
                 "-i", str(bgm_path),
                 "-filter_complex", filtergraph,
@@ -2941,7 +2988,7 @@ def render_studio_visualizer_short(
             cmd = [
                 "ffmpeg", "-y",
                 "-ss", f"{bg_start:.2f}",
-                "-i", str(bg_path),
+                "-i", str(bg_path_to_use),
                 "-i", str(audio_slice_path),
                 "-filter_complex", v_filter,
                 "-map", "[v]",
