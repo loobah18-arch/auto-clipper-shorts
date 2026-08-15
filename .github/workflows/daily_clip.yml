@@ -2,8 +2,8 @@ name: 🎬 Auto Podcast Clipper Shorts
 
 on:
   schedule:
-    # Runs twice daily at 08:00 and 20:00 UTC (100% free runner minutes)
-    - cron: '0 8,20 * * *'
+    # Runs twice daily at 08:15 and 20:15 UTC (off-peak minute prevents GitHub queue drops)
+    - cron: '15 8,20 * * *'
   workflow_dispatch:
     inputs:
       video_url:
