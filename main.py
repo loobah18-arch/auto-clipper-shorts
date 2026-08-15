@@ -2537,11 +2537,7 @@ def build_topic_documentary_timeline(
     subprocess.run([
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0", "-i", str(concat_manifest),
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", "19",
-        "-pix_fmt", "yuv420p",
-        "-t", f"{duration:.2f}",
+        "-c", "copy",
         str(output_path)
     ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
