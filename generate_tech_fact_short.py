@@ -870,7 +870,7 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
         transcript_segments=segments,
         speaker_gender="male",
         host_gender="male",
-        topic_title=series_topic,
+        topic_title=f"{series_topic} - {part_info.get('title', '')}",
         video_reference_path=None,
         is_landscape=True
     )

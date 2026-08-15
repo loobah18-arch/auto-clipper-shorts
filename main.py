@@ -2267,7 +2267,7 @@ def get_sfx_info(sfx_name: str = "whoosh") -> Path:
 def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list = None, target_count: int = 6) -> list:
     """
     Fetches real topic photos, scientific diagrams, and generates editorial article cards
-    from the web (Wikimedia Commons, Wikipedia, Pexels API, and Pollinations AI Flux)
+    from the web (Wikipedia PageImages, Wikimedia Commons, Pexels API, and Pollinations AI Flux)
     for 16:9 documentary-style landscape videos.
     """
     import urllib.request
@@ -2277,31 +2277,77 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
     vis_dir = Path(tempfile.gettempdir()) / "topic_doc_visuals"
     vis_dir.mkdir(parents=True, exist_ok=True)
     
-    clean_topic = re.sub(r"[^a-zA-Z0-9\s]", "", topic_title or "Technology Science Breakthrough").strip()
-    words = [w for w in clean_topic.split() if len(w) > 3]
+    clean_topic = re.sub(r"[\$#•🚀💡🤯⚠️\(\)\[\]\-]", " ", topic_title or "Technology Science Breakthrough")
+    clean_topic = re.sub(r"\b(part\s*\d+|shorts|vol\s*\d+|secrets|disasters|deep\s*dive)\b", " ", clean_topic, flags=re.IGNORECASE)
+    clean_topic = re.sub(r"\s+", " ", clean_topic).strip()
     
-    keywords = [clean_topic]
-    if len(words) >= 2:
-        keywords.append(" ".join(words[:3]))
-        keywords.append(" ".join(words[-2:]))
+    words = [w for w in clean_topic.split() if len(w) > 2 and w.lower() not in ["the", "why", "and", "for", "with", "from", "that", "this", "into"]]
+    
+    keywords = []
+    # Extract 2-word & 3-word entity n-grams
+    for n in [2, 3]:
+        for i in range(len(words) - n + 1):
+            phrase = " ".join(words[i:i+n])
+            if phrase not in keywords:
+                keywords.append(phrase)
+                
+    if clean_topic and clean_topic not in keywords:
+        keywords.append(clean_topic)
+        
+    for w in words:
+        if len(w) > 3 and w not in keywords:
+            keywords.append(w)
         
     if transcript_segments:
-        combined_text = " ".join(seg.get("text", "") for seg in transcript_segments[:6])
-        sub_words = [w for w in re.findall(r"[A-Z][a-z]+|\b[a-z]{5,}\b", combined_text) if len(w) > 4]
-        if sub_words:
-            keywords.append(sub_words[0])
-            if len(sub_words) > 2:
-                keywords.append(f"{clean_topic} {sub_words[1]}")
+        combined_text = " ".join(seg.get("text", "") for seg in transcript_segments[:8])
+        # Extract named entities or specific technical terms
+        proper_nouns = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b", combined_text)
+        for pn in proper_nouns[:6]:
+            if len(pn) > 3 and pn.lower() not in ["welcome", "part", "shorts", "subscribe", "today", "explore", "reveal", "hit", "like"]:
+                if pn not in keywords:
+                    keywords.append(pn)
 
     images = []
+    seen_urls = set()
     
-    # 1. Search Wikimedia Commons for authentic high-res public domain images
+    # 1. Search Wikipedia PageImages API (Direct authentic Wikipedia lead article photos)
     for kw in keywords:
         if len(images) >= target_count - 2:
             break
         try:
             enc = urllib.parse.quote(kw)
-            url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch={enc}&gsrlimit=4&prop=imageinfo&iiprop=url|mime|size&format=json"
+            url = f"https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch={enc}&gsrlimit=5&prop=pageimages&pithumbsize=1920&format=json"
+            req = urllib.request.Request(url, headers={"User-Agent": "AutoClipperDocumentary/1.0 (https://github.com/loobah18-arch)"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                pages = data.get("query", {}).get("pages", {})
+                for pid, page in pages.items():
+                    thumb = page.get("thumbnail", {}).get("source")
+                    if thumb and thumb not in seen_urls:
+                        seen_urls.add(thumb)
+                        img_dest = vis_dir / f"wiki_lead_{len(images)}_{abs(hash(thumb)) % 10000}.jpg"
+                        try:
+                            d_req = urllib.request.Request(thumb, headers={"User-Agent": "AutoClipperDocumentary/1.0"})
+                            with urllib.request.urlopen(d_req, timeout=10) as im_resp:
+                                with open(img_dest, "wb") as f:
+                                    f.write(im_resp.read())
+                            if img_dest.exists() and img_dest.stat().st_size > 15000:
+                                images.append(img_dest)
+                                log(f"📸 Fetched real Wikipedia photo ({page.get('title', kw)}): {img_dest.name} ({img_dest.stat().st_size // 1024} KB)")
+                                if len(images) >= target_count - 2:
+                                    break
+                        except Exception:
+                            pass
+        except Exception as we:
+            log(f"Wikipedia search notice ({kw}): {we}")
+
+    # 2. Search Wikimedia Commons for authentic high-res public domain images
+    for kw in keywords:
+        if len(images) >= target_count - 2:
+            break
+        try:
+            enc = urllib.parse.quote(kw)
+            url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch={enc}&gsrlimit=5&prop=imageinfo&iiprop=url|mime|size&format=json"
             req = urllib.request.Request(url, headers={"User-Agent": "AutoClipperDocumentary/1.0 (https://github.com/loobah18-arch)"})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
@@ -2310,8 +2356,12 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
                     infos = page.get("imageinfo", [])
                     if infos:
                         img_url = infos[0].get("url")
-                        if img_url and any(img_url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png"]):
-                            img_dest = vis_dir / f"wiki_{len(images)}_{abs(hash(img_url)) % 10000}.jpg"
+                        mime = infos[0].get("mime", "")
+                        clean_path = img_url.split("?")[0].lower() if img_url else ""
+                        is_valid_img = "image/" in mime or any(clean_path.endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"])
+                        if img_url and is_valid_img and img_url not in seen_urls:
+                            seen_urls.add(img_url)
+                            img_dest = vis_dir / f"commons_{len(images)}_{abs(hash(img_url)) % 10000}.jpg"
                             try:
                                 d_req = urllib.request.Request(img_url, headers={"User-Agent": "AutoClipperDocumentary/1.0"})
                                 with urllib.request.urlopen(d_req, timeout=10) as im_resp:
@@ -2319,7 +2369,7 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
                                         f.write(im_resp.read())
                                 if img_dest.exists() and img_dest.stat().st_size > 15000:
                                     images.append(img_dest)
-                                    log(f"📸 Fetched real topic photo ({kw}): {img_dest.name} ({img_dest.stat().st_size // 1024} KB)")
+                                    log(f"📸 Fetched real Wikimedia Commons photo ({kw}): {img_dest.name} ({img_dest.stat().st_size // 1024} KB)")
                                     if len(images) >= target_count - 2:
                                         break
                             except Exception:
@@ -2327,7 +2377,7 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
         except Exception as e:
             log(f"Wikimedia search notice ({kw}): {e}")
 
-    # 2. Pexels API (if PEXELS_API_KEY is configured in env)
+    # 3. Pexels API (if PEXELS_API_KEY is configured in env)
     pexels_key = os.environ.get("PEXELS_API_KEY")
     if pexels_key and len(images) < target_count - 1:
         try:
@@ -2338,7 +2388,8 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
                 p_data = json.loads(p_resp.read().decode("utf-8"))
                 for photo in p_data.get("photos", []):
                     src_url = photo.get("src", {}).get("large2x") or photo.get("src", {}).get("large")
-                    if src_url:
+                    if src_url and src_url not in seen_urls:
+                        seen_urls.add(src_url)
                         p_dest = vis_dir / f"pexels_{len(images)}.jpg"
                         with urllib.request.urlopen(urllib.request.Request(src_url), timeout=10) as im_r:
                             with open(p_dest, "wb") as f:
