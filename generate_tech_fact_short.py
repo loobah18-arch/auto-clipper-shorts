@@ -11,6 +11,7 @@ import json
 import random
 import shutil
 import asyncio
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Add project root to sys.path
@@ -936,7 +937,7 @@ def render_tech_short(fact_index: int = None, dry_run: bool = False):
                 completed.append({
                     "topic": active_series.get("topic"),
                     "total_parts": len(active_series.get("parts", [])),
-                    "completed_at": str(Path.cwd())
+                    "completed_at": datetime.now(timezone.utc).isoformat()
                 })
                 history["completed_series"] = completed[-20:]
                 history["active_series"] = None  # Ready to start next topic on next run!
