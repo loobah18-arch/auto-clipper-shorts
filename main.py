@@ -54,7 +54,7 @@ OUTPUT_DIR = WORKSPACE_DIR / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
-FALLBACK_GROQ_MODEL = "llama-3.1-8b-instant"
+FALLBACK_GROQ_MODEL = "openai/gpt-oss-20b"
 
 # Font candidates for FFmpeg drawtext on Linux/Debian/Ubuntu
 FONT_CANDIDATES = [
@@ -1143,8 +1143,24 @@ def format_ass_time(seconds: float) -> str:
     return f"{h:01d}:{m:02d}:{s:02d}.{cs:02d}"
 
 
-def generate_karaoke_ass_subtitles(segments: list, start_sec: float, end_sec: float, output_ass_path: Path):
-    ass_header = """[Script Info]
+def generate_karaoke_ass_subtitles(segments: list, start_sec: float, end_sec: float, output_ass_path: Path, is_landscape: bool = False):
+    if is_landscape:
+        ass_header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,DejaVu Sans,52,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,5,3,2,60,60,80,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+        GROUP_SIZE = 4
+    else:
+        ass_header = """[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920
@@ -1157,6 +1173,8 @@ Style: Default,DejaVu Sans,68,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+        GROUP_SIZE = 3
+
     clip_words = []
     for seg in segments:
         words = seg.get("words", [])
@@ -1176,7 +1194,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     })
 
     events = []
-    GROUP_SIZE = 3
     for i in range(0, len(clip_words), GROUP_SIZE):
         group = clip_words[i:i + GROUP_SIZE]
         if not group:
@@ -1206,7 +1223,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for ev in events:
             f.write(ev + "\n")
             
-    log(f"Generated dynamic karaoke subtitles with {len(events)} events.")
+    log(f"Generated dynamic karaoke subtitles ({'16:9 Landscape' if is_landscape else '9:16 Portrait'}) with {len(events)} events.")
 
 
 # =====================================================================
@@ -1415,23 +1432,86 @@ def render_vertical_916_short(
 
     # Generate high-impact thumbnail with curiosity title stamping
     thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
-    generate_custom_thumbnail(output_final_path, thumb_path, speaker_badge)
+    generate_custom_thumbnail(output_final_path, thumb_path, speaker_badge, is_landscape=False)
 
 
-def generate_custom_thumbnail(video_path: Path, thumb_path: Path, topic_title: str = ""):
+def render_landscape_169_video(
+    raw_video_path: Path,
+    ass_subtitle_path: Path,
+    output_final_path: Path,
+    speaker_badge: str = ""
+):
+    if output_final_path.exists():
+        output_final_path.unlink()
+        
+    log("Rendering 1920x1080 landscape normal video with FFmpeg...")
+    ass_filter_path = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
+    badge_text = (speaker_badge or "PODCAST INSIGHT").replace(":", " ").replace("'", "").replace("%", "").replace("\\", "").upper()
+    
+    font_file = find_system_font()
+    if os.path.exists(font_file):
+        font_opt = f"fontfile='{font_file}'"
+    else:
+        font_opt = "font='DejaVu Sans'"
+        
+    filtergraph = (
+        "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,"
+        "eq=contrast=1.03:brightness=-0.02[v0];"
+        f"[v0]drawbox=x=40:y=40:w=auto:h=56:color=black@0.75:t=fill,"
+        f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54[v1];"
+        f"[v1]ass='{ass_filter_path}'[v]"
+    )
+    
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(raw_video_path),
+        "-filter_complex", filtergraph,
+        "-map", "[v]",
+        "-map", "0:a?",
+        "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "19",
+        "-force_key_frames", "expr:gte(t,n_forced*1)",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-pix_fmt", "yuv420p",
+        "-shortest",
+        str(output_final_path)
+    ]
+    
+    subprocess.run(cmd, check=True)
+    log(f"Landscape video render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
+
+    # Generate high-impact 16:9 thumbnail
+    thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
+    generate_custom_thumbnail(output_final_path, thumb_path, speaker_badge, is_landscape=True)
+
+
+def generate_custom_thumbnail(video_path: Path, thumb_path: Path, topic_title: str = "", is_landscape: bool = False):
     """
     Generates a high-CTR custom YouTube thumbnail frame with bold curiosity text stamping.
+    Supports both 9:16 portrait and 16:9 widescreen thumbnails.
     """
     try:
         font_file = find_system_font()
         font_opt = f"fontfile='{font_file}'" if os.path.exists(font_file) else "font='DejaVu Sans'"
-        clean_title = re.sub(r"[^A-Za-z0-9\s\?!\'\-]", "", (topic_title or "MASTERCLASS INSIGHT")).strip().upper()[:40]
+        clean_title = re.sub(r"[^A-Za-z0-9\s\?!\'\-]", "", (topic_title or "MASTERCLASS INSIGHT")).strip().upper()[:44]
         
-        vf = (
-            f"drawbox=y=1380:color=black@0.85:width=iw:height=160:t=fill,"
-            f"drawbox=y=1380:color=#00D2FF@0.95:width=iw:height=160:t=4,"
-            f"drawtext=text='{clean_title}':fontcolor=#FFE600:fontsize=46:{font_opt}:x=(w-text_w)/2:y=1436"
-        )
+        if is_landscape:
+            vf = (
+                f"scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,"
+                f"drawbox=y=780:color=black@0.85:width=iw:height=150:t=fill,"
+                f"drawbox=y=780:color=#00D2FF@0.95:width=iw:height=150:t=4,"
+                f"drawtext=text='{clean_title}':fontcolor=#FFE600:fontsize=52:{font_opt}:x=(w-text_w)/2:y=830"
+            )
+        else:
+            vf = (
+                f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
+                f"drawbox=y=1380:color=black@0.85:width=iw:height=160:t=fill,"
+                f"drawbox=y=1380:color=#00D2FF@0.95:width=iw:height=160:t=4,"
+                f"drawtext=text='{clean_title}':fontcolor=#FFE600:fontsize=46:{font_opt}:x=(w-text_w)/2:y=1436"
+            )
         subprocess.run([
             "ffmpeg", "-y",
             "-ss", "00:00:02.00",
@@ -1442,7 +1522,7 @@ def generate_custom_thumbnail(video_path: Path, thumb_path: Path, topic_title: s
             str(thumb_path)
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if thumb_path.exists():
-            log(f"📸 High-CTR Stamped Thumbnail generated: {thumb_path.name} ({thumb_path.stat().st_size // 1024} KB)")
+            log(f"📸 High-CTR Stamped Thumbnail generated ({'16:9 Landscape' if is_landscape else '9:16 Portrait'}): {thumb_path.name} ({thumb_path.stat().st_size // 1024} KB)")
     except Exception as te:
         log(f"Thumbnail notice: {te}")
 
@@ -2195,24 +2275,17 @@ def render_studio_visualizer_short(
     speaker_gender: str = "male",
     host_gender: str = "male",
     topic_title: str = "",
-    video_reference_path: Path = None
+    video_reference_path: Path = None,
+    is_landscape: bool = False
 ):
     """
-    Renders a 1080x1920 split-screen animated viral short in the high-energy
-    RG Bucket List & Not Your Type storytime anime animation style:
-    - Real Podcaster Computer Vision Motion Engine: Extracts frame-accurate hand gestures,
-      body emphasis peaks, and speech cadence directly from the podcast video slice.
-    - Multi-Level Mouth Lip Sync: Dynamic transitions between closed, conversational half-open,
-      and emphatic wide-open mouth shapes matching vocal amplitude and pause timing.
-    - Multi-Pose Gesture Suite: Expansive two-handed gestures, one-handed point explanations,
-      thoughtful chin contemplation, and stunned mind-blown reactions.
-    - MiniMax H3 / Hailuo Avatar Gesture Synthesis: Uses MiniMax H3 reference-driven
-      video generation when configured.
-    - Top half (1080x960): Dual speaker podcast studio layout (Host on Left, Guest on Right)
-      with matching uniform studio grey background (#1A1C22) and 60px center spacing gap.
-    - Bottom half (1080x960): Subway Surfers gameplay footage
-    - Audio: Sample-accurate speech + calm BGM + subtle whoosh micro-SFX on hook entrance
-    - Overlays: Floating speaker badge, 3s curiosity hook banner, middle kinetic neon subtitles, bottom retention bar
+    Renders an animated studio visualizer video (1080x1920 Short or 1920x1080 Normal Video):
+    - Real Podcaster Computer Vision Motion Engine: Extracts hand gestures and cadence.
+    - Multi-Level Mouth Lip Sync: Dynamic transitions matching vocal amplitude.
+    - Multi-Pose Gesture Suite: Expansive gestures and reactions.
+    - Top/Left (Wolf Host) & Right (Lion Reactor) studio layout.
+    - Audio: Sample-accurate speech + calm BGM + subtle whoosh SFX.
+    - Overlays: Kinetic neon subtitles, bottom retention progress bar, custom thumbnail.
     """
     if output_final_path.exists():
         output_final_path.unlink()
@@ -2220,7 +2293,7 @@ def render_studio_visualizer_short(
     duration = max(10.0, end_sec - start_sec)
     dur_str = f"{duration:.2f}"
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
-    log(f"🎨 Rendering Multi-Gesture Animated Storytime Short ({duration:.1f}s)...")
+    log(f"🎨 Rendering Multi-Gesture Animated Storytime {'16:9 Normal Video' if is_landscape else '9:16 Short'} ({duration:.1f}s)...")
     
     # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy with padding
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
@@ -2242,7 +2315,7 @@ def render_studio_visualizer_short(
     resolved_badge = speaker_badge
     if detected_guest_gender == "male" and detect_speaker_gender(speaker_badge or "") == "female":
         log(f"🎙️ Pitch Analysis detected Male voice ({detected_guest_gender}) while badge had female name ({speaker_badge}). Aligning badge to Host.")
-        host_name = podcast_entry.get("name", "Podcast Insight") if "podcast_entry" in locals() and podcast_entry else "Podcast Insight"
+        host_name = "Podcast Insight"
         part_match = re.search(r"•\s*PART\s*\d+", speaker_badge or "")
         part_suffix = f" {part_match.group(0)}" if part_match else ""
         resolved_badge = f"{host_name}{part_suffix}"
@@ -2273,14 +2346,9 @@ def render_studio_visualizer_short(
     has_bgm = bool(bgm_path and bgm_path.exists())
     has_whoosh = bool(sfx_whoosh_path and sfx_whoosh_path.exists())
     
-    # 2. Extract Human-Like Phonetic Speech Visemes from Word Timestamps
-    cond_fv, cond_ou, cond_ae, cond_half = build_phonetic_viseme_expressions(transcript_segments, start_sec)
-    
-    # Wolf is the exclusive host and sole speaker:
     spk_host = spk_active_audio
-    spk_guest = "0"
     
-    # Wolf Hand Gesture: Appears naturally 1-2 times in a 1-minute video (e.g. at 20-30% and 70-80% duration for 2.2s each)
+    # Wolf Hand Gesture: Appears naturally 1-2 times
     if duration >= 45.0:
         g1 = max(3.5, duration * 0.22)
         g2 = max(g1 + 18.0, duration * 0.68)
@@ -2293,31 +2361,13 @@ def render_studio_visualizer_short(
         g1 = max(2.8, duration * 0.35)
         wolf_gesture_cond = f"({spk_host})*(between(t,{g1:.1f},{g1+1.8:.1f}))"
 
-    # Lion (Reactor) shock timing powered by Acoustic Energy & Semantic Revelation Peak Sync:
+    # Lion (Reactor) shock timing powered by Acoustic Energy & Revelation Peak Sync:
     lion_shock_cond = compute_intelligent_shock_condition(transcript_segments, vocal_peaks, duration, start_sec)
-
-    # Active motion for Wolf (Host):
-    host_bounce_expr = (
-        f"if({spk_host}, "
-        f"if({spk_loud_audio}, 4.2*sin(16*PI*t), 2.2*sin(8*PI*t)), "
-        f"1.6*sin(1.8*PI*t))"
-    )
-    host_sway_expr = f"if({spk_host}, 3.8*sin(24*PI*t), 1.2*sin(1.2*PI*t))"
-
-    # Active motion for Lion (Guest / Shocked Reactor):
-    lion_bounce_expr = (
-        f"if({lion_shock_cond}, "
-        f"5.5*sin(18*PI*t), "
-        f"if(lt(mod(t,2.4),0.45), 3.8*sin(PI*mod(t,2.4)/0.45), 1.6*sin(1.8*PI*t)))"
-    )
-    lion_sway_expr = f"if({lion_shock_cond}, 4.0*sin(36*PI*t), 1.4*sin(1.2*PI*t))"
     
     if bg_path and bg_path.exists() and host_pack.get("closed") and guest_pack.get("closed"):
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🐱 Using Phonetic Viseme Studio Layout (Wolf: Phonetic Viseme Speaker | Lion: Hands-on-Head Mindblown Reactor)...")
+        log(f"🐱 Using Phonetic Viseme Studio Layout (Wolf: Host Speaker | Lion: Reactor)...")
         
-        # Base input index offset:
-        # 0: bg_video, 1: audio_slice
         curr_inp_idx = 2
         bgm_idx = None
         whoosh_idx = None
@@ -2330,29 +2380,12 @@ def render_studio_visualizer_short(
             whoosh_idx = curr_inp_idx
             curr_inp_idx += 1
             
-        # Character Video Inputs (Wolf Host on Left facing Right, Lion Guest on Right facing Left)
         w_idle_idx = curr_inp_idx
         w_spk_idx = curr_inp_idx + 1
         w_gst_idx = curr_inp_idx + 2
         l_idle_idx = curr_inp_idx + 3
         l_shk_idx = curr_inp_idx + 4
         curr_inp_idx += 5
-        
-        # Left Host Avatar Filter (Wolf: Speaking Video Loop with active mouth, switching smoothly to gesture 1-2 times)
-        left_av_filter = (
-            f"[{w_idle_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_idle];"
-            f"[{w_spk_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_spk];"
-            f"[{w_gst_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_gst];"
-            f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
-            f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[left_av]"
-        )
-        
-        # Right Guest Avatar Filter (Lion: Attentive Listening Video Loop for normal facts, Mindblown Shock Video Loop for shocking facts)
-        right_av_filter = (
-            f"[{l_idle_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[l_idle];"
-            f"[{l_shk_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[l_shk];"
-            f"[l_idle][l_shk]overlay=0:0:enable='{lion_shock_cond}'[right_av]"
-        )
         
         videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
         w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
@@ -2369,26 +2402,64 @@ def render_studio_visualizer_short(
             "-stream_loop", "-1", "-i", str(l_shock_vid)
         ]
         
-        # Studio Top Canvas (#1A1C22) with 60px Center Spacing Gap & Dynamic Glowing Borders (No Text Badges)
-        top_filter = (
-            f"{left_av_filter};{right_av_filter};"
-            f"color=c=#1A1C22:s=1080x960[studio_bg];"
-            f"[studio_bg][left_av]overlay=25:10[top_with_left];"
-            f"[top_with_left][right_av]overlay=555:10[top_both];"
-            f"[top_both]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.3:t=fill,"
-            f"drawbox=x=23:y=8:w=504:h=944:color=#00D2FF@0.85:t=4:enable='{spk_host}',"
-            f"drawbox=x=553:y=8:w=504:h=944:color=#FF0055@0.95:t=6:enable='{lion_shock_cond}'[top_glow]"
-        )
-        
-        v_filter = (
-            f"{top_filter};"
-            f"[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.04:brightness=-0.04[bot];"
-            f"[top_glow][bot]vstack[stacked];"
-            f"[stacked]drawbox=y=956:color=#00D2FF@0.9:width=iw:height=8:t=fill,"
-            # Bottom Progress Retention Bar
-            f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
-            f"ass='{ass_filter_path}'[v]"
-        )
+        if is_landscape:
+            # 16:9 Widescreen Studio Layout (1920x1080)
+            left_av_filter = (
+                f"[{w_idle_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[w_idle];"
+                f"[{w_spk_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[w_spk];"
+                f"[{w_gst_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[w_gst];"
+                f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
+                f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[left_av]"
+            )
+            right_av_filter = (
+                f"[{l_idle_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[l_idle];"
+                f"[{l_shk_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[l_shk];"
+                f"[l_idle][l_shk]overlay=0:0:enable='{lion_shock_cond}'[right_av]"
+            )
+            v_filter = (
+                f"{left_av_filter};{right_av_filter};"
+                f"color=c=#1A1C22:s=1920x1080[studio_bg];"
+                f"[0:v]scale=720:860:force_original_aspect_ratio=increase,crop=720:860,eq=contrast=1.04:brightness=-0.04[center_game];"
+                f"[studio_bg][center_game]overlay=600:50[bg_with_game];"
+                f"[bg_with_game][left_av]overlay=80:50[bg_left];"
+                f"[bg_left][right_av]overlay=1380:50[bg_both];"
+                f"[bg_both]drawbox=x=76:y=46:w=468:h=868:color=#00D2FF@0.85:t=4:enable='{spk_host}',"
+                f"drawbox=x=1376:y=46:w=468:h=868:color=#FF0055@0.95:t=6:enable='{lion_shock_cond}',"
+                f"drawbox=x=596:y=46:w=728:h=868:color=#00D2FF@0.4:t=2,"
+                f"drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+                f"ass='{ass_filter_path}'[v]"
+            )
+        else:
+            # 9:16 Vertical Portrait Studio Layout (1080x1920)
+            left_av_filter = (
+                f"[{w_idle_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_idle];"
+                f"[{w_spk_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_spk];"
+                f"[{w_gst_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_gst];"
+                f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
+                f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[left_av]"
+            )
+            right_av_filter = (
+                f"[{l_idle_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[l_idle];"
+                f"[{l_shk_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[l_shk];"
+                f"[l_idle][l_shk]overlay=0:0:enable='{lion_shock_cond}'[right_av]"
+            )
+            top_filter = (
+                f"{left_av_filter};{right_av_filter};"
+                f"color=c=#1A1C22:s=1080x960[studio_bg];"
+                f"[studio_bg][left_av]overlay=25:10[top_with_left];"
+                f"[top_with_left][right_av]overlay=555:10[top_both];"
+                f"[top_both]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.3:t=fill,"
+                f"drawbox=x=23:y=8:w=504:h=944:color=#00D2FF@0.85:t=4:enable='{spk_host}',"
+                f"drawbox=x=553:y=8:w=504:h=944:color=#FF0055@0.95:t=6:enable='{lion_shock_cond}'[top_glow]"
+            )
+            v_filter = (
+                f"{top_filter};"
+                f"[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.04:brightness=-0.04[bot];"
+                f"[top_glow][bot]vstack[stacked];"
+                f"[stacked]drawbox=y=956:color=#00D2FF@0.9:width=iw:height=8:t=fill,"
+                f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+                f"ass='{ass_filter_path}'[v]"
+            )
         
         cmd = [
             "ffmpeg", "-y",
@@ -2440,18 +2511,26 @@ def render_studio_visualizer_short(
         ])
     elif bg_path and bg_path.exists():
         bg_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-        log(f"🎮 Using full-screen Subway Surfers from {bg_path.name} (offset {bg_start:.1f}s)...")
+        log(f"🎮 Using gameplay background ({'16:9 Landscape' if is_landscape else '9:16 Portrait'})...")
         
-        v_filter = (
-            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.04:brightness=-0.04[bg];"
-            f"[bg]drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
-            f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
-            f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
-            f"ass='{ass_filter_path}'[v]"
-        )
+        if is_landscape:
+            v_filter = (
+                "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=contrast=1.04:brightness=-0.04[bg];"
+                f"[bg]drawbox=x=40:y=40:w=auto:h=56:color=black@0.75:t=fill,"
+                f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54,"
+                f"drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+                f"ass='{ass_filter_path}'[v]"
+            )
+        else:
+            v_filter = (
+                "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.04:brightness=-0.04[bg];"
+                f"[bg]drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
+                f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
+                f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+                f"ass='{ass_filter_path}'[v]"
+            )
         
         if bgm_path and bgm_path.exists():
-            log(f"🎵 Mixing royalty-free BGM: {bgm_path.name}...")
             a_filter = (
                 "[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
                 "[2:a]volume=0.10,aloop=loop=-1:size=2e+09[bgm];"
@@ -2497,15 +2576,26 @@ def render_studio_visualizer_short(
             ]
     else:
         log("ℹ️ No gameplay background video found. Falling back to dynamic dark visualizer...")
-        filtergraph = (
-            f"color=c=#0B0E14:s=1080x1920:d={dur_str}[bg];"
-            "[0:a]showwaves=s=920x240:mode=p2p:colors=#00D2FF@0.85[wave];"
-            "[bg][wave]overlay=(W-w)/2:(H-h)/2 - 50,"
-            f"drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
-            f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
-            f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
-            f"ass='{ass_filter_path}'[v]"
-        )
+        if is_landscape:
+            filtergraph = (
+                f"color=c=#0B0E14:s=1920x1080:d={dur_str}[bg];"
+                "[0:a]showwaves=s=1200:300:mode=p2p:colors=#00D2FF@0.85[wave];"
+                "[bg][wave]overlay=(W-w)/2:(H-h)/2 - 40,"
+                f"drawbox=x=40:y=40:w=auto:h=56:color=black@0.75:t=fill,"
+                f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54,"
+                f"drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+                f"ass='{ass_filter_path}'[v]"
+            )
+        else:
+            filtergraph = (
+                f"color=c=#0B0E14:s=1080x1920:d={dur_str}[bg];"
+                "[0:a]showwaves=s=920x240:mode=p2p:colors=#00D2FF@0.85[wave];"
+                "[bg][wave]overlay=(W-w)/2:(H-h)/2 - 50,"
+                f"drawbox=y=160:color=black@0.75:width=iw:height=90:t=fill,"
+                f"drawtext=text='{badge_text}':fontcolor=white:fontsize=40:{font_opt}:x=(w-text_w)/2:y=182,"
+                f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+                f"ass='{ass_filter_path}'[v]"
+            )
         cmd = [
             "ffmpeg", "-y",
             "-i", str(audio_slice_path),
@@ -2527,55 +2617,44 @@ def render_studio_visualizer_short(
     if audio_slice_path.exists():
         audio_slice_path.unlink()
         
-    log(f"✅ Short render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
+    log(f"✅ Video render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
 
     # Thumbnail generation
     thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
-    try:
-        subprocess.run([
-            "ffmpeg", "-y",
-            "-ss", "00:00:03",
-            "-i", str(output_final_path),
-            "-vframes", "1",
-            "-q:v", "2",
-            str(thumb_path)
-        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if thumb_path.exists():
-            log(f"📸 Thumbnail generated: {thumb_path.name}")
-    except Exception:
-        pass
+    generate_custom_thumbnail(output_final_path, thumb_path, topic_title or resolved_badge, is_landscape=is_landscape)
 
 
 # =====================================================================
 # 6. YouTube Upload (YouTube Data API v3)
 # =====================================================================
 
-def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, original_video_url: str):
+def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, original_video_url: str, is_short: bool = True):
     # Guard against duplicate uploads
     history = load_json(HISTORY_PATH)
     target_vid_id = clip_info.get("video_id")
     part_num = clip_info.get("part")
+    id_key = "uploaded_youtube_id" if is_short else "uploaded_normal_youtube_id"
     if target_vid_id and part_num:
         for past in history.get("processed_clips", []):
             if (past.get("video_id") == target_vid_id and 
                 past.get("part") == part_num and 
-                past.get("uploaded_youtube_id")):
-                log(f"⚠️ Duplicate protection: Part {part_num} of video {target_vid_id} was already uploaded ({past.get('uploaded_youtube_id')}). Skipping duplicate upload.")
-                return past.get("uploaded_youtube_id")
+                past.get(id_key)):
+                log(f"⚠️ Duplicate protection: Part {part_num} of video {target_vid_id} was already uploaded as {'Short' if is_short else 'Normal Video'} ({past.get(id_key)}). Skipping duplicate upload.")
+                return past.get(id_key)
 
     client_id = os.environ.get("CLIENT_ID")
     client_secret = os.environ.get("CLIENT_SECRET")
     refresh_token = os.environ.get("REFRESH_TOKEN")
     
     if not (client_id and client_secret and refresh_token):
-        log("⚠️ Notice: YouTube OAuth secrets not fully set. Completed dry-run render successfully.")
+        log(f"⚠️ Notice: YouTube OAuth secrets not fully set. Completed dry-run render for {'Short' if is_short else 'Normal Video'} successfully.")
         return None
         
     if Credentials is None or build is None:
         log("⚠️ Notice: Google API client not installed. Completed dry-run render.")
         return None
 
-    log("Authenticating with YouTube Data API...")
+    log(f"Authenticating with YouTube Data API ({'Short 9:16' if is_short else 'Normal Video 16:9'})...")
     try:
         creds = Credentials(
             None,
@@ -2586,25 +2665,44 @@ def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, or
         )
         youtube = build("youtube", "v3", credentials=creds)
 
-        title = clip_info.get("viral_title", "Unbelievable Wisdom 💡 #shorts")
-        if "#shorts" not in title.lower():
-            title = f"{title} #shorts"
+        raw_title = clip_info.get("viral_title", "Unbelievable Wisdom 💡")
+        clean_title = re.sub(r"(?i)\s*#shorts\b", "", raw_title).strip()
 
-        attribution = podcast_entry.get("attribution_template", "Full episode: {video_url}").format(
-            guest_or_title=clip_info.get("speaker_badge", podcast_entry.get("name")),
-            video_url=original_video_url
-        )
+        if is_short:
+            title = f"{clean_title} #shorts"
+            tags = list(set(clip_info.get("tags", []) + podcast_entry.get("default_tags", [])))
+            if "shorts" not in [t.lower() for t in tags]:
+                tags.append("shorts")
+            description = f"""{title}
 
-        description = f"""{title}
-
-🎙️ {attribution}
+🎙️ {podcast_entry.get("attribution_template", "Full episode: {video_url}").format(
+    guest_or_title=clip_info.get("speaker_badge", podcast_entry.get("name")),
+    video_url=original_video_url
+)}
 💡 Clip curated automatically for educational & commentary insights.
 
 #shorts #podcast #wisdom #mindset #learning #growth
 """
+        else:
+            part_suffix = f" [Part {part_num}]" if part_num and f"Part {part_num}" not in clean_title else ""
+            title = f"{clean_title}{part_suffix}" if part_suffix not in clean_title else clean_title
+            tags = [t for t in (clip_info.get("tags", []) + podcast_entry.get("default_tags", [])) if t.lower() not in ["shorts", "short", "techshorts"]]
+            tags.extend(["podcast", "full breakdown", "educational", "insights", "coding"])
+            description = f"""{title}
 
-        tags = clip_info.get("tags", []) + podcast_entry.get("default_tags", [])
-        tags = list(set(tags))[:15]
+🎙️ {podcast_entry.get("attribution_template", "Full episode: {video_url}").format(
+    guest_or_title=clip_info.get("speaker_badge", podcast_entry.get("name")),
+    video_url=original_video_url
+)}
+
+💡 Detailed breakdown and discussion curated for developers, engineers, and tech enthusiasts.
+
+🔔 Subscribe for daily tech revelations, developer masterclasses, and coding insights!
+
+#podcast #technology #programming #education #learning #engineering
+"""
+
+        tags = list(dict.fromkeys(tags))[:15]
 
         body = {
             "snippet": {
@@ -2619,7 +2717,7 @@ def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, or
             }
         }
 
-        log(f"Uploading to YouTube as '{body['status']['privacyStatus']}': {title}...")
+        log(f"Uploading to YouTube as '{body['status']['privacyStatus']}' ({'Short' if is_short else 'Normal Video'}): {title}...")
         media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
         request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
         
@@ -2630,7 +2728,10 @@ def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, or
                 log(f"Upload progress: {int(status.progress() * 100)}%")
 
         video_id = response.get("id")
-        log(f"🎉 Successfully uploaded! Video URL: https://youtube.com/shorts/{video_id}")
+        if is_short:
+            log(f"🎉 Successfully uploaded Short! Video URL: https://youtube.com/shorts/{video_id}")
+        else:
+            log(f"🎉 Successfully uploaded Normal Video! Video URL: https://youtube.com/watch?v={video_id}")
 
         # Optional thumbnail upload
         thumb_path = video_path.with_name(f"thumb_{video_path.stem}.jpg")
@@ -2654,13 +2755,35 @@ def upload_to_youtube(video_path: Path, clip_info: dict, podcast_entry: dict, or
         return None
 
 
+def upload_dual_to_youtube(short_video_path: Path, landscape_video_path: Path, clip_info: dict, podcast_entry: dict, original_video_url: str):
+    """
+    Uploads BOTH the 9:16 vertical Short and the 16:9 landscape Normal Video.
+    Returns dict with {'short_id': ..., 'normal_id': ...}.
+    """
+    short_id = None
+    normal_id = None
+    
+    if short_video_path and short_video_path.exists():
+        log("📤 [1/2] Uploading 9:16 Vertical Short...")
+        short_id = upload_to_youtube(short_video_path, clip_info, podcast_entry, original_video_url, is_short=True)
+        
+    if landscape_video_path and landscape_video_path.exists():
+        log("📤 [2/2] Uploading 16:9 Landscape Normal Video...")
+        normal_id = upload_to_youtube(landscape_video_path, clip_info, podcast_entry, original_video_url, is_short=False)
+        
+    return {
+        "short_id": short_id,
+        "normal_id": normal_id
+    }
+
+
 # =====================================================================
 # 7. Main Pipeline Orchestrator
 # =====================================================================
 
 def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool = False, custom_catalog_path: str = None):
     log("=======================================================")
-    log(" Starting Auto-Clipper Shorts (Tech Facts & Tips Edition)")
+    log(" Starting Auto-Clipper (Shorts + Normal Videos Edition)")
     log("=======================================================")
     
     cat_path = Path(custom_catalog_path) if custom_catalog_path else CATALOG_PATH
@@ -2742,17 +2865,22 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
     clip_info["video_id"] = target_video["id"]
     clip_info["part"] = part_number
     
-    # 4. Generate Karaoke ASS Subtitles (Safe Zone MarginV = 290)
+    # 4. Generate Karaoke ASS Subtitles for Both Portrait (9:16) and Landscape (16:9)
     ass_sub_path = OUTPUT_DIR / f"subtitles_{target_video['id']}.ass"
-    generate_karaoke_ass_subtitles(transcript_segments, start_sec, end_sec, ass_sub_path)
+    generate_karaoke_ass_subtitles(transcript_segments, start_sec, end_sec, ass_sub_path, is_landscape=False)
+
+    ass_landscape_sub_path = OUTPUT_DIR / f"subtitles_{target_video['id']}_landscape.ass"
+    generate_karaoke_ass_subtitles(transcript_segments, start_sec, end_sec, ass_landscape_sub_path, is_landscape=True)
     
-    # 5. Render Studio Visualizer Short (100% immune to YouTube BotGuard)
+    # 5. Render BOTH 9:16 Short AND 16:9 Normal Video
     audio_full_path = OUTPUT_DIR / f"podcast_audio_{target_video['id']}.mp3"
     if not audio_full_path.exists() or audio_full_path.stat().st_size < 500000:
         legacy_rss = OUTPUT_DIR / "rss_podcast_audio.mp3"
         if legacy_rss.exists() and legacy_rss.stat().st_size > 500000:
             audio_full_path = legacy_rss
+            
     final_render_path = OUTPUT_DIR / f"clip_{target_video['id']}_final.mp4"
+    final_render_landscape_path = OUTPUT_DIR / f"clip_{target_video['id']}_landscape_final.mp4"
     
     if audio_full_path.exists() and audio_full_path.stat().st_size > 500000:
         guest_gender = detect_speaker_gender(badge_name, target_video.get("title", ""))
@@ -2763,6 +2891,8 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
                 download_video_clip_segment(target_video["url"], start_sec, end_sec, raw_slice_path)
             except Exception:
                 pass
+                
+        # Render 9:16 Short
         render_studio_visualizer_short(
             audio_full_path=audio_full_path,
             start_sec=start_sec,
@@ -2774,24 +2904,57 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
             speaker_gender=guest_gender,
             host_gender=host_gender,
             topic_title=resolved_topic,
-            video_reference_path=raw_slice_path if raw_slice_path.exists() else None
+            video_reference_path=raw_slice_path if raw_slice_path.exists() else None,
+            is_landscape=False
+        )
+        # Render 16:9 Normal Video
+        render_studio_visualizer_short(
+            audio_full_path=audio_full_path,
+            start_sec=start_sec,
+            end_sec=end_sec,
+            ass_subtitle_path=ass_landscape_sub_path,
+            output_final_path=final_render_landscape_path,
+            speaker_badge=composed_badge,
+            transcript_segments=transcript_segments,
+            speaker_gender=guest_gender,
+            host_gender=host_gender,
+            topic_title=resolved_topic,
+            video_reference_path=raw_slice_path if raw_slice_path.exists() else None,
+            is_landscape=True
         )
     else:
         raw_slice_path = OUTPUT_DIR / f"raw_slice_{target_video['id']}.mp4"
         download_video_clip_segment(target_video["url"], start_sec, end_sec, raw_slice_path)
+        # Render 9:16 Short
         render_vertical_916_short(
             raw_slice_path,
             ass_sub_path,
             final_render_path,
             speaker_badge=composed_badge
         )
+        # Render 16:9 Normal Video
+        render_landscape_169_video(
+            raw_slice_path,
+            ass_landscape_sub_path,
+            final_render_landscape_path,
+            speaker_badge=composed_badge
+        )
 
-    # 6. Upload to YouTube
+    # 6. Upload to YouTube (Dual Upload: Short + Normal Video)
     uploaded_id = None
+    uploaded_normal_id = None
     if not dry_run:
-        uploaded_id = upload_to_youtube(final_render_path, clip_info, podcast_entry, target_video["url"])
-        if not uploaded_id:
-            log(f"⚠️ YouTube upload did not complete (e.g. daily quota limit reached or auth notice).")
+        upload_res = upload_dual_to_youtube(
+            final_render_path,
+            final_render_landscape_path,
+            clip_info,
+            podcast_entry,
+            target_video["url"]
+        )
+        uploaded_id = upload_res.get("short_id")
+        uploaded_normal_id = upload_res.get("normal_id")
+        if not uploaded_id and not uploaded_normal_id:
+            log("⚠️ Neither YouTube upload completed (e.g. daily quota limit reached or auth notice).")
             log(f"📌 Preserving series state: Part {part_number} will be cleanly retried on the next scheduled run without losing continuation!")
             return
     else:
@@ -2811,7 +2974,7 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
             "max_parts": MAX_SERIES_PARTS,
             "last_clip_end_sec": end_sec
         }
-        log(f"📌 Multi-Part Series Progressed: Part {part_number}/{MAX_SERIES_PARTS} uploaded. Next run will clip Part {part_number + 1}.")
+        log(f"📌 Multi-Part Series Progressed: Part {part_number}/{MAX_SERIES_PARTS} uploaded (Short: {uploaded_id} | Normal: {uploaded_normal_id}). Next run will clip Part {part_number + 1}.")
     else:
         history["active_series"] = None
         if target_video["id"] not in history.get("processed_videos", []):
@@ -2828,16 +2991,18 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
         "start": start_sec,
         "end": end_sec,
         "uploaded_youtube_id": uploaded_id,
+        "uploaded_normal_youtube_id": uploaded_normal_id,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
     save_json(HISTORY_PATH, history)
     
     # Clean up intermediate temporary files
-    if ass_sub_path.exists():
-        try:
-            ass_sub_path.unlink()
-        except Exception:
-            pass
+    for p in [ass_sub_path, ass_landscape_sub_path]:
+        if p.exists():
+            try:
+                p.unlink()
+            except Exception:
+                pass
                 
     log("=======================================================")
     log(" Pipeline Finished Successfully! 🎉")
@@ -2845,7 +3010,7 @@ def run_pipeline(force_url: str = None, force_channel: str = None, dry_run: bool
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Auto Clipper Shorts - Tech Facts & Developer Tips 9:16 Video Generator")
+    parser = argparse.ArgumentParser(description="Auto Clipper - Tech Facts & Developer Tips Video Generator (Shorts + Normal Videos)")
     parser.add_argument("--url", type=str, help="Direct YouTube video URL to clip")
     parser.add_argument("--channel", type=str, help="Specific channel ID from tech_catalog.json (e.g. fireship, networkchuck, bytebytego)")
     parser.add_argument("--catalog", type=str, help="Path to custom catalog JSON file")
