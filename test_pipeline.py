@@ -335,6 +335,17 @@ is setting clear non-negotiable boundaries.
         )
         self.assertEqual(calm_shock, "0")
 
+    def test_topic_documentary_visuals_generation(self):
+        from main import fetch_topic_documentary_visuals
+        sample_segments = [
+            {"id": 0, "start": 0.0, "end": 5.0, "text": "Scientists discover quantum computing scaling law."}
+        ]
+        visuals = fetch_topic_documentary_visuals(topic_title="Quantum Computing Breakthrough", transcript_segments=sample_segments, target_count=3)
+        self.assertGreaterEqual(len(visuals), 1)
+        for v in visuals:
+            self.assertTrue(v.exists())
+            self.assertGreater(v.stat().st_size, 1000)
+
 
 if __name__ == "__main__":
     unittest.main()

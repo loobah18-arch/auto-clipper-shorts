@@ -1457,9 +1457,9 @@ def render_landscape_169_video(
     filtergraph = (
         "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,"
         "eq=contrast=1.03:brightness=-0.02[v0];"
-        f"[v0]drawbox=x=40:y=40:w=auto:h=56:color=black@0.75:t=fill,"
+        f"[v0]drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
         f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54[v1];"
-        f"[v1]ass='{ass_filter_path}'[v]"
+        f"[v1]ass={ass_filter_path}[v]"
     )
     
     cmd = [
@@ -2264,6 +2264,329 @@ def get_sfx_info(sfx_name: str = "whoosh") -> Path:
     return sfx_path if sfx_path.exists() else None
 
 
+def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list = None, target_count: int = 6) -> list:
+    """
+    Fetches real topic photos, scientific diagrams, and generates editorial article cards
+    from the web (Wikimedia Commons, Wikipedia, Pexels API, and Pollinations AI Flux)
+    for 16:9 documentary-style landscape videos.
+    """
+    import urllib.request
+    import urllib.parse
+    import tempfile
+    
+    vis_dir = Path(tempfile.gettempdir()) / "topic_doc_visuals"
+    vis_dir.mkdir(parents=True, exist_ok=True)
+    
+    clean_topic = re.sub(r"[^a-zA-Z0-9\s]", "", topic_title or "Technology Science Breakthrough").strip()
+    words = [w for w in clean_topic.split() if len(w) > 3]
+    
+    keywords = [clean_topic]
+    if len(words) >= 2:
+        keywords.append(" ".join(words[:3]))
+        keywords.append(" ".join(words[-2:]))
+        
+    if transcript_segments:
+        combined_text = " ".join(seg.get("text", "") for seg in transcript_segments[:6])
+        sub_words = [w for w in re.findall(r"[A-Z][a-z]+|\b[a-z]{5,}\b", combined_text) if len(w) > 4]
+        if sub_words:
+            keywords.append(sub_words[0])
+            if len(sub_words) > 2:
+                keywords.append(f"{clean_topic} {sub_words[1]}")
+
+    images = []
+    
+    # 1. Search Wikimedia Commons for authentic high-res public domain images
+    for kw in keywords:
+        if len(images) >= target_count - 2:
+            break
+        try:
+            enc = urllib.parse.quote(kw)
+            url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch={enc}&gsrlimit=4&prop=imageinfo&iiprop=url|mime|size&format=json"
+            req = urllib.request.Request(url, headers={"User-Agent": "AutoClipperDocumentary/1.0 (https://github.com/loobah18-arch)"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                pages = data.get("query", {}).get("pages", {})
+                for pid, page in pages.items():
+                    infos = page.get("imageinfo", [])
+                    if infos:
+                        img_url = infos[0].get("url")
+                        if img_url and any(img_url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png"]):
+                            img_dest = vis_dir / f"wiki_{len(images)}_{abs(hash(img_url)) % 10000}.jpg"
+                            try:
+                                d_req = urllib.request.Request(img_url, headers={"User-Agent": "AutoClipperDocumentary/1.0"})
+                                with urllib.request.urlopen(d_req, timeout=10) as im_resp:
+                                    with open(img_dest, "wb") as f:
+                                        f.write(im_resp.read())
+                                if img_dest.exists() and img_dest.stat().st_size > 15000:
+                                    images.append(img_dest)
+                                    log(f"📸 Fetched real topic photo ({kw}): {img_dest.name} ({img_dest.stat().st_size // 1024} KB)")
+                                    if len(images) >= target_count - 2:
+                                        break
+                            except Exception:
+                                pass
+        except Exception as e:
+            log(f"Wikimedia search notice ({kw}): {e}")
+
+    # 2. Pexels API (if PEXELS_API_KEY is configured in env)
+    pexels_key = os.environ.get("PEXELS_API_KEY")
+    if pexels_key and len(images) < target_count - 1:
+        try:
+            enc = urllib.parse.quote(clean_topic)
+            p_url = f"https://api.pexels.com/v1/search?query={enc}&orientation=landscape&per_page=3"
+            p_req = urllib.request.Request(p_url, headers={"Authorization": pexels_key})
+            with urllib.request.urlopen(p_req, timeout=8) as p_resp:
+                p_data = json.loads(p_resp.read().decode("utf-8"))
+                for photo in p_data.get("photos", []):
+                    src_url = photo.get("src", {}).get("large2x") or photo.get("src", {}).get("large")
+                    if src_url:
+                        p_dest = vis_dir / f"pexels_{len(images)}.jpg"
+                        with urllib.request.urlopen(urllib.request.Request(src_url), timeout=10) as im_r:
+                            with open(p_dest, "wb") as f:
+                                f.write(im_r.read())
+                        if p_dest.exists() and p_dest.stat().st_size > 15000:
+                            images.append(p_dest)
+                            log(f"📸 Fetched Pexels documentary image: {p_dest.name}")
+        except Exception as pe:
+            log(f"Pexels search notice: {pe}")
+
+    # 3. Generate High-End Editorial News & Research Article Cards (1920x1080)
+    headline_clean = (clean_topic or "BREAKTHROUGH REPORT").upper()[:48].replace("'", "").replace(":", " ")
+    sample_quote = "Empirical analysis and real-world findings from leading technology investigations."
+    if transcript_segments and len(transcript_segments) > 1:
+        seg_text = transcript_segments[1].get("text", "")
+        if seg_text:
+            sample_quote = seg_text[:110].replace("'", "").replace(":", " ")
+            
+    card_path = vis_dir / f"article_card_{len(images)}.jpg"
+    card_cmd = [
+        "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#0d1117:s=1920x1080:d=1",
+        "-vf", (
+            "drawbox=x=60:y=60:w=1800:h=960:color=#161b22:t=fill,"
+            "drawbox=x=60:y=60:w=1800:h=960:color=#30363d:t=2,"
+            "drawbox=x=100:y=90:w=260:h=40:color=#006ee6:t=fill,"
+            "drawtext=text='RESEARCH BRIEFING':fontcolor=white:fontsize=22:x=120:y=100,"
+            "drawtext=text='VERIFIED DOCUMENTARY ⚡':fontcolor=#8b949e:fontsize=20:x=1520:y=100,"
+            "drawbox=x=100:y=160:w=1720:h=2:color=#30363d:t=fill,"
+            f"drawtext=text='{headline_clean}':fontcolor=white:fontsize=46:x=100:y=200,"
+            "drawbox=x=100:y=300:w=1720:h=480:color=#0d1117:t=fill,"
+            "drawbox=x=100:y=300:w=1720:h=480:color=#30363d:t=1,"
+            "drawbox=x=130:y=340:w=8:h=400:color=#00d2ff:t=fill,"
+            "drawtext=text='KEY FINDINGS & ANALYSIS':fontcolor=#00d2ff:fontsize=26:x=160:y=350,"
+            f"drawtext=text='{sample_quote}':fontcolor=#c9d1d9:fontsize=30:x=160:y=420"
+        ),
+        "-frames:v", "1", str(card_path)
+    ]
+    try:
+        subprocess.run(card_cmd, capture_output=True, check=True)
+        if card_path.exists():
+            images.append(card_path)
+            log(f"📰 Generated editorial news card: {card_path.name}")
+    except Exception as ce:
+        log(f"Article card generation notice: {ce}")
+
+    # 4. If we need more visuals, fetch Photorealistic Flux visual via Pollinations AI
+    while len(images) < min(target_count, 4):
+        idx = len(images)
+        poll_prompt = urllib.parse.quote(f"cinematic photorealistic 16:9 documentary footage of {clean_topic} in modern high tech laboratory, 8k resolution, National Geographic style")
+        poll_url = f"https://image.pollinations.ai/prompt/{poll_prompt}?width=1920&height=1080&nologo=true&enhance=false&model=flux"
+        poll_dest = vis_dir / f"poll_flux_{idx}.jpg"
+        try:
+            req = urllib.request.Request(poll_url, headers={"User-Agent": "AutoClipperBot/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as p_resp:
+                with open(poll_dest, "wb") as f:
+                    f.write(p_resp.read())
+            if poll_dest.exists() and poll_dest.stat().st_size > 15000:
+                images.append(poll_dest)
+                log(f"🎨 Generated 16:9 contextual documentary visual: {poll_dest.name}")
+            else:
+                break
+        except Exception as e:
+            log(f"Pollinations visual notice: {e}")
+            break
+
+    # Fallback to at least one generated card if everything failed
+    if not images:
+        fallback_card = vis_dir / "fallback_article_card.jpg"
+        fb_cmd = [
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#0d1117:s=1920x1080:d=1",
+            "-vf", (
+                "drawbox=x=60:y=60:w=1800:h=960:color=#161b22:t=fill,"
+                "drawtext=text='TECH DOCUMENTARY REPORT':fontcolor=white:fontsize=48:x=100:y=200"
+            ),
+            "-frames:v", "1", str(fallback_card)
+        ]
+        subprocess.run(fb_cmd, capture_output=True, check=True)
+        images.append(fallback_card)
+
+    return images
+
+
+def render_topic_documentary_169_video(
+    audio_full_path: Path,
+    start_sec: float,
+    end_sec: float,
+    ass_subtitle_path: Path,
+    output_final_path: Path,
+    speaker_badge: str = "",
+    transcript_segments: list = None,
+    topic_title: str = "",
+    part_info: dict = None
+):
+    """
+    Renders a 1920x1080 Widescreen Normal Video using real topic photos,
+    article headlines, and documentary b-roll with smooth Ken Burns pan/zoom and studio audio.
+    """
+    if output_final_path.exists():
+        output_final_path.unlink()
+        
+    duration = max(10.0, end_sec - start_sec)
+    dur_str = f"{duration:.2f}"
+    start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
+    
+    resolved_topic = topic_title or (part_info.get("title") if part_info else None) or speaker_badge or "Technology Documentary"
+    log(f"🎬 Rendering 16:9 Topic Documentary Normal Video ({duration:.1f}s): '{resolved_topic}'...")
+    
+    # 1. Slice audio segment to uncompressed PCM WAV
+    audio_slice_path = output_final_path.with_name(f"audio_slice_doc_{output_final_path.stem}.wav")
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-i", str(audio_full_path),
+        "-ss", start_str,
+        "-af", f"apad=whole_dur={duration:.2f}",
+        "-t", dur_str,
+        "-c:a", "pcm_s16le",
+        str(audio_slice_path)
+    ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    # 2. Fetch real topic images and article headline cards
+    target_img_count = max(3, min(8, int(duration // 8)))
+    images = fetch_topic_documentary_visuals(resolved_topic, transcript_segments, target_count=target_img_count)
+    log(f"📽️ Assembling {len(images)} real topic visuals into 16:9 Ken Burns documentary timeline...")
+    
+    # 3. Render Ken Burns pan/zoom clips for each image
+    temp_dir = Path(tempfile.gettempdir()) / f"doc_render_{output_final_path.stem}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    seg_dur = duration / len(images)
+    fps = 25
+    frames_per_seg = max(25, int(seg_dur * fps))
+    
+    seg_videos = []
+    for idx, img_path in enumerate(images):
+        seg_vid = temp_dir / f"seg_{idx}.mp4"
+        if idx % 2 == 0:
+            zoom_expr = "min(zoom+0.0006,1.15)"
+            x_expr = "iw/2-(iw/zoom/2)"
+            y_expr = "ih/2-(ih/zoom/2)"
+        else:
+            zoom_expr = "max(1.15-0.0006*on,1.0)"
+            x_expr = "iw/2-(iw/zoom/2)"
+            y_expr = "ih/2-(ih/zoom/2)"
+            
+        cmd_seg = [
+            "ffmpeg", "-y",
+            "-loop", "1", "-i", str(img_path),
+            "-filter_complex",
+            f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,"
+            f"zoompan=z='{zoom_expr}':d={frames_per_seg}:x='{x_expr}':y='{y_expr}':s=1920x1080:fps={fps},"
+            f"eq=contrast=1.04:brightness=-0.02[v]",
+            "-map", "[v]",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "20",
+            "-pix_fmt", "yuv420p",
+            "-t", f"{seg_dur:.3f}",
+            str(seg_vid)
+        ]
+        subprocess.run(cmd_seg, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        seg_videos.append(seg_vid)
+        
+    # Write concat manifest
+    concat_manifest = temp_dir / "concat_list.txt"
+    with open(concat_manifest, "w") as f:
+        for sv in seg_videos:
+            f.write(f"file '{sv.resolve()}'\n")
+            
+    # 4. Composite final 16:9 documentary with Subtitles, Top Badge, Progress Bar & Audio
+    ass_filter_path = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
+    badge_text = (speaker_badge or resolved_topic).replace(":", " ").replace("'", "").replace("%", "").replace("\\", "").upper()[:45]
+    
+    font_file = find_system_font()
+    if os.path.exists(font_file):
+        font_opt = f"fontfile='{font_file}'"
+    else:
+        font_opt = "font='DejaVu Sans'"
+        
+    v_filter = (
+        "[0:v]eq=contrast=1.02:brightness=-0.02[v0];"
+        f"[v0]drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
+        f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54[v1];"
+        f"[v1]drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
+        f"ass={ass_filter_path}[v]"
+    )
+    
+    bgm_path = get_background_music_info()
+    has_bgm = bool(bgm_path and bgm_path.exists())
+    
+    if has_bgm:
+        a_filter = (
+            "[1:a]loudnorm=I=-14:LRA=7:TP=-1.5[voice];"
+            "[2:a]volume=0.08,aloop=loop=-1:size=2e+09[bgm];"
+            "[voice][bgm]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
+        )
+        filtergraph = f"{v_filter};{a_filter}"
+        cmd_final = [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0", "-i", str(concat_manifest),
+            "-i", str(audio_slice_path),
+            "-i", str(bgm_path),
+            "-filter_complex", filtergraph,
+            "-map", "[v]",
+            "-map", "[aout]",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "19",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-pix_fmt", "yuv420p",
+            "-t", dur_str,
+            str(output_final_path)
+        ]
+    else:
+        cmd_final = [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0", "-i", str(concat_manifest),
+            "-i", str(audio_slice_path),
+            "-filter_complex", v_filter,
+            "-map", "[v]",
+            "-map", "1:a",
+            "-af", "loudnorm=I=-14:LRA=7:TP=-1.5",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "19",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-pix_fmt", "yuv420p",
+            "-t", dur_str,
+            str(output_final_path)
+        ]
+        
+    subprocess.run(cmd_final, check=True)
+    log(f"✅ 16:9 Topic Documentary Normal Video render complete: {output_final_path.name} ({output_final_path.stat().st_size / (1024*1024):.2f} MB)")
+    
+    # 5. Clean up temporary render folder
+    try:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        if audio_slice_path.exists():
+            audio_slice_path.unlink()
+    except Exception:
+        pass
+
+    # 6. Generate 16:9 Custom Stamped Thumbnail
+    thumb_path = output_final_path.with_name(f"thumb_{output_final_path.stem}.jpg")
+    generate_custom_thumbnail(output_final_path, thumb_path, resolved_topic, is_landscape=True)
+
+
 def render_studio_visualizer_short(
     audio_full_path: Path,
     start_sec: float,
@@ -2280,20 +2603,28 @@ def render_studio_visualizer_short(
 ):
     """
     Renders an animated studio visualizer video (1080x1920 Short or 1920x1080 Normal Video):
-    - Real Podcaster Computer Vision Motion Engine: Extracts hand gestures and cadence.
-    - Multi-Level Mouth Lip Sync: Dynamic transitions matching vocal amplitude.
-    - Multi-Pose Gesture Suite: Expansive gestures and reactions.
-    - Top/Left (Wolf Host) & Right (Lion Reactor) studio layout.
-    - Audio: Sample-accurate speech + calm BGM + subtle whoosh SFX.
-    - Overlays: Kinetic neon subtitles, bottom retention progress bar, custom thumbnail.
+    - When is_landscape=True: Renders 16:9 Topic Documentary with real web photos and article cards.
+    - When is_landscape=False: Renders 9:16 Portrait Studio Visualizer with dynamic avatars and motion.
     """
+    if is_landscape:
+        return render_topic_documentary_169_video(
+            audio_full_path=audio_full_path,
+            start_sec=start_sec,
+            end_sec=end_sec,
+            ass_subtitle_path=ass_subtitle_path,
+            output_final_path=output_final_path,
+            speaker_badge=speaker_badge,
+            transcript_segments=transcript_segments,
+            topic_title=topic_title
+        )
+
     if output_final_path.exists():
         output_final_path.unlink()
         
     duration = max(10.0, end_sec - start_sec)
     dur_str = f"{duration:.2f}"
     start_str = f"{int(start_sec // 3600):02d}:{int((start_sec % 3600) // 60):02d}:{int(start_sec % 60):02d}.{int((start_sec % 1) * 100):02d}"
-    log(f"🎨 Rendering Multi-Gesture Animated Storytime {'16:9 Normal Video' if is_landscape else '9:16 Short'} ({duration:.1f}s)...")
+    log(f"🎨 Rendering Multi-Gesture Animated Storytime 9:16 Short ({duration:.1f}s)...")
     
     # 1. Slice audio segment to uncompressed PCM WAV for 100% sample accuracy with padding
     audio_slice_path = output_final_path.with_name(f"audio_slice_{output_final_path.stem}.wav")
