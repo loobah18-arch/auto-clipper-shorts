@@ -3013,58 +3013,69 @@ def render_studio_visualizer_short(
             whoosh_idx = curr_inp_idx
             curr_inp_idx += 1
             
-        w_idle_idx = curr_inp_idx
-        w_spk_idx = curr_inp_idx + 1
-        w_gst_idx = curr_inp_idx + 2
-        l_idle_idx = curr_inp_idx + 3
-        l_shk_idx = curr_inp_idx + 4
-        curr_inp_idx += 5
-        
-        videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
-        w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
-        w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
-        w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
-        l_listen_vid = videos_base / "lion" / "listening_not_shocking_facing_left.mp4"
-        l_shock_vid = videos_base / "lion" / "shocked_reaction_facing_left.mp4"
-        
-        cmd_avatar_inputs = [
-            "-stream_loop", "-1", "-i", str(w_listen_vid),
-            "-stream_loop", "-1", "-i", str(w_speak_vid),
-            "-stream_loop", "-1", "-i", str(w_gest_vid),
-            "-stream_loop", "-1", "-i", str(l_listen_vid),
-            "-stream_loop", "-1", "-i", str(l_shock_vid)
-        ]
-        
         if is_landscape:
-            # 16:9 Widescreen Studio Layout (1920x1080)
-            left_av_filter = (
-                f"[{w_idle_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[w_idle];"
-                f"[{w_spk_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[w_spk];"
-                f"[{w_gst_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[w_gst];"
+            w_idle_idx = curr_inp_idx
+            w_spk_idx = curr_inp_idx + 1
+            w_gst_idx = curr_inp_idx + 2
+            curr_inp_idx += 3
+            
+            videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
+            w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
+            w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
+            w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
+            
+            cmd_avatar_inputs = [
+                "-stream_loop", "-1", "-i", str(w_listen_vid),
+                "-stream_loop", "-1", "-i", str(w_speak_vid),
+                "-stream_loop", "-1", "-i", str(w_gest_vid)
+            ]
+            
+            # 16:9 Widescreen Full-Screen Documentary Layout with Host (Wolf) Overlay
+            wolf_av_w = 420
+            wolf_av_h = 580
+            wolf_x = 60
+            wolf_y = 440
+            
+            wolf_av_filter = (
+                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_idle];"
+                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_spk];"
+                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_gst];"
                 f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
-                f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[left_av]"
-            )
-            right_av_filter = (
-                f"[{l_idle_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[l_idle];"
-                f"[{l_shk_idx}:v]scale=460:860:force_original_aspect_ratio=increase,crop=460:860,setsar=1[l_shk];"
-                f"[l_idle][l_shk]overlay=0:0:enable='{lion_shock_cond}'[right_av]"
+                f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[wolf_av]"
             )
             v_filter = (
-                f"{left_av_filter};{right_av_filter};"
-                f"color=c=#1A1C22:s=1920x1080[studio_bg];"
-                f"[0:v]scale=720:860:force_original_aspect_ratio=increase,crop=720:860,eq=contrast=1.04:brightness=-0.02[center_game];"
-                f"[studio_bg][center_game]overlay=600:50[bg_with_game];"
-                f"[bg_with_game][left_av]overlay=80:50[bg_left];"
-                f"[bg_left][right_av]overlay=1380:50[bg_both];"
-                f"[bg_both]drawbox=x=76:y=46:w=468:h=868:color=#00D2FF@0.85:t=4:enable='{spk_host}',"
-                f"drawbox=x=1376:y=46:w=468:h=868:color=#FF0055@0.95:t=6:enable='{lion_shock_cond}',"
-                f"drawbox=x=596:y=46:w=728:h=868:color=#00D2FF@0.4:t=2,"
+                f"{wolf_av_filter};"
+                f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=contrast=1.02:brightness=-0.02[full_doc_bg];"
+                f"[full_doc_bg][wolf_av]overlay={wolf_x}:{wolf_y}[bg_with_host];"
+                f"[bg_with_host]drawbox=x={wolf_x-4}:y={wolf_y-4}:w={wolf_av_w+8}:h={wolf_av_h+8}:color=#00D2FF@0.9:t=4:enable='{spk_host}',"
                 f"drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
                 f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54,"
                 f"drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
                 f"ass={ass_filter_path}[v]"
             )
         else:
+            w_idle_idx = curr_inp_idx
+            w_spk_idx = curr_inp_idx + 1
+            w_gst_idx = curr_inp_idx + 2
+            l_idle_idx = curr_inp_idx + 3
+            l_shk_idx = curr_inp_idx + 4
+            curr_inp_idx += 5
+            
+            videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
+            w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
+            w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
+            w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
+            l_listen_vid = videos_base / "lion" / "listening_not_shocking_facing_left.mp4"
+            l_shock_vid = videos_base / "lion" / "shocked_reaction_facing_left.mp4"
+            
+            cmd_avatar_inputs = [
+                "-stream_loop", "-1", "-i", str(w_listen_vid),
+                "-stream_loop", "-1", "-i", str(w_speak_vid),
+                "-stream_loop", "-1", "-i", str(w_gest_vid),
+                "-stream_loop", "-1", "-i", str(l_listen_vid),
+                "-stream_loop", "-1", "-i", str(l_shock_vid)
+            ]
+            
             # 9:16 Vertical Portrait Studio Layout (1080x1920)
             left_av_filter = (
                 f"[{w_idle_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_idle];"
