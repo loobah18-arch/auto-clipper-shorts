@@ -2276,35 +2276,43 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
     vis_dir = Path(tempfile.gettempdir()) / "topic_doc_visuals"
     vis_dir.mkdir(parents=True, exist_ok=True)
     
+    # 1. Extract core topic subject and clean out noise idioms
     clean_topic = re.sub(r"[\$#•🚀💡🤯⚠️\(\)\[\]\-]", " ", topic_title or "Technology Science Breakthrough")
-    clean_topic = re.sub(r"\b(part\s*\d+|shorts|vol\s*\d+|secrets|disasters|deep\s*dive)\b", " ", clean_topic, flags=re.IGNORECASE)
+    clean_topic = re.sub(r"\b(part\s*\d+|shorts|vol\s*\d+|secrets|disasters|deep\s*dive|under\s+the\s+hood|explained|revealed|truth\s+about|paradox)\b", " ", clean_topic, flags=re.IGNORECASE)
     clean_topic = re.sub(r"\s+", " ", clean_topic).strip()
+    if not clean_topic or len(clean_topic) < 3:
+        clean_topic = topic_title or "Computer Science Technology"
     
-    words = [w for w in clean_topic.split() if len(w) > 2 and w.lower() not in ["the", "why", "and", "for", "with", "from", "that", "this", "into"]]
-    
-    keywords = []
-    # Extract 2-word & 3-word entity n-grams
-    for n in [2, 3]:
-        for i in range(len(words) - n + 1):
-            phrase = " ".join(words[i:i+n])
-            if phrase not in keywords:
-                keywords.append(phrase)
-                
-    if clean_topic and clean_topic not in keywords:
-        keywords.append(clean_topic)
+    # Intelligent domain phrases: full clean topic first, then context-qualified phrases
+    keywords = [clean_topic]
+    if f"{clean_topic} technology" not in keywords:
+        keywords.append(f"{clean_topic} technology")
+    if f"{clean_topic} computer science" not in keywords:
+        keywords.append(f"{clean_topic} computer science")
+    if f"{clean_topic} architecture" not in keywords:
+        keywords.append(f"{clean_topic} architecture")
         
+    words = [w for w in clean_topic.split() if len(w) > 3 and w.lower() not in ["the", "why", "and", "for", "with", "from", "that", "this", "into", "hood", "under", "table", "part", "what", "how", "when", "does"]]
     for w in words:
-        if len(w) > 3 and w not in keywords:
+        if w not in keywords:
+            keywords.append(f"{w} technology")
             keywords.append(w)
-        
+            
     if transcript_segments:
-        combined_text = " ".join(seg.get("text", "") for seg in transcript_segments[:12])
-        # Extract named entities or specific technical terms
-        proper_nouns = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b", combined_text)
-        for pn in proper_nouns[:8]:
-            if len(pn) > 3 and pn.lower() not in ["welcome", "part", "shorts", "subscribe", "today", "explore", "reveal", "hit", "like"]:
+        combined_text = " ".join(seg.get("text", "") for seg in transcript_segments[:6])
+        proper_nouns = re.findall(r"\b[A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})?\b", combined_text)
+        for pn in proper_nouns[:6]:
+            if pn.lower() not in ["welcome", "today", "explore", "subscribe", "video", "shorts", "everyone", "imagine", "think", "remember"]:
                 if pn not in keywords:
                     keywords.append(pn)
+
+    def is_page_topic_relevant(title: str, extract: str) -> bool:
+        t_low = title.lower()
+        e_low = extract.lower() if extract else ""
+        bad_tags = ["(film)", "(album)", "(song)", "(tv series)", "(canal)", "(railway station)", "(bus)", "(species)", "(genus)", "(band)", "(video game)", "(play)", "(musical)"]
+        if any(tag in t_low for tag in bad_tags):
+            return False
+        return True
 
     real_photos = []
     article_cards = []
@@ -2313,18 +2321,22 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
     
     user_agent = "AutoClipperDocumentary/1.0 (https://github.com/loobah18-arch/auto-clipper-shorts; loobah18-arch@users.noreply.github.com)"
     
-    # 1. Search Wikipedia PageImages API (Direct authentic Wikipedia lead article photos)
+    # 1. Search Wikipedia PageImages API (Direct authentic Wikipedia lead article photos with relevance check)
     for kw in keywords:
         if len(real_photos) >= max(6, target_count - 2):
             break
         try:
             enc = urllib.parse.quote(kw)
-            url = f"https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch={enc}&gsrlimit=8&prop=pageimages&pithumbsize=1280&format=json"
+            url = f"https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch={enc}&gsrlimit=6&prop=pageimages|extracts&exintro=1&explaintext=1&exchars=150&pithumbsize=1280&format=json"
             req = urllib.request.Request(url, headers={"User-Agent": user_agent})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 pages = data.get("query", {}).get("pages", {})
                 for pid, page in pages.items():
+                    title = page.get("title", "")
+                    extract = page.get("extract", "")
+                    if not is_page_topic_relevant(title, extract):
+                        continue
                     thumb = page.get("thumbnail", {}).get("source")
                     if thumb and thumb not in seen_urls:
                         seen_urls.add(thumb)
@@ -2336,7 +2348,7 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
                                     f.write(im_resp.read())
                             if img_dest.exists() and img_dest.stat().st_size > 15000:
                                 real_photos.append(img_dest)
-                                log(f"📸 Fetched real Wikipedia photo ({page.get('title', kw)}): {img_dest.name} ({img_dest.stat().st_size // 1024} KB)")
+                                log(f"📸 Fetched real Wikipedia photo ({title}): {img_dest.name} ({img_dest.stat().st_size // 1024} KB)")
                                 if len(real_photos) >= max(6, target_count - 2):
                                     break
                         except Exception:
@@ -3014,54 +3026,12 @@ def render_studio_visualizer_short(
             curr_inp_idx += 1
             
         if is_landscape:
-            w_idle_idx = curr_inp_idx
-            w_spk_idx = curr_inp_idx + 1
-            w_gst_idx = curr_inp_idx + 2
-            curr_inp_idx += 3
+            cmd_avatar_inputs = []
             
-            videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
-            w_listen_vid = videos_base / "wolf" / "listening_transparent.mov"
-            if not w_listen_vid.exists():
-                w_listen_vid = videos_base / "wolf" / "listening_transparent.webm"
-            if not w_listen_vid.exists():
-                w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
-                
-            w_speak_vid = videos_base / "wolf" / "speaking_transparent.mov"
-            if not w_speak_vid.exists():
-                w_speak_vid = videos_base / "wolf" / "speaking_transparent.webm"
-            if not w_speak_vid.exists():
-                w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
-                
-            w_gest_vid = videos_base / "wolf" / "gesture_transparent.mov"
-            if not w_gest_vid.exists():
-                w_gest_vid = videos_base / "wolf" / "gesture_transparent.webm"
-            if not w_gest_vid.exists():
-                w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
-            
-            cmd_avatar_inputs = [
-                "-stream_loop", "-1", "-i", str(w_listen_vid),
-                "-stream_loop", "-1", "-i", str(w_speak_vid),
-                "-stream_loop", "-1", "-i", str(w_gest_vid)
-            ]
-            
-            # 16:9 Widescreen Full-Screen Documentary Layout with True Alpha Host (Wolf) Cutout
-            wolf_av_w = 480
-            wolf_av_h = 800
-            wolf_x = 40
-            wolf_y = 280
-            
-            wolf_av_filter = (
-                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_idle];"
-                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_spk];"
-                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_gst];"
-                f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
-                f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[wolf_av]"
-            )
+            # 16:9 Widescreen Full-Screen Documentary Layout (Clean, No Avatars)
             v_filter = (
-                f"{wolf_av_filter};"
                 f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=contrast=1.02:brightness=-0.02[full_doc_bg];"
-                f"[full_doc_bg][wolf_av]overlay={wolf_x}:{wolf_y}[bg_with_host];"
-                f"[bg_with_host]drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
+                f"[full_doc_bg]drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
                 f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54,"
                 f"drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
                 f"ass={ass_filter_path}[v]"
@@ -3070,65 +3040,19 @@ def render_studio_visualizer_short(
             game_idx = curr_inp_idx
             curr_inp_idx += 1
             
-            w_idle_idx = curr_inp_idx
-            w_spk_idx = curr_inp_idx + 1
-            w_gst_idx = curr_inp_idx + 2
-            curr_inp_idx += 3
-            
-            videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
-            w_listen_vid = videos_base / "wolf" / "listening_transparent.mov"
-            if not w_listen_vid.exists():
-                w_listen_vid = videos_base / "wolf" / "listening_transparent.webm"
-            if not w_listen_vid.exists():
-                w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
-                
-            w_speak_vid = videos_base / "wolf" / "speaking_transparent.mov"
-            if not w_speak_vid.exists():
-                w_speak_vid = videos_base / "wolf" / "speaking_transparent.webm"
-            if not w_speak_vid.exists():
-                w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
-                
-            w_gest_vid = videos_base / "wolf" / "gesture_transparent.mov"
-            if not w_gest_vid.exists():
-                w_gest_vid = videos_base / "wolf" / "gesture_transparent.webm"
-            if not w_gest_vid.exists():
-                w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
-            
             game_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
-            
             cmd_avatar_inputs = [
                 "-ss", f"{game_start:.2f}",
-                "-stream_loop", "-1", "-i", str(bg_path),
-                "-stream_loop", "-1", "-i", str(w_listen_vid),
-                "-stream_loop", "-1", "-i", str(w_speak_vid),
-                "-stream_loop", "-1", "-i", str(w_gest_vid)
+                "-stream_loop", "-1", "-i", str(bg_path)
             ]
             
             # 9:16 Vertical Portrait Layout (1080x1920):
             # Top half (1080x960): Series topic photos & research timeline
-            # Bottom half (1080x960): Subway Surfers gameplay + transparent Wolf avatar overlay
-            wolf_av_w = 460
-            wolf_av_h = 820
-            wolf_x = 310
-            wolf_y = 70
-            
-            wolf_av_filter = (
-                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_idle];"
-                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_spk];"
-                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_gst];"
-                f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
-                f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[wolf_av]"
-            )
-            top_doc_filter = (
-                f"[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.02:brightness=-0.02[top_doc]"
-            )
-            bot_game_filter = (
-                f"[{game_idx}:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.04:brightness=-0.02[bot_game];"
-                f"[bot_game][wolf_av]overlay={wolf_x}:{wolf_y}[bot_with_wolf]"
-            )
+            # Bottom half (1080x960): Subway Surfers gameplay video
             v_filter = (
-                f"{wolf_av_filter};{top_doc_filter};{bot_game_filter};"
-                f"[top_doc][bot_with_wolf]vstack[stacked];"
+                f"[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.02:brightness=-0.02[top_doc];"
+                f"[{game_idx}:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.04:brightness=-0.02[bot_game];"
+                f"[top_doc][bot_game]vstack[stacked];"
                 f"[stacked]drawbox=y=956:color=#00D2FF@0.9:width=iw:height=8:t=fill,"
                 f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
                 f"ass={ass_filter_path}[v]"
