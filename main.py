@@ -2264,11 +2264,10 @@ def get_sfx_info(sfx_name: str = "whoosh") -> Path:
     return sfx_path if sfx_path.exists() else None
 
 
-def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list = None, target_count: int = 6) -> list:
+def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list = None, target_count: int = 10) -> list:
     """
-    Fetches real topic photos, scientific diagrams, and generates editorial article cards
-    from the web (Wikipedia PageImages, Wikimedia Commons, Pexels API, and Pollinations AI Flux)
-    for 16:9 documentary-style landscape videos.
+    Fetches a rich collection of authentic topic photos, scientific diagrams, and generates multiple
+    editorial research cards from Wikipedia PageImages, Wikimedia Commons, Pexels, and Pollinations Flux.
     """
     import urllib.request
     import urllib.parse
@@ -2299,25 +2298,29 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
             keywords.append(w)
         
     if transcript_segments:
-        combined_text = " ".join(seg.get("text", "") for seg in transcript_segments[:8])
+        combined_text = " ".join(seg.get("text", "") for seg in transcript_segments[:12])
         # Extract named entities or specific technical terms
         proper_nouns = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b", combined_text)
-        for pn in proper_nouns[:6]:
+        for pn in proper_nouns[:8]:
             if len(pn) > 3 and pn.lower() not in ["welcome", "part", "shorts", "subscribe", "today", "explore", "reveal", "hit", "like"]:
                 if pn not in keywords:
                     keywords.append(pn)
 
-    images = []
+    real_photos = []
+    article_cards = []
+    ai_photos = []
     seen_urls = set()
+    
+    user_agent = "AutoClipperDocumentary/1.0 (https://github.com/loobah18-arch/auto-clipper-shorts; loobah18-arch@users.noreply.github.com)"
     
     # 1. Search Wikipedia PageImages API (Direct authentic Wikipedia lead article photos)
     for kw in keywords:
-        if len(images) >= target_count - 2:
+        if len(real_photos) >= max(6, target_count - 2):
             break
         try:
             enc = urllib.parse.quote(kw)
-            url = f"https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch={enc}&gsrlimit=5&prop=pageimages&pithumbsize=1920&format=json"
-            req = urllib.request.Request(url, headers={"User-Agent": "AutoClipperDocumentary/1.0 (https://github.com/loobah18-arch)"})
+            url = f"https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch={enc}&gsrlimit=8&prop=pageimages&pithumbsize=1280&format=json"
+            req = urllib.request.Request(url, headers={"User-Agent": user_agent})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 pages = data.get("query", {}).get("pages", {})
@@ -2325,30 +2328,30 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
                     thumb = page.get("thumbnail", {}).get("source")
                     if thumb and thumb not in seen_urls:
                         seen_urls.add(thumb)
-                        img_dest = vis_dir / f"wiki_lead_{len(images)}_{abs(hash(thumb)) % 10000}.jpg"
+                        img_dest = vis_dir / f"wiki_lead_{len(real_photos)}_{abs(hash(thumb)) % 10000}.jpg"
                         try:
-                            d_req = urllib.request.Request(thumb, headers={"User-Agent": "AutoClipperDocumentary/1.0"})
+                            d_req = urllib.request.Request(thumb, headers={"User-Agent": user_agent})
                             with urllib.request.urlopen(d_req, timeout=10) as im_resp:
                                 with open(img_dest, "wb") as f:
                                     f.write(im_resp.read())
                             if img_dest.exists() and img_dest.stat().st_size > 15000:
-                                images.append(img_dest)
+                                real_photos.append(img_dest)
                                 log(f"📸 Fetched real Wikipedia photo ({page.get('title', kw)}): {img_dest.name} ({img_dest.stat().st_size // 1024} KB)")
-                                if len(images) >= target_count - 2:
+                                if len(real_photos) >= max(6, target_count - 2):
                                     break
                         except Exception:
                             pass
         except Exception as we:
             log(f"Wikipedia search notice ({kw}): {we}")
 
-    # 2. Search Wikimedia Commons for authentic high-res public domain images
+    # 2. Search Wikimedia Commons for authentic high-res public domain images & diagrams
     for kw in keywords:
-        if len(images) >= target_count - 2:
+        if len(real_photos) >= max(8, target_count - 2):
             break
         try:
             enc = urllib.parse.quote(kw)
-            url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch={enc}&gsrlimit=5&prop=imageinfo&iiprop=url|mime|size&format=json"
-            req = urllib.request.Request(url, headers={"User-Agent": "AutoClipperDocumentary/1.0 (https://github.com/loobah18-arch)"})
+            url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch={enc}&gsrlimit=8&prop=imageinfo&iiprop=url|mime|size&format=json"
+            req = urllib.request.Request(url, headers={"User-Agent": user_agent})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 pages = data.get("query", {}).get("pages", {})
@@ -2361,16 +2364,16 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
                         is_valid_img = "image/" in mime or any(clean_path.endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"])
                         if img_url and is_valid_img and img_url not in seen_urls:
                             seen_urls.add(img_url)
-                            img_dest = vis_dir / f"commons_{len(images)}_{abs(hash(img_url)) % 10000}.jpg"
+                            img_dest = vis_dir / f"commons_{len(real_photos)}_{abs(hash(img_url)) % 10000}.jpg"
                             try:
-                                d_req = urllib.request.Request(img_url, headers={"User-Agent": "AutoClipperDocumentary/1.0"})
+                                d_req = urllib.request.Request(img_url, headers={"User-Agent": user_agent})
                                 with urllib.request.urlopen(d_req, timeout=10) as im_resp:
                                     with open(img_dest, "wb") as f:
                                         f.write(im_resp.read())
                                 if img_dest.exists() and img_dest.stat().st_size > 15000:
-                                    images.append(img_dest)
+                                    real_photos.append(img_dest)
                                     log(f"📸 Fetched real Wikimedia Commons photo ({kw}): {img_dest.name} ({img_dest.stat().st_size // 1024} KB)")
-                                    if len(images) >= target_count - 2:
+                                    if len(real_photos) >= max(8, target_count - 2):
                                         break
                             except Exception:
                                 pass
@@ -2379,10 +2382,10 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
 
     # 3. Pexels API (if PEXELS_API_KEY is configured in env)
     pexels_key = os.environ.get("PEXELS_API_KEY")
-    if pexels_key and len(images) < target_count - 1:
+    if pexels_key and len(real_photos) < target_count - 2:
         try:
             enc = urllib.parse.quote(clean_topic)
-            p_url = f"https://api.pexels.com/v1/search?query={enc}&orientation=landscape&per_page=3"
+            p_url = f"https://api.pexels.com/v1/search?query={enc}&orientation=landscape&per_page=4"
             p_req = urllib.request.Request(p_url, headers={"Authorization": pexels_key})
             with urllib.request.urlopen(p_req, timeout=8) as p_resp:
                 p_data = json.loads(p_resp.read().decode("utf-8"))
@@ -2390,64 +2393,98 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
                     src_url = photo.get("src", {}).get("large2x") or photo.get("src", {}).get("large")
                     if src_url and src_url not in seen_urls:
                         seen_urls.add(src_url)
-                        p_dest = vis_dir / f"pexels_{len(images)}.jpg"
+                        p_dest = vis_dir / f"pexels_{len(real_photos)}.jpg"
                         with urllib.request.urlopen(urllib.request.Request(src_url), timeout=10) as im_r:
                             with open(p_dest, "wb") as f:
                                 f.write(im_r.read())
                         if p_dest.exists() and p_dest.stat().st_size > 15000:
-                            images.append(p_dest)
+                            real_photos.append(p_dest)
                             log(f"📸 Fetched Pexels documentary image: {p_dest.name}")
         except Exception as pe:
             log(f"Pexels search notice: {pe}")
 
-    # 3. Generate High-End Editorial News & Research Article Cards (1920x1080)
+    # 4. Generate High-End Editorial News & Research Article Cards (1920x1080)
     headline_clean = (clean_topic or "BREAKTHROUGH REPORT").upper()[:48].replace("'", "").replace(":", " ")
-    sample_quote = "Empirical analysis and real-world findings from leading technology investigations."
-    if transcript_segments and len(transcript_segments) > 1:
-        seg_text = transcript_segments[1].get("text", "")
-        if seg_text:
-            sample_quote = seg_text[:110].replace("'", "").replace(":", " ")
-            
-    card_path = vis_dir / f"article_card_{len(images)}.jpg"
-    card_cmd = [
-        "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#0d1117:s=1920x1080:d=1",
-        "-vf", (
-            "drawbox=x=60:y=60:w=1800:h=960:color=#161b22:t=fill,"
-            "drawbox=x=60:y=60:w=1800:h=960:color=#30363d:t=2,"
-            "drawbox=x=100:y=90:w=260:h=40:color=#006ee6:t=fill,"
-            "drawtext=text='RESEARCH BRIEFING':fontcolor=white:fontsize=22:x=120:y=100,"
-            "drawtext=text='VERIFIED DOCUMENTARY ⚡':fontcolor=#8b949e:fontsize=20:x=1520:y=100,"
-            "drawbox=x=100:y=160:w=1720:h=2:color=#30363d:t=fill,"
-            f"drawtext=text='{headline_clean}':fontcolor=white:fontsize=46:x=100:y=200,"
-            "drawbox=x=100:y=300:w=1720:h=480:color=#0d1117:t=fill,"
-            "drawbox=x=100:y=300:w=1720:h=480:color=#30363d:t=1,"
-            "drawbox=x=130:y=340:w=8:h=400:color=#00d2ff:t=fill,"
-            "drawtext=text='KEY FINDINGS & ANALYSIS':fontcolor=#00d2ff:fontsize=26:x=160:y=350,"
-            f"drawtext=text='{sample_quote}':fontcolor=#c9d1d9:fontsize=30:x=160:y=420"
-        ),
-        "-frames:v", "1", str(card_path)
+    
+    card_configs = [
+        {
+            "tag": "RESEARCH BRIEFING",
+            "tag_color": "#006ee6",
+            "accent_color": "#00d2ff",
+            "sub_title": "KEY FINDINGS & ANALYSIS",
+            "quote": "Empirical analysis and real-world findings from leading technology investigations.",
+            "suffix": "briefing"
+        },
+        {
+            "tag": "TECHNICAL ARCHIVE",
+            "tag_color": "#238636",
+            "accent_color": "#3fb950",
+            "sub_title": "SYSTEM ARCHITECTURE & ROOT CAUSE",
+            "quote": "In-depth breakdown of critical parameters, failure modes, and architectural designs.",
+            "suffix": "technical"
+        },
+        {
+            "tag": "INCIDENT DATA REPORT",
+            "tag_color": "#d29922",
+            "accent_color": "#f0883e",
+            "sub_title": "DOCUMENTARY RECORD & METRICS",
+            "quote": "Chronological assessment of core systems, telemetry metrics, and final conclusions.",
+            "suffix": "incident"
+        }
     ]
-    try:
-        subprocess.run(card_cmd, capture_output=True, check=True)
-        if card_path.exists():
-            images.append(card_path)
-            log(f"📰 Generated editorial news card: {card_path.name}")
-    except Exception as ce:
-        log(f"Article card generation notice: {ce}")
+    
+    # Enrich quotes from transcript if available
+    if transcript_segments:
+        if len(transcript_segments) > 0 and transcript_segments[0].get("text"):
+            card_configs[0]["quote"] = transcript_segments[0].get("text")[:115].replace("'", "").replace(":", " ")
+        if len(transcript_segments) > 1 and transcript_segments[1].get("text"):
+            card_configs[1]["quote"] = transcript_segments[1].get("text")[:115].replace("'", "").replace(":", " ")
+        if len(transcript_segments) > 2 and transcript_segments[2].get("text"):
+            card_configs[2]["quote"] = transcript_segments[2].get("text")[:115].replace("'", "").replace(":", " ")
 
-    # 4. If we need more visuals, fetch Photorealistic Flux visual via Pollinations AI
-    while len(images) < min(target_count, 4):
-        idx = len(images)
+    num_cards_to_generate = max(1, min(3, target_count // 3))
+    for c_idx in range(num_cards_to_generate):
+        cfg = card_configs[c_idx]
+        card_path = vis_dir / f"article_card_{cfg['suffix']}_{abs(hash(clean_topic + cfg['tag'])) % 10000}.jpg"
+        card_cmd = [
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#0d1117:s=1920x1080:d=1",
+            "-vf", (
+                "drawbox=x=60:y=60:w=1800:h=960:color=#161b22:t=fill,"
+                "drawbox=x=60:y=60:w=1800:h=960:color=#30363d:t=2,"
+                f"drawbox=x=100:y=90:w=280:h=40:color={cfg['tag_color']}:t=fill,"
+                f"drawtext=text='{cfg['tag']}':fontcolor=white:fontsize=22:x=120:y=100,"
+                "drawtext=text='VERIFIED DOCUMENTARY ⚡':fontcolor=#8b949e:fontsize=20:x=1520:y=100,"
+                "drawbox=x=100:y=160:w=1720:h=2:color=#30363d:t=fill,"
+                f"drawtext=text='{headline_clean}':fontcolor=white:fontsize=46:x=100:y=200,"
+                "drawbox=x=100:y=300:w=1720:h=480:color=#0d1117:t=fill,"
+                "drawbox=x=100:y=300:w=1720:h=480:color=#30363d:t=1,"
+                f"drawbox=x=130:y=340:w=8:h=400:color={cfg['accent_color']}:t=fill,"
+                f"drawtext=text='{cfg['sub_title']}':fontcolor={cfg['accent_color']}:fontsize=26:x=160:y=350,"
+                f"drawtext=text='{cfg['quote']}':fontcolor=#c9d1d9:fontsize=30:x=160:y=420"
+            ),
+            "-frames:v", "1", str(card_path)
+        ]
+        try:
+            subprocess.run(card_cmd, capture_output=True, check=True)
+            if card_path.exists():
+                article_cards.append(card_path)
+                log(f"📰 Generated editorial news card ({cfg['tag']}): {card_path.name}")
+        except Exception as ce:
+            log(f"Article card generation notice: {ce}")
+
+    # 5. If we need more visuals, fetch Photorealistic Flux visual via Pollinations AI
+    while (len(real_photos) + len(article_cards) + len(ai_photos)) < min(target_count, 6):
+        idx = len(ai_photos)
         poll_prompt = urllib.parse.quote(f"cinematic photorealistic 16:9 documentary footage of {clean_topic} in modern high tech laboratory, 8k resolution, National Geographic style")
         poll_url = f"https://image.pollinations.ai/prompt/{poll_prompt}?width=1920&height=1080&nologo=true&enhance=false&model=flux"
-        poll_dest = vis_dir / f"poll_flux_{idx}.jpg"
+        poll_dest = vis_dir / f"poll_flux_{idx}_{abs(hash(clean_topic)) % 10000}.jpg"
         try:
             req = urllib.request.Request(poll_url, headers={"User-Agent": "AutoClipperBot/1.0"})
             with urllib.request.urlopen(req, timeout=15) as p_resp:
                 with open(poll_dest, "wb") as f:
                     f.write(p_resp.read())
             if poll_dest.exists() and poll_dest.stat().st_size > 15000:
-                images.append(poll_dest)
+                ai_photos.append(poll_dest)
                 log(f"🎨 Generated 16:9 contextual documentary visual: {poll_dest.name}")
             else:
                 break
@@ -2455,8 +2492,24 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
             log(f"Pollinations visual notice: {e}")
             break
 
+    # 6. Interleave Real Photos with Editorial Cards and AI visuals
+    final_images = []
+    photo_pool = real_photos + ai_photos
+    p_idx = 0
+    c_idx = 0
+    while p_idx < len(photo_pool) or c_idx < len(article_cards):
+        # Add 2 photos
+        for _ in range(2):
+            if p_idx < len(photo_pool):
+                final_images.append(photo_pool[p_idx])
+                p_idx += 1
+        # Add 1 article card
+        if c_idx < len(article_cards):
+            final_images.append(article_cards[c_idx])
+            c_idx += 1
+            
     # Fallback to at least one generated card if everything failed
-    if not images:
+    if not final_images:
         fallback_card = vis_dir / "fallback_article_card.jpg"
         fb_cmd = [
             "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#0d1117:s=1920x1080:d=1",
@@ -2467,9 +2520,9 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
             "-frames:v", "1", str(fallback_card)
         ]
         subprocess.run(fb_cmd, capture_output=True, check=True)
-        images.append(fallback_card)
+        final_images.append(fallback_card)
 
-    return images
+    return final_images[:target_count]
 
 
 def build_topic_documentary_timeline(
@@ -2477,7 +2530,7 @@ def build_topic_documentary_timeline(
     transcript_segments: list = None,
     duration: float = 10.0,
     output_path: Path = None,
-    target_count: int = 5
+    target_count: int = None
 ) -> Path:
     """
     Builds a concatenated Ken Burns video of real Wikipedia lead photos,
@@ -2491,7 +2544,7 @@ def build_topic_documentary_timeline(
         except Exception:
             pass
         
-    calc_target = max(3, min(8, int(duration // 8))) if target_count is None else target_count
+    calc_target = max(6, min(16, int(duration // 3.2))) if (target_count is None or target_count <= 5) else target_count
     images = fetch_topic_documentary_visuals(topic_title, transcript_segments, target_count=calc_target)
     
     temp_dir = Path(tempfile.gettempdir()) / f"doc_build_{output_path.stem}_{abs(hash(topic_title)) % 10000}"
@@ -2504,12 +2557,25 @@ def build_topic_documentary_timeline(
     seg_videos = []
     for idx, img_path in enumerate(images):
         seg_vid = temp_dir / f"seg_{idx}.mp4"
-        if idx % 2 == 0:
+        
+        # Varied dynamic Ken Burns motion: zoom-in, zoom-out, pan-left, pan-right
+        motion_type = idx % 4
+        if motion_type == 0:
             zoom_expr = "min(zoom+0.0006,1.15)"
-        else:
+            x_expr = "iw/2-(iw/zoom/2)"
+            y_expr = "ih/2-(ih/zoom/2)"
+        elif motion_type == 1:
             zoom_expr = "max(1.15-0.0006*on,1.0)"
-        x_expr = "iw/2-(iw/zoom/2)"
-        y_expr = "ih/2-(ih/zoom/2)"
+            x_expr = "iw/2-(iw/zoom/2)"
+            y_expr = "ih/2-(ih/zoom/2)"
+        elif motion_type == 2:
+            zoom_expr = "1.08"
+            x_expr = "(iw-iw/zoom)*(on/d)"
+            y_expr = "ih/2-(ih/zoom/2)"
+        else:
+            zoom_expr = "1.08"
+            x_expr = "(iw-iw/zoom)*(1-on/d)"
+            y_expr = "ih/2-(ih/zoom/2)"
             
         cmd_seg = [
             "ffmpeg", "-y",
