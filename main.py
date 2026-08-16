@@ -3020,13 +3020,21 @@ def render_studio_visualizer_short(
             curr_inp_idx += 3
             
             videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
-            w_listen_vid = videos_base / "wolf" / "listening_transparent.webm"
+            w_listen_vid = videos_base / "wolf" / "listening_transparent.mov"
+            if not w_listen_vid.exists():
+                w_listen_vid = videos_base / "wolf" / "listening_transparent.webm"
             if not w_listen_vid.exists():
                 w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
-            w_speak_vid = videos_base / "wolf" / "speaking_transparent.webm"
+                
+            w_speak_vid = videos_base / "wolf" / "speaking_transparent.mov"
+            if not w_speak_vid.exists():
+                w_speak_vid = videos_base / "wolf" / "speaking_transparent.webm"
             if not w_speak_vid.exists():
                 w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
-            w_gest_vid = videos_base / "wolf" / "gesture_transparent.webm"
+                
+            w_gest_vid = videos_base / "wolf" / "gesture_transparent.mov"
+            if not w_gest_vid.exists():
+                w_gest_vid = videos_base / "wolf" / "gesture_transparent.webm"
             if not w_gest_vid.exists():
                 w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
             
@@ -3043,9 +3051,9 @@ def render_studio_visualizer_short(
             wolf_y = 280
             
             wolf_av_filter = (
-                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,setsar=1[w_idle];"
-                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,setsar=1[w_spk];"
-                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,setsar=1[w_gst];"
+                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_idle];"
+                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_spk];"
+                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_gst];"
                 f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
                 f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[wolf_av]"
             )
@@ -3059,54 +3067,68 @@ def render_studio_visualizer_short(
                 f"ass={ass_filter_path}[v]"
             )
         else:
+            game_idx = curr_inp_idx
+            curr_inp_idx += 1
+            
             w_idle_idx = curr_inp_idx
             w_spk_idx = curr_inp_idx + 1
             w_gst_idx = curr_inp_idx + 2
-            l_idle_idx = curr_inp_idx + 3
-            l_shk_idx = curr_inp_idx + 4
-            curr_inp_idx += 5
+            curr_inp_idx += 3
             
             videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
-            w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
-            w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
-            w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
-            l_listen_vid = videos_base / "lion" / "listening_not_shocking_facing_left.mp4"
-            l_shock_vid = videos_base / "lion" / "shocked_reaction_facing_left.mp4"
+            w_listen_vid = videos_base / "wolf" / "listening_transparent.mov"
+            if not w_listen_vid.exists():
+                w_listen_vid = videos_base / "wolf" / "listening_transparent.webm"
+            if not w_listen_vid.exists():
+                w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
+                
+            w_speak_vid = videos_base / "wolf" / "speaking_transparent.mov"
+            if not w_speak_vid.exists():
+                w_speak_vid = videos_base / "wolf" / "speaking_transparent.webm"
+            if not w_speak_vid.exists():
+                w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
+                
+            w_gest_vid = videos_base / "wolf" / "gesture_transparent.mov"
+            if not w_gest_vid.exists():
+                w_gest_vid = videos_base / "wolf" / "gesture_transparent.webm"
+            if not w_gest_vid.exists():
+                w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
+            
+            game_start = random.uniform(0.0, max(0.0, bg_dur - duration - 1.0))
             
             cmd_avatar_inputs = [
+                "-ss", f"{game_start:.2f}",
+                "-stream_loop", "-1", "-i", str(bg_path),
                 "-stream_loop", "-1", "-i", str(w_listen_vid),
                 "-stream_loop", "-1", "-i", str(w_speak_vid),
-                "-stream_loop", "-1", "-i", str(w_gest_vid),
-                "-stream_loop", "-1", "-i", str(l_listen_vid),
-                "-stream_loop", "-1", "-i", str(l_shock_vid)
+                "-stream_loop", "-1", "-i", str(w_gest_vid)
             ]
             
-            # 9:16 Vertical Portrait Studio Layout (1080x1920)
-            left_av_filter = (
-                f"[{w_idle_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_idle];"
-                f"[{w_spk_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_spk];"
-                f"[{w_gst_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[w_gst];"
+            # 9:16 Vertical Portrait Layout (1080x1920):
+            # Top half (1080x960): Series topic photos & research timeline
+            # Bottom half (1080x960): Subway Surfers gameplay + transparent Wolf avatar overlay
+            wolf_av_w = 460
+            wolf_av_h = 820
+            wolf_x = 310
+            wolf_y = 70
+            
+            wolf_av_filter = (
+                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_idle];"
+                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_spk];"
+                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_gst];"
                 f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
-                f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[left_av]"
+                f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[wolf_av]"
             )
-            right_av_filter = (
-                f"[{l_idle_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[l_idle];"
-                f"[{l_shk_idx}:v]scale=500:940:force_original_aspect_ratio=increase,crop=500:940,setsar=1[l_shk];"
-                f"[l_idle][l_shk]overlay=0:0:enable='{lion_shock_cond}'[right_av]"
+            top_doc_filter = (
+                f"[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.02:brightness=-0.02[top_doc]"
             )
-            top_filter = (
-                f"{left_av_filter};{right_av_filter};"
-                f"color=c=#1A1C22:s=1080x960[studio_bg];"
-                f"[studio_bg][left_av]overlay=25:10[top_with_left];"
-                f"[top_with_left][right_av]overlay=555:10[top_both];"
-                f"[top_both]drawbox=x=538:y=0:w=4:h=960:color=#00D2FF@0.3:t=fill,"
-                f"drawbox=x=23:y=8:w=504:h=944:color=#00D2FF@0.85:t=4:enable='{spk_host}',"
-                f"drawbox=x=553:y=8:w=504:h=944:color=#FF0055@0.95:t=6:enable='{lion_shock_cond}'[top_glow]"
+            bot_game_filter = (
+                f"[{game_idx}:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.04:brightness=-0.02[bot_game];"
+                f"[bot_game][wolf_av]overlay={wolf_x}:{wolf_y}[bot_with_wolf]"
             )
             v_filter = (
-                f"{top_filter};"
-                f"[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,eq=contrast=1.04:brightness=-0.04[bot];"
-                f"[top_glow][bot]vstack[stacked];"
+                f"{wolf_av_filter};{top_doc_filter};{bot_game_filter};"
+                f"[top_doc][bot_with_wolf]vstack[stacked];"
                 f"[stacked]drawbox=y=956:color=#00D2FF@0.9:width=iw:height=8:t=fill,"
                 f"drawbox=y=1905:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
                 f"ass={ass_filter_path}[v]"
