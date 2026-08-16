@@ -3030,16 +3030,16 @@ def render_studio_visualizer_short(
                 "-stream_loop", "-1", "-i", str(w_gest_vid)
             ]
             
-            # 16:9 Widescreen Full-Screen Documentary Layout with Host (Wolf) Overlay
-            wolf_av_w = 420
-            wolf_av_h = 580
-            wolf_x = 60
-            wolf_y = 440
+            # 16:9 Widescreen Full-Screen Documentary Layout with Transparent Host (Wolf) Cutout
+            wolf_av_w = 480
+            wolf_av_h = 800
+            wolf_x = 40
+            wolf_y = 280
             
             wolf_av_filter = (
-                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_idle];"
-                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_spk];"
-                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},setsar=1[w_gst];"
+                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,colorkey=0x161b20:0.13:0.06[w_idle];"
+                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,colorkey=0x161b20:0.13:0.06[w_spk];"
+                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,colorkey=0x161b20:0.13:0.06[w_gst];"
                 f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
                 f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[wolf_av]"
             )
@@ -3047,8 +3047,7 @@ def render_studio_visualizer_short(
                 f"{wolf_av_filter};"
                 f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=contrast=1.02:brightness=-0.02[full_doc_bg];"
                 f"[full_doc_bg][wolf_av]overlay={wolf_x}:{wolf_y}[bg_with_host];"
-                f"[bg_with_host]drawbox=x={wolf_x-4}:y={wolf_y-4}:w={wolf_av_w+8}:h={wolf_av_h+8}:color=#00D2FF@0.9:t=4:enable='{spk_host}',"
-                f"drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
+                f"[bg_with_host]drawbox=x=40:y=40:w=640:h=56:color=black@0.75:t=fill,"
                 f"drawtext=text='{badge_text}':fontcolor=white:fontsize=28:{font_opt}:x=60:y=54,"
                 f"drawbox=y=1068:color=#00D2FF@0.9:width='iw*(t/{dur_str})':height=10:t=fill,"
                 f"ass={ass_filter_path}[v]"
