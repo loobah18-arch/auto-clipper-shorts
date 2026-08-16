@@ -3020,9 +3020,15 @@ def render_studio_visualizer_short(
             curr_inp_idx += 3
             
             videos_base = Path(__file__).resolve().parent / "assets" / "videos" / "avatars"
-            w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
-            w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
-            w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
+            w_listen_vid = videos_base / "wolf" / "listening_transparent.webm"
+            if not w_listen_vid.exists():
+                w_listen_vid = videos_base / "wolf" / "listening_not_shocking_facing_right.mp4"
+            w_speak_vid = videos_base / "wolf" / "speaking_transparent.webm"
+            if not w_speak_vid.exists():
+                w_speak_vid = videos_base / "wolf" / "speaking_facing_right.mp4"
+            w_gest_vid = videos_base / "wolf" / "gesture_transparent.webm"
+            if not w_gest_vid.exists():
+                w_gest_vid = videos_base / "wolf" / "gesture_speaking_facing_right.mp4"
             
             cmd_avatar_inputs = [
                 "-stream_loop", "-1", "-i", str(w_listen_vid),
@@ -3030,16 +3036,16 @@ def render_studio_visualizer_short(
                 "-stream_loop", "-1", "-i", str(w_gest_vid)
             ]
             
-            # 16:9 Widescreen Full-Screen Documentary Layout with Transparent Host (Wolf) Cutout
+            # 16:9 Widescreen Full-Screen Documentary Layout with True Alpha Host (Wolf) Cutout
             wolf_av_w = 480
             wolf_av_h = 800
             wolf_x = 40
             wolf_y = 280
             
             wolf_av_filter = (
-                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,colorkey=0x161b20:0.13:0.06[w_idle];"
-                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,colorkey=0x161b20:0.13:0.06[w_spk];"
-                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,colorkey=0x161b20:0.13:0.06[w_gst];"
+                f"[{w_idle_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,setsar=1[w_idle];"
+                f"[{w_spk_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,setsar=1[w_spk];"
+                f"[{w_gst_idx}:v]scale={wolf_av_w}:{wolf_av_h}:force_original_aspect_ratio=increase,crop={wolf_av_w}:{wolf_av_h},format=yuva420p,setsar=1[w_gst];"
                 f"[w_idle][w_spk]overlay=0:0:enable='{spk_host}'[w_base];"
                 f"[w_base][w_gst]overlay=0:0:enable='{wolf_gesture_cond}'[wolf_av]"
             )
