@@ -551,6 +551,46 @@ def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
     return None
 
 
+def fetch_live_tech_milestones_and_research() -> list:
+    """
+    Fetches real-world research breakthroughs and historical milestones from public APIs (arXiv & Wikipedia On-This-Day)
+    to provide dynamic, authentic real-world inspiration for AI technical series generation.
+    """
+    inspirations = []
+    # 1. Wikipedia 'On This Day' in Tech & Science (zero-key public REST API)
+    try:
+        now = datetime.now(timezone.utc)
+        url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/selected/{now.month:02d}/{now.day:02d}"
+        req = urllib.request.Request(url, headers={"User-Agent": "AutoClipperResearch/1.0 (https://github.com/loobah18-arch)"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            data = json.loads(r.read().decode("utf-8"))
+            for ev in data.get("selected", [])[:8]:
+                txt = ev.get("text", "")
+                yr = ev.get("year", "")
+                if any(w in txt.lower() for w in ["computer", "space", "launch", "satellite", "physics", "internet", "robot", "radio", "telescope", "flight", "discovery", "system", "engine", "network", "electric", "code"]):
+                    inspirations.append(f"Historical Tech Milestone ({yr}): {txt}")
+    except Exception:
+        pass
+
+    # 2. arXiv Computer Science, Quantum & Cryptography Research Papers (zero-key open API)
+    try:
+        import xml.etree.ElementTree as ET
+        url = "http://export.arxiv.org/api/query?search_query=cat:cs.CR+OR+cat:quant-ph+OR+cat:cs.AR&start=0&max_results=3"
+        req = urllib.request.Request(url, headers={"User-Agent": "AutoClipperResearch/1.0"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            xml_data = r.read().decode("utf-8")
+            root = ET.fromstring(xml_data)
+            ns = {"atom": "http://www.w3.org/2005/Atom"}
+            for entry in root.findall("atom:entry", ns)[:3]:
+                title = entry.find("atom:title", ns).text.strip().replace("\n", " ")
+                summary = entry.find("atom:summary", ns).text.strip().replace("\n", " ")[:120]
+                inspirations.append(f"arXiv Research Paper: '{title}' - {summary}")
+    except Exception:
+        pass
+
+    return inspirations
+
+
 def generate_dynamic_series_with_groq(history: dict = None) -> dict:
     """
     Generates an in-depth, thorough 3-to-4 part mini-documentary series (2.5-3 minutes per video, no word cap) on ONE technical topic:
@@ -562,6 +602,12 @@ def generate_dynamic_series_with_groq(history: dict = None) -> dict:
     past_topics = []
     if history:
         past_topics = history.get("ai_past_topics", [])[-15:]
+
+    # Live public research & milestone context
+    live_context = fetch_live_tech_milestones_and_research()
+    research_context_str = ""
+    if live_context:
+        research_context_str = f"\nOptional Real-World Research Context & Historical Milestones:\n" + "\n".join(f"- {c}" for c in live_context) + "\n"
 
     system_prompt = (
         "You are an elite, world-class technical documentary storyteller (like Veritasium, Fireship, and Kurzgesagt).\n"
@@ -578,7 +624,7 @@ def generate_dynamic_series_with_groq(history: dict = None) -> dict:
     )
 
     user_prompt = f"""
-Generate an in-depth 3-Part Tech Masterclass Series with full 2.5-3 minute depth per video (~350-420 words per part).
+Generate an in-depth 3-Part Tech Masterclass Series with full 2.5-3 minute depth per video (~350-420 words per part).{research_context_str}
 Avoid repeating any of these recent topics: {json.dumps(past_topics)}
 
 JSON Output Schema:

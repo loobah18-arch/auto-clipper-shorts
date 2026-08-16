@@ -2497,6 +2497,31 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
         except Exception as pe:
             log(f"Pexels search notice: {pe}")
 
+    # 7. Query arXiv Open API for authentic peer-reviewed research papers & citations
+    arxiv_paper = None
+    try:
+        import xml.etree.ElementTree as ET
+        a_kw = keywords[0] if keywords else clean_topic
+        a_url = f"http://export.arxiv.org/api/query?search_query=all:{urllib.parse.quote(a_kw)}&start=0&max_results=1"
+        a_req = urllib.request.Request(a_url, headers={"User-Agent": user_agent})
+        with urllib.request.urlopen(a_req, timeout=8) as a_resp:
+            xml_data = a_resp.read().decode("utf-8")
+            root = ET.fromstring(xml_data)
+            ns = {"atom": "http://www.w3.org/2005/Atom"}
+            entry = root.find("atom:entry", ns)
+            if entry is not None:
+                p_title = entry.find("atom:title", ns).text.strip().replace("\n", " ")
+                p_summary = entry.find("atom:summary", ns).text.strip().replace("\n", " ")
+                p_id = entry.find("atom:id", ns).text.strip().split("/")[-1]
+                arxiv_paper = {
+                    "title": p_title[:65].replace("'", "").replace(":", " - "),
+                    "summary": p_summary[:115].replace("'", "").replace(":", " "),
+                    "id": p_id.replace(":", " ")
+                }
+                log(f"📚 Fetched real arXiv research citation: {arxiv_paper['title']} (arXiv:{arxiv_paper['id']})")
+    except Exception as ae:
+        log(f"arXiv search notice: {ae}")
+
     # 4. Generate High-End Editorial News & Research Article Cards (1920x1080)
     headline_clean = (clean_topic or "BREAKTHROUGH REPORT").upper()[:48].replace("'", "").replace(":", " ")
     
@@ -2505,8 +2530,9 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
             "tag": "RESEARCH BRIEFING",
             "tag_color": "#006ee6",
             "accent_color": "#00d2ff",
-            "sub_title": "KEY FINDINGS & ANALYSIS",
-            "quote": "Empirical analysis and real-world findings from leading technology investigations.",
+            "sub_title": f"PEER-REVIEWED RECORD • ARXIV {arxiv_paper['id']}" if arxiv_paper else "KEY FINDINGS & ANALYSIS",
+            "headline": arxiv_paper["title"].upper() if arxiv_paper else headline_clean,
+            "quote": arxiv_paper["summary"] if arxiv_paper else "Empirical analysis and real-world findings from leading technology investigations.",
             "suffix": "briefing"
         },
         {
@@ -2514,6 +2540,7 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
             "tag_color": "#238636",
             "accent_color": "#3fb950",
             "sub_title": "SYSTEM ARCHITECTURE & ROOT CAUSE",
+            "headline": headline_clean,
             "quote": "In-depth breakdown of critical parameters, failure modes, and architectural designs.",
             "suffix": "technical"
         },
@@ -2522,6 +2549,7 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
             "tag_color": "#d29922",
             "accent_color": "#f0883e",
             "sub_title": "DOCUMENTARY RECORD & METRICS",
+            "headline": headline_clean,
             "quote": "Chronological assessment of core systems, telemetry metrics, and final conclusions.",
             "suffix": "incident"
         }
@@ -2529,7 +2557,7 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
     
     # Enrich quotes from transcript if available
     if transcript_segments:
-        if len(transcript_segments) > 0 and transcript_segments[0].get("text"):
+        if not arxiv_paper and len(transcript_segments) > 0 and transcript_segments[0].get("text"):
             card_configs[0]["quote"] = transcript_segments[0].get("text")[:115].replace("'", "").replace(":", " ")
         if len(transcript_segments) > 1 and transcript_segments[1].get("text"):
             card_configs[1]["quote"] = transcript_segments[1].get("text")[:115].replace("'", "").replace(":", " ")
@@ -2540,21 +2568,25 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
     for c_idx in range(num_cards_to_generate):
         cfg = card_configs[c_idx]
         card_path = vis_dir / f"article_card_{cfg['suffix']}_{abs(hash(clean_topic + cfg['tag'])) % 10000}.jpg"
+        tag_str = cfg['tag'].replace("'", "").replace(":", " - ")
+        head_str = cfg['headline'].replace("'", "").replace(":", " - ")
+        sub_str = cfg['sub_title'].replace("'", "").replace(":", " - ")
+        quote_str = cfg['quote'].replace("'", "").replace(":", " - ")
         card_cmd = [
             "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#0d1117:s=1920x1080:d=1",
             "-vf", (
                 "drawbox=x=60:y=60:w=1800:h=960:color=#161b22:t=fill,"
                 "drawbox=x=60:y=60:w=1800:h=960:color=#30363d:t=2,"
                 f"drawbox=x=100:y=90:w=280:h=40:color={cfg['tag_color']}:t=fill,"
-                f"drawtext=text='{cfg['tag']}':fontcolor=white:fontsize=22:x=120:y=100,"
+                f"drawtext=text='{tag_str}':fontcolor=white:fontsize=22:x=120:y=100,"
                 "drawtext=text='VERIFIED DOCUMENTARY ⚡':fontcolor=#8b949e:fontsize=20:x=1520:y=100,"
                 "drawbox=x=100:y=160:w=1720:h=2:color=#30363d:t=fill,"
-                f"drawtext=text='{headline_clean}':fontcolor=white:fontsize=46:x=100:y=200,"
+                f"drawtext=text='{head_str}':fontcolor=white:fontsize=44:x=100:y=200,"
                 "drawbox=x=100:y=300:w=1720:h=480:color=#0d1117:t=fill,"
                 "drawbox=x=100:y=300:w=1720:h=480:color=#30363d:t=1,"
                 f"drawbox=x=130:y=340:w=8:h=400:color={cfg['accent_color']}:t=fill,"
-                f"drawtext=text='{cfg['sub_title']}':fontcolor={cfg['accent_color']}:fontsize=26:x=160:y=350,"
-                f"drawtext=text='{cfg['quote']}':fontcolor=#c9d1d9:fontsize=30:x=160:y=420"
+                f"drawtext=text='{sub_str}':fontcolor={cfg['accent_color']}:fontsize=26:x=160:y=350,"
+                f"drawtext=text='{quote_str}':fontcolor=#c9d1d9:fontsize=30:x=160:y=420"
             ),
             "-frames:v", "1", str(card_path)
         ]
