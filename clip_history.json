@@ -238,7 +238,7 @@
         "script": "So, what happens when things go wrong in the world of routing? One of the most famous examples is the 2008 BGP hijacking incident, in which a Pakistani ISP accidentally advertised a route to a major YouTube IP address, causing all YouTube traffic to be routed through their network. The result was a global outage of the YouTube service, with users around the world unable to access the site. But how did this happen? It all came down to a flaw in the BGP protocol, which allowed the Pakistani ISP to advertise a fake route to the YouTube IP address. The routers around the world believed this fake route, and started forwarding YouTube traffic to the Pakistani ISP, causing the outage. This incident highlights the importance of routing security, and the need for robust mechanisms to prevent this kind of attack. Today, routers use a variety of techniques to secure their routing tables, including authentication and encryption of routing information, as well as techniques like RPKI, which allows ISPs to verify the ownership of IP addresses. These techniques have greatly improved the security of the routing system, but there's still more work to be done. As the internet continues to evolve, with the growth of new technologies like 5G and IoT, the importance of secure and efficient routing will only continue to grow. In our next series, we'll be exploring the hidden mechanics of DNS query optimization algorithms, and how they're used to improve the performance of the internet. Stay tuned and make sure to like and subscribe!"
       }
     ],
-    "current_part_index": 1
+    "current_part_index": 2
   },
   "last_fact_index": -1,
   "last_series_index": 3,
