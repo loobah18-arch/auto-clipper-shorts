@@ -2671,12 +2671,23 @@ def build_topic_documentary_timeline(
             pass
         
     calc_target = max(6, min(16, int(duration // 3.2))) if (target_count is None or target_count <= 5) else target_count
-    images = fetch_topic_documentary_visuals(topic_title, transcript_segments, target_count=calc_target)
+    raw_images = fetch_topic_documentary_visuals(topic_title, transcript_segments, target_count=calc_target)
+    images = [img for img in raw_images if img and img.exists() and img.stat().st_size > 1000]
     
+    if not images:
+        log("⚠️ No valid documentary images found. Generating fallback visual...")
+        fallback_card = Path(tempfile.gettempdir()) / f"fb_card_{abs(hash(topic_title)) % 10000}.jpg"
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#0d1117:s=1920x1080:d=1",
+            "-vf", "drawbox=x=60:y=60:w=1800:h=960:color=#161b22:t=fill,drawtext=text='TECH DOCUMENTARY REPORT':fontcolor=white:fontsize=48:x=100:y=200",
+            "-frames:v", "1", str(fallback_card)
+        ], capture_output=True, check=True)
+        images = [fallback_card]
+
     temp_dir = Path(tempfile.gettempdir()) / f"doc_build_{output_path.stem}_{abs(hash(topic_title)) % 10000}"
     temp_dir.mkdir(parents=True, exist_ok=True)
     
-    seg_dur = duration / max(1, len(images))
+    seg_dur = max(2.0, duration / max(1, len(images)))
     fps = 25
     frames_per_seg = max(25, int(seg_dur * fps))
     
@@ -2696,11 +2707,11 @@ def build_topic_documentary_timeline(
             y_expr = "ih/2-(ih/zoom/2)"
         elif motion_type == 2:
             zoom_expr = "1.08"
-            x_expr = "(iw-iw/zoom)*(on/d)"
+            x_expr = f"(iw-iw/zoom)*(on/{frames_per_seg})"
             y_expr = "ih/2-(ih/zoom/2)"
         else:
             zoom_expr = "1.08"
-            x_expr = "(iw-iw/zoom)*(1-on/d)"
+            x_expr = f"(iw-iw/zoom)*(1-on/{frames_per_seg})"
             y_expr = "ih/2-(ih/zoom/2)"
             
         cmd_seg = [
@@ -2718,9 +2729,16 @@ def build_topic_documentary_timeline(
             "-t", f"{seg_dur:.3f}",
             str(seg_vid)
         ]
-        subprocess.run(cmd_seg, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        seg_videos.append(seg_vid)
+        try:
+            subprocess.run(cmd_seg, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if seg_vid.exists() and seg_vid.stat().st_size > 5000:
+                seg_videos.append(seg_vid)
+        except Exception as se:
+            log(f"Notice rendering documentary segment {idx}: {se}")
         
+    if not seg_videos:
+        raise RuntimeError("No documentary segments could be compiled into video")
+
     concat_manifest = temp_dir / "concat_list.txt"
     with open(concat_manifest, "w") as f:
         for sv in seg_videos:
