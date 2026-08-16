@@ -189,14 +189,65 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": null,
+  "active_series": {
+    "topic": "THE SECRET OF MEMORY PAGE TABLES IN ARM64",
+    "badge_base": "ARM PAGE MAGIC 🧠",
+    "next_topic_teaser": "how GPUs schedule threads in real‑time",
+    "total_parts": 3,
+    "parts": [
+      {
+        "part_number": 1,
+        "title": "ARM64 PAGE TABLE PARADOX • Part 1 #Shorts #TechShorts",
+        "badge": "ARM PAGE MAGIC 🧠 • PART 1",
+        "voice": "en-US-ChristopherNeural",
+        "tags": [
+          "techshorts",
+          "technology",
+          "part1",
+          "shorts",
+          "developer"
+        ],
+        "script": "Imagine a 64‑bit CPU that can address 16 exabytes of memory, yet it only uses a four‑level page table with 4 KiB pages. How can 512 entries per level, each 8 bytes, cover such a massive space? The paradox lies in the way ARM64 compresses address space into a shallow tree while keeping each node tiny. The translation table base register (TTBR) points to the first level, called the level‑0 table. Each entry in a level‑0 table is 64 bits, containing the physical address of a level‑1 table, a 4 bit index, and several flag bits. The index is derived from bits 47:39 of the virtual address; the remaining 39 bits are split into four 9‑bit fields, each addressing 512 entries. Thus a full walk only consumes 9 × 4 = 36 address bits, leaving 28 bits unused in the 64‑bit virtual address space. Those unused bits are masked by the page table walker, allowing the architecture to support a 48‑bit virtual address while still using a 4‑level tree.\n\nEach page table entry (PTE) for a 4 KiB page contains: the physical page number (bits 47:12), the 4 bit level index, and flag bits—Valid (V), Read/Write (RW), Execute‑Never (XN), Shareability, and Access flag (A). The Valid bit is the only one required to keep the entry alive; the rest are set by the OS to enforce permissions. The 4 KiB granule is chosen because it aligns with the L1 cache line size and keeps the page table footprint small: a single 4 KiB page can hold 512 entries, so a full level‑1 table occupies exactly one page.\n\nThe counter‑intuitive part is that, despite the enormous addressable space, the hardware can walk the table in a handful of memory accesses. The CPU uses a dedicated page table walker that, on a TLB miss, reads the level‑0 entry, then the level‑1 entry, and so on, until it reaches the leaf. Each read is a cache‑friendly load; if the table is in L1, the walk completes in a few cycles. The OS can keep hot tables in memory and even prefetch them to reduce latency.\n\nBut what happens when the walker encounters an invalid entry or a missing level? That leads to a fault that the OS must handle, and the next part will show exactly how the hardware and OS cooperate to resolve or terminate a virtual address translation. Like and subscribe for Part 2!"
+      },
+      {
+        "part_number": 2,
+        "title": "ARM64 PAGE TABLE WALKER EXPLAINED • Part 2 #Shorts #TechShorts",
+        "badge": "ARM PAGE MAGIC 🧠 • PART 2",
+        "voice": "en-US-ChristopherNeural",
+        "tags": [
+          "techshorts",
+          "technology",
+          "part2",
+          "shorts",
+          "developer"
+        ],
+        "script": "During a TLB miss, the ARM64 core invokes the hardware page table walker. The walker starts with the Translation Table Base Register 0 (TTBR0) for user space or TTBR1 for privileged space. Each TTBR holds a 64‑bit base address, shifted left by 12 bits, pointing to a 4 KiB level‑0 table. The walker extracts bits 47:39 of the virtual address to index into the level‑0 table, then reads the 8‑byte entry. That entry’s top 12 bits form the base address of the next level, while the lower 12 bits are flags. The process repeats: bits 38:30 index level‑1, bits 29:21 index level‑2, bits 20:12 index level‑3. At level‑3, the entry points to a 4 KiB page; the remaining 12 bits of the entry provide the physical page number. The walker then combines the physical page number with the offset from bits 11:0 of the virtual address to form the final physical address.\n\nThe page table walker also handles granule size changes. If a level‑3 entry uses a 16 KiB or 64 KiB granule, the walker interprets the entry differently: the page number occupies fewer bits, and the offset bits shift accordingly. The granule type is encoded in the entry’s flags. For 64 KiB pages, the walker must read an intermediate 16 KiB table that contains two 4 KiB entries; this adds an extra memory load but keeps the overall depth constant.\n\nAttribute bits propagate through the walk. The Execute‑Never (XN) flag at any level blocks execution of the leaf page, even if lower levels allow it. Similarly, the Access flag (A) records whether the page has been accessed, and the Dirty flag (D) records writes. The walker writes back these bits to the leaf entry on a write‑back, enabling the OS to detect and handle page faults or write‑protect violations.\n\nWhen the walker encounters a V=0 flag or a missing table, it raises a Translation Fault. The fault type (e.g., TLB miss, permission violation, or page fault) is encoded in the Fault Status Register (FSR). The OS’s exception handler decodes the FSR, determines whether the fault is recoverable (e.g., page not present), and either loads the page, updates the PTE, or terminates the process. The handler also updates the TLB with the new translation.\n\nNow that we understand how the hardware walks the table and how the OS repairs faults, the next part will reveal what happens when a malicious actor corrupts a page table to bypass security boundaries. Like and subscribe for Part 3!"
+      },
+      {
+        "part_number": 3,
+        "title": "PAGE TABLE SECURITY FAILURES & BREAKTHROUGHS • Part 3 #Shorts #TechShorts",
+        "badge": "ARM PAGE MAGIC 🧠 • PART 3",
+        "voice": "en-US-ChristopherNeural",
+        "tags": [
+          "techshorts",
+          "technology",
+          "part3",
+          "shorts",
+          "developer"
+        ],
+        "script": "Page tables are not just memory structures; they are the gatekeepers of privilege. In 2019, a flaw in the ARM64 page table walker allowed a kernel‑level process to read or modify arbitrary kernel memory by crafting a PTE with a valid V bit but an invalid physical address. The bug exploited a race between the walker’s read of the leaf entry and the OS’s update of the same entry. An attacker could trigger a TLB miss, force the walker to read the stale entry, and then flip the V bit to 1 while the OS was still updating the physical address. The result was a privilege‑escalation vulnerability that bypassed the kernel’s Memory Protection Unit (MPU).\n\nA more recent and infamous incident involved Spectre Variant 2 on ARMv8.6. The speculative execution engine could read the contents of a page table entry before the CPU validated it. An attacker in user space could craft a sequence that forces the CPU to speculatively walk a page table belonging to the kernel, exposing the physical page number. By repeatedly measuring cache timings, the attacker reconstructed the entire kernel’s address space, defeating Kernel Address Space Layout Randomization (KASLR). The fix introduced in ARMv9’s Memory Domain Isolation (MDI) and the KPTI (Kernel Page Table Isolation) patch in the Linux kernel hardened the walker by enforcing stricter access controls on the translation tables and adding a second layer of translation for the kernel.\n\nModern ARM processors now support a second‑stage translation for virtualization. The hypervisor sets a Stage‑2 TTBR that maps guest virtual addresses to guest physical addresses, while the Stage‑1 TTBR maps guest physical addresses to host physical addresses. This double‑translation adds an extra barrier against guest‑to‑host attacks. Additionally, the introduction of the Secure Virtualization extension allows a secure monitor to intercept and validate all page table modifications, ensuring that malicious writes are detected before they can be exploited.\n\nThe takeaway is that page tables are a living security frontier. A small misconfiguration or a race can transform a benign structure into a backdoor. Understanding the exact bit‑layout, the walk mechanics, and the fault handling pipeline is essential for building secure systems. In our next series, we’ll explore how GPUs schedule threads in real‑time, revealing another layer of hardware‑software interaction that can be both a performance booster and a security risk. Stay tuned and make sure to like and subscribe!"
+      }
+    ],
+    "current_part_index": 1
+  },
   "last_fact_index": -1,
   "last_series_index": 3,
   "ai_past_topics": [
     "QUANTUM COMPUTER LEAP",
     "DEEPFAKE DETECTION",
     "THE FUTURE OF COMPUTER VISION",
-    "HOW NETWORK PACKETS ARE ROUTED"
+    "HOW NETWORK PACKETS ARE ROUTED",
+    "THE SECRET OF MEMORY PAGE TABLES IN ARM64"
   ],
   "completed_series": [
     {
