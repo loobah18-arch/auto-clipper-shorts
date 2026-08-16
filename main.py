@@ -2380,7 +2380,101 @@ def fetch_topic_documentary_visuals(topic_title: str, transcript_segments: list 
         except Exception as e:
             log(f"Wikimedia search notice ({kw}): {e}")
 
-    # 3. Pexels API (if PEXELS_API_KEY is configured in env)
+    # 3. Search NASA Image & Video Library (Direct Authentic Engineering, Physics & Space Archive)
+    for kw in keywords[:4]:
+        if len(real_photos) >= max(8, target_count - 2):
+            break
+        try:
+            enc = urllib.parse.quote(kw)
+            n_url = f"https://images-api.nasa.gov/search?q={enc}&media_type=image"
+            n_req = urllib.request.Request(n_url, headers={"User-Agent": user_agent})
+            with urllib.request.urlopen(n_req, timeout=8) as n_resp:
+                n_data = json.loads(n_resp.read().decode("utf-8"))
+                items = n_data.get("collection", {}).get("items", [])
+                for item in items[:4]:
+                    links = item.get("links", [])
+                    if links:
+                        img_url = links[0].get("href")
+                        if img_url and img_url not in seen_urls:
+                            seen_urls.add(img_url)
+                            n_dest = vis_dir / f"nasa_{len(real_photos)}_{abs(hash(img_url)) % 10000}.jpg"
+                            try:
+                                with urllib.request.urlopen(urllib.request.Request(img_url, headers={"User-Agent": user_agent}), timeout=10) as im_resp:
+                                    with open(n_dest, "wb") as f:
+                                        f.write(im_resp.read())
+                                if n_dest.exists() and n_dest.stat().st_size > 15000:
+                                    real_photos.append(n_dest)
+                                    log(f"📸 Fetched real NASA archive photo ({kw}): {n_dest.name} ({n_dest.stat().st_size // 1024} KB)")
+                                    if len(real_photos) >= max(8, target_count - 2):
+                                        break
+                            except Exception:
+                                pass
+        except Exception as ne:
+            log(f"NASA search notice ({kw}): {ne}")
+
+    # 4. Search Flickr Open Creative Commons Hardware & Science Archive Feed
+    for kw in keywords[:4]:
+        if len(real_photos) >= max(8, target_count - 2):
+            break
+        try:
+            enc = urllib.parse.quote(kw)
+            f_url = f"https://api.flickr.com/services/feeds/photos_public.gne?tags={enc}&format=json&nojsoncallback=1"
+            f_req = urllib.request.Request(f_url, headers={"User-Agent": user_agent})
+            with urllib.request.urlopen(f_req, timeout=8) as f_resp:
+                f_data = json.loads(f_resp.read().decode("utf-8"))
+                f_items = f_data.get("items", [])
+                for f_item in f_items[:4]:
+                    m_url = f_item.get("media", {}).get("m", "")
+                    if m_url:
+                        b_url = m_url.replace("_m.jpg", "_b.jpg").replace("_m.png", "_b.png")
+                        if b_url not in seen_urls:
+                            seen_urls.add(b_url)
+                            f_dest = vis_dir / f"flickr_{len(real_photos)}_{abs(hash(b_url)) % 10000}.jpg"
+                            try:
+                                with urllib.request.urlopen(urllib.request.Request(b_url, headers={"User-Agent": user_agent}), timeout=10) as im_resp:
+                                    with open(f_dest, "wb") as f:
+                                        f.write(im_resp.read())
+                                if f_dest.exists() and f_dest.stat().st_size > 15000:
+                                    real_photos.append(f_dest)
+                                    log(f"📸 Fetched real Flickr archive photo ({kw}): {f_dest.name} ({f_dest.stat().st_size // 1024} KB)")
+                                    if len(real_photos) >= max(8, target_count - 2):
+                                        break
+                            except Exception:
+                                pass
+        except Exception as fe:
+            log(f"Flickr search notice ({kw}): {fe}")
+
+    # 5. Search Openverse Global Creative Commons Science & Tech Index
+    for kw in keywords[:4]:
+        if len(real_photos) >= max(8, target_count - 2):
+            break
+        try:
+            enc = urllib.parse.quote(kw)
+            op_url = f"https://api.openverse.org/v1/images/?q={enc}&page_size=6"
+            op_req = urllib.request.Request(op_url, headers={"User-Agent": user_agent})
+            with urllib.request.urlopen(op_req, timeout=8) as op_resp:
+                op_data = json.loads(op_resp.read().decode("utf-8"))
+                op_results = op_data.get("results", [])
+                for item in op_results[:4]:
+                    img_url = item.get("url")
+                    if img_url and img_url not in seen_urls:
+                        seen_urls.add(img_url)
+                        op_dest = vis_dir / f"openverse_{len(real_photos)}_{abs(hash(img_url)) % 10000}.jpg"
+                        try:
+                            with urllib.request.urlopen(urllib.request.Request(img_url, headers={"User-Agent": user_agent}), timeout=10) as im_resp:
+                                with open(op_dest, "wb") as f:
+                                    f.write(im_resp.read())
+                            if op_dest.exists() and op_dest.stat().st_size > 15000:
+                                real_photos.append(op_dest)
+                                log(f"📸 Fetched real Openverse photo ({kw}): {op_dest.name} ({op_dest.stat().st_size // 1024} KB)")
+                                if len(real_photos) >= max(8, target_count - 2):
+                                    break
+                        except Exception:
+                            pass
+        except Exception as oe:
+            log(f"Openverse search notice ({kw}): {oe}")
+
+    # 6. Pexels API (if PEXELS_API_KEY is configured in env)
     pexels_key = os.environ.get("PEXELS_API_KEY")
     if pexels_key and len(real_photos) < target_count - 2:
         try:
