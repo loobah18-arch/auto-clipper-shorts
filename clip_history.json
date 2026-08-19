@@ -189,64 +189,7 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": {
-    "series_id": "underwater_internet",
-    "topic": "HOW THE INTERNET ACTUALLY WORKS",
-    "badge_base": "INTERNET SECRETS 🌐",
-    "next_topic_teaser": "the secret Linux kernel process architecture and memory management subsystems",
-    "total_parts": 3,
-    "parts": [
-      {
-        "part_number": 1,
-        "title": "How 99% of the Global Internet Flows Underwater • Part 1 🌊 #Shorts #TechShorts",
-        "badge": "INTERNET SECRETS • PART 1",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "internet",
-          "cables",
-          "networking",
-          "engineering",
-          "shorts"
-        ],
-        "script": "Did you know that over ninety nine percent of all international internet traffic does not travel through satellites or wireless cell towers, but through massive fiber optic cables resting on the pitch black ocean floor? Right now, there are over five hundred active subsea cables stretching eight hundred thousand miles across the globe, connecting every continent on Earth. These glass lines are barely as thick as a garden hose, yet they transmit petabits of financial transactions, streaming videos, and cloud database queries every single millisecond. Inside each cable, data travels as pulses of infrared laser light reflecting through ultra-pure silica glass cores thinner than a single human hair. Because laser photons gradually lose energy and scatter as they travel thousands of miles through the ocean abyss, engineers must run ten thousand volts of high-voltage direct current electricity directly alongside the glass fibers. Every fifty miles along the seabed, this power feeds massive titanium optical repeaters containing erbium-doped laser amplifiers that excite the incoming photons and boost the light signals back to full strength! Here is the terrifying reality: if an underwater earthquake triggers a submarine landslide, or a rogue ship anchor accidentally drags across the seabed, entire nations and banking networks can instantly lose their internet connection in an instant! In Part 2, we uncover why high-voltage seabed power lines attract deep-sea sharks and the extreme multi-layer armor engineered to stop them. Like and subscribe so you don't miss Part 2!"
-      },
-      {
-        "part_number": 2,
-        "title": "Why Sharks Attack Undersea Cables & Extreme Armor • Part 2 🦈 #Shorts",
-        "badge": "INTERNET SECRETS • PART 2",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "internet",
-          "cables",
-          "engineering",
-          "sharks",
-          "shorts"
-        ],
-        "script": "Welcome back to Part 2 of How the Global Internet Actually Works! Why do deep-sea sharks aggressively attack and bite undersea fiber optic cables? The answer lies in biological electroreception. Sharks possess specialized gel-filled sensory organs in their snouts known as the Ampullae of Lorenzini, which detect microscopic electrical fields emitted by the muscle twitches of prey. When thousands of volts of electricity pulse through the subsea cable's copper conductor to power optical repeaters, it creates a faint electromagnetic field in the surrounding salt water. Deep-sea predators mistake these electromagnetic pulses for wounded marine animals and bite down with thousands of pounds of pressure! To prevent catastrophic blackouts, telecommunications engineers designed an extreme multi-layered armored fortress. At the core lies water-resistant petroleum jelly surrounding the delicate glass strands. This is encased inside a solid welded copper tube for power transmission, followed by a polycarbonate insulator, a thick aluminum water barrier, high-tensile braided steel wire strands, and an outer double-layer of ballistic Kevlar and waterproof polyethylene tar. In shallow coastal waters, specialized robotic plows even bury the armored cables several meters deep into the ocean bedrock. In Part 3, we reveal how hundred-million-dollar autonomous robotic ships locate severed fibers miles underwater and laser weld them with micron precision. Drop a like and subscribe for Part 3!"
-      },
-      {
-        "part_number": 3,
-        "title": "How Robotic Ships Laser Weld Severed Cables in the Abyss • Part 3 🚢 #Shorts",
-        "badge": "INTERNET SECRETS • PART 3",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "internet",
-          "cables",
-          "engineering",
-          "deepsea",
-          "shorts"
-        ],
-        "script": "Welcome back to the finale of How the Global Internet Actually Works! When a deep sea fiber optic cable snaps twenty thousand feet below the surface, how do engineers fix it without draining the entire ocean? They deploy specialized hundred-million-dollar cable repair ships equipped with five-ton robotic submarines. First, engineers on land shoot optical time-domain reflectometer light pulses down the broken line. By measuring the exact microsecond the laser bounce returns, they pinpoint the break location within a few meters! The ship navigates to the coordinate using satellite dynamic positioning, and launches a remote-operated submarine equipped with diamond-tipped saws and heavy hydraulic grapples. The robot cuts the severed cable, seals the open end, and hoists it to the surface ship's dust-free cleanroom deck. There, specialized optical technicians use microscopic fusion splicers to laser weld each individual glass strand together with sub-micron alignment. While repairs take weeks at sea, global Border Gateway Protocol routers automatically reroute internet traffic across alternate trans-oceanic routes in milliseconds, ensuring you never notice a single dropped connection! And that is the invisible engineering keeping our planet connected. In our next series, we'll be breaking down the secret Linux kernel process architecture and memory management subsystems, so stay tuned and make sure to like and subscribe!"
-      }
-    ],
-    "current_part_index": 2
-  },
+  "active_series": null,
   "last_fact_index": -1,
   "last_series_index": 0,
   "ai_past_topics": [
@@ -291,6 +234,11 @@
       "topic": "THE HISTORY & ANATOMY OF COMPUTER BUGS",
       "total_parts": 3,
       "completed_at": "2026-08-18T09:58:48.568636+00:00"
+    },
+    {
+      "topic": "HOW THE INTERNET ACTUALLY WORKS",
+      "total_parts": 3,
+      "completed_at": "2026-08-19T21:22:06.194487+00:00"
     }
   ]
 }
