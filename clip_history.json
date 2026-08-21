@@ -189,64 +189,7 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": {
-    "series_id": "linux_superpowers",
-    "topic": "LINUX KERNEL & ARCHITECTURE SECRETS",
-    "badge_base": "LINUX HACKS 🐧",
-    "next_topic_teaser": "how modern cryptography, elliptic curves, and zero-knowledge proofs protect global privacy",
-    "total_parts": 3,
-    "parts": [
-      {
-        "part_number": 1,
-        "title": "The Unix Philosophy & Stream Pipelines Explained • Part 1 🐧 #Shorts",
-        "badge": "LINUX HACKS • PART 1",
-        "voice": "en-US-GuyNeural",
-        "tags": [
-          "linux",
-          "terminal",
-          "bash",
-          "developer",
-          "codingtips",
-          "sysadmin",
-          "shorts"
-        ],
-        "script": "Stop frantically pressing the up arrow key fifty times just to find a complex command you ran three weeks ago! Every software developer and system administrator needs to understand the fundamental architecture of the Unix shell. Inside any bash or zsh terminal, pressing Control plus R activates the recursive incremental history search engine. The moment you type a single keyword like docker, git, or ssh, the kernel scans your history buffer and auto-completes the exact syntax with zero typos. If you press Control plus R again, it cycles backwards through every past execution in memory. Even more powerful is the Unix pipeline concept developed by Doug McIlroy in nineteen seventy-three. Under the hood, the pipe operator creates an inter-process communication ring buffer in kernel memory. When you chain commands like grep, awk, and sort together, Linux runs all processes concurrently in parallel, streaming gigabytes of data between programs via standard input and standard output without ever writing temporary files to your physical disk! In Part 2, we uncover how the Linux slash proc virtual filesystem lets you inspect live computer RAM and running CPU registers as plain text. Drop a like and subscribe for Part 2!"
-      },
-      {
-        "part_number": 2,
-        "title": "The Magic of Linux /proc & Live RAM Filesystem • Part 2 ⚡ #Shorts",
-        "badge": "LINUX HACKS • PART 2",
-        "voice": "en-US-GuyNeural",
-        "tags": [
-          "linux",
-          "terminal",
-          "sysadmin",
-          "kernel",
-          "coding",
-          "developer",
-          "shorts"
-        ],
-        "script": "Welcome back to Part 2 of Linux Kernel Secrets! Did you know that in Linux, literally everything in your operating system is represented as a plain text file? If you open your terminal and navigate to slash proc on your machine, you are looking directly into your live computer RAM. The proc directory does not consume a single byte of hard drive space. It is a dynamic pseudo-filesystem generated on the fly by the Linux kernel. When you read slash proc slash cpuinfo or slash proc slash meminfo, the kernel intercepts the read system call and formats its internal hardware state into text in real time. Every running program on your system gets its own dedicated folder matching its Process ID. Inside slash proc slash PID, you can view the application's open file descriptors, active environment variables, CPU execution time, and even inspect raw virtual memory pages via the mem file without opening a debugger! This transparent abstraction is why Linux dominates ninety percent of global cloud infrastructure and supercomputers. In Part 3, we reveal the terrifying Linux Out-Of-Memory Killer algorithm that secretly hunts down and terminates background apps when RAM runs out. Hit like and subscribe for Part 3!"
-      },
-      {
-        "part_number": 3,
-        "title": "The Terrifying Linux OOM Killer Algorithm • Part 3 💀 #Shorts",
-        "badge": "LINUX HACKS • PART 3",
-        "voice": "en-US-GuyNeural",
-        "tags": [
-          "linux",
-          "kernel",
-          "sysadmin",
-          "coding",
-          "developer",
-          "containers",
-          "shorts"
-        ],
-        "script": "Welcome back to the finale of Linux Kernel Secrets! What happens when your server runs completely out of physical RAM? A typical operating system would freeze, lock up, or crash with a blue screen. Linux handles this situation with a brutal kernel algorithm known as the Out Of Memory Killer! Because Linux implements memory overcommitting to maximize server efficiency, processes can allocate more virtual memory than physically exists. When real physical RAM and swap space become exhausted, the kernel triggers an emergency page allocation failure. The OOM Killer instantly pauses system execution and scans the task list of every active process. It calculates a mathematical badness score based on the process's physical memory footprint, runtime duration, and its oom score adjustment setting. Once the worst offender is calculated, the kernel sends an uncatchable, unignorable SIGKILL signal nine, instantly annihilating the offending application and freeing up its memory pages to protect the core operating system! This ruthless architectural efficiency laid the groundwork for modern container runtimes like Docker and Kubernetes. In our next series, we'll be exploring how modern cryptography, elliptic curves, and zero-knowledge proofs protect global privacy, so stay tuned and make sure to like and subscribe!"
-      }
-    ],
-    "current_part_index": 2
-  },
+  "active_series": null,
   "last_fact_index": -1,
   "last_series_index": 1,
   "ai_past_topics": [
@@ -296,6 +239,11 @@
       "topic": "HOW THE INTERNET ACTUALLY WORKS",
       "total_parts": 3,
       "completed_at": "2026-08-19T21:22:06.194487+00:00"
+    },
+    {
+      "topic": "LINUX KERNEL & ARCHITECTURE SECRETS",
+      "total_parts": 3,
+      "completed_at": "2026-08-21T10:04:41.454572+00:00"
     }
   ]
 }
