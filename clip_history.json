@@ -244,7 +244,7 @@
         "script": "Welcome back to the finale of Floating Point Disasters! In nineteen ninety-one, during the Gulf War, an incoming Scud missile struck a military barracks in Dhahran, Saudi Arabia, after a Patriot missile defense battery failed to intercept it. The government investigation revealed that the catastrophic failure was caused by a minute floating-point rounding error in the system's internal tracking clock. The radar computer measured time in tenths of a second by multiplying the integer clock ticks by the value zero point one using a twenty-four bit fixed-point register. Because zero point one cannot be represented with exact precision in binary, the calculation lost approximately zero point zero zero zero zero zero zero zero nine five seconds per tick. Under normal conditions with frequent reboots, this tiny error went unnoticed. However, the battery had been running continuously for over one hundred hours without a restart! Over one hundred hours, that microscopic rounding error accumulated into a total clock drift of zero point thirty-four seconds! At hypersonic speeds, a zero point thirty-four second timing discrepancy meant the radar looked more than six hundred meters away from the actual incoming missile! And that is why mathematical precision and numeric type safety are matters of life and death in computer engineering. In our next series, we'll be discussing the crazy true history of the very first computer bug, so stay tuned and make sure to like and subscribe!"
       }
     ],
-    "current_part_index": 1
+    "current_part_index": 2
   },
   "last_fact_index": -1,
   "last_series_index": 3,
