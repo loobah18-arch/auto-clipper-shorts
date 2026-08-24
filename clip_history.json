@@ -189,63 +189,7 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": {
-    "series_id": "floating_point_math",
-    "topic": "FLOATING POINT SECRETS & DISASTERS",
-    "badge_base": "CS DEEP DIVE 💻",
-    "next_topic_teaser": "the crazy true history of the first computer bug and the moth that changed computing",
-    "total_parts": 3,
-    "parts": [
-      {
-        "part_number": 1,
-        "title": "Why 0.1 + 0.2 Is NOT 0.3 In Computer Science • Part 1 🤯 #Shorts",
-        "badge": "CS DEEP DIVE • PART 1",
-        "voice": "en-US-EricNeural",
-        "tags": [
-          "programming",
-          "coding",
-          "computerscience",
-          "math",
-          "python",
-          "javascript",
-          "shorts"
-        ],
-        "script": "If you open your browser console, Python interpreter, or C compiler right now and evaluate zero point one plus zero point two, you will not receive zero point three! Instead, your machine will print zero point three zero zero zero zero zero zero zero zero zero zero zero zero zero zero four! This is not a software bug or a compiler flaw. It is a fundamental law of binary microprocessors governed by the IEEE seven fifty-four floating-point standard. Humans count in base ten decimals because we have ten fingers. In base ten, fractions like one half and one fifth terminate cleanly. However, computers count strictly in base two binary bits: ones and zeroes. In binary arithmetic, numbers are represented as sums of powers of two, such as one half, one fourth, one eighth, and one sixteenth. When you attempt to write the decimal number zero point one in binary, it produces an infinite repeating fraction: zero point zero zero zero one one zero zero one one recurring infinitely! Because physical silicon registers have a finite number of bits, the processor must truncate and round the infinite binary string, introducing a microscopic rounding discrepancy into every calculation! In Part 2, we explore how this exact microscopic rounding error caused a five hundred million dollar space rocket to explode thirty-seven seconds after liftoff. Hit like and subscribe for Part 2!"
-      },
-      {
-        "part_number": 2,
-        "title": "The $500M Ariane 5 Floating Point Rocket Explosion • Part 2 🚀 #Shorts",
-        "badge": "CS DEEP DIVE • PART 2",
-        "voice": "en-US-EricNeural",
-        "tags": [
-          "programming",
-          "engineering",
-          "space",
-          "rockets",
-          "computerscience",
-          "disasters",
-          "shorts"
-        ],
-        "script": "Welcome back to Part 2 of Floating Point Disasters! On June fourth, nineteen ninety-six, the European Space Agency launched the maiden flight of the Ariane Five rocket, carrying four cutting-edge scientific satellites valued at half a billion dollars. Just thirty-seven seconds after liftoff, the rocket suddenly veered sharply off course, flipped ninety degrees at supersonic speed, and disintegrated in a colossal fireball! The post-flight inquiry uncovered one of the most infamous software bugs in human history. The rocket's inertial reference guidance system reused legacy software from the older, slower Ariane Four rocket. The algorithm attempted to convert a sixty-four bit floating-point variable measuring horizontal velocity into a sixteen-bit signed integer. Because the Ariane Five accelerated much faster than its predecessor, the horizontal velocity value exceeded thirty-two thousand seven hundred sixty-seven, the maximum limit of a sixteen-bit integer! The hardware suffered an integer overflow exception, causing the flight computer to crash and send full diagnostic error data directly to the rocket's aerodynamic thrusters, which interpreted the error codes as flight commands and ripped the vehicle apart! In Part 3, we reveal how a zero point thirty-four second clock drift caused a tragic military missile defense failure. Like and subscribe for Part 3!"
-      },
-      {
-        "part_number": 3,
-        "title": "The 0.34 Second Clock Drift Disaster • Part 3 ⚠️ #Shorts",
-        "badge": "CS DEEP DIVE • PART 3",
-        "voice": "en-US-EricNeural",
-        "tags": [
-          "programming",
-          "computerscience",
-          "engineering",
-          "history",
-          "military",
-          "shorts"
-        ],
-        "script": "Welcome back to the finale of Floating Point Disasters! In nineteen ninety-one, during the Gulf War, an incoming Scud missile struck a military barracks in Dhahran, Saudi Arabia, after a Patriot missile defense battery failed to intercept it. The government investigation revealed that the catastrophic failure was caused by a minute floating-point rounding error in the system's internal tracking clock. The radar computer measured time in tenths of a second by multiplying the integer clock ticks by the value zero point one using a twenty-four bit fixed-point register. Because zero point one cannot be represented with exact precision in binary, the calculation lost approximately zero point zero zero zero zero zero zero zero nine five seconds per tick. Under normal conditions with frequent reboots, this tiny error went unnoticed. However, the battery had been running continuously for over one hundred hours without a restart! Over one hundred hours, that microscopic rounding error accumulated into a total clock drift of zero point thirty-four seconds! At hypersonic speeds, a zero point thirty-four second timing discrepancy meant the radar looked more than six hundred meters away from the actual incoming missile! And that is why mathematical precision and numeric type safety are matters of life and death in computer engineering. In our next series, we'll be discussing the crazy true history of the very first computer bug, so stay tuned and make sure to like and subscribe!"
-      }
-    ],
-    "current_part_index": 2
-  },
+  "active_series": null,
   "last_fact_index": -1,
   "last_series_index": 3,
   "ai_past_topics": [
@@ -305,6 +249,11 @@
       "topic": "THE CRYPTOGRAPHY REVOLUTION",
       "total_parts": 3,
       "completed_at": "2026-08-22T21:03:41.256125+00:00"
+    },
+    {
+      "topic": "FLOATING POINT SECRETS & DISASTERS",
+      "total_parts": 3,
+      "completed_at": "2026-08-24T10:26:43.472901+00:00"
     }
   ]
 }
