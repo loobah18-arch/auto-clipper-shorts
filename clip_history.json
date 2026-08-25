@@ -189,57 +189,7 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": {
-    "topic": "THE SECRET OF RISC‑V EXCEPTION HANDLING",
-    "badge_base": "RISC‑V INSIGHTS 🛠️",
-    "next_topic_teaser": "the hidden world of microcontroller power management",
-    "total_parts": 3,
-    "parts": [
-      {
-        "part_number": 1,
-        "title": "RISC‑V Traps Unveiled • Part 1 #Shorts #TechShorts",
-        "badge": "RISC‑V INSIGHTS 🛠️ • PART 1",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "part1",
-          "shorts",
-          "developer"
-        ],
-        "script": "RISC‑V’s exception system feels like a black hole. When a user program executes an illegal instruction, the core doesn’t throw an error in the usual sense; it silently jumps into a trap handler defined by a handful of CSRs. The trap vector base address (mtvec) is a 64‑bit register that points to the beginning of a small exception table. The trick lies in the fact that mtvec can operate in two modes: direct and vectored. In direct mode the processor jumps to the address stored in mtvec. In vectored mode it adds a multiple of 0x100 to mtvec, where the multiple is the cause code shifted left by three bits. That means a single mtvec register can dispatch dozens of distinct traps without any additional hardware. This is counter‑intuitive because you expect a separate table for each exception, but RISC‑V bundles them together, saving precious silicon.\n\nThe next piece of the puzzle is the privilege hierarchy. There are four levels: User, Supervisor, Hypervisor, and Machine. Each level can delegate traps to the next lower level via delegation CSRs: medeleg and mideleg. For example, a supervisor program can decide that an illegal instruction trap should be handled by the supervisor trap handler rather than the machine handler. The decision is made by setting bits in medeleg that correspond to the cause codes. When a trap occurs, the hardware checks the privilege level of the current thread, looks up the delegation bits, and either jumps to the appropriate trap handler or stays in machine mode. This delegation mechanism is powerful but subtle; a mis‑configured medeleg can cause a seemingly benign user program to be caught by the machine trap handler, leading to a system crash.\n\nThe actual trap entry sequence is also surprising. On trap entry the current PC is saved to a CSR called mepc, the current status is saved to mstatus, and the cause is written to mcause. The hardware then jumps to mtvec. Inside the handler, the programmer must restore the machine context, decide whether to resume the faulting instruction, or return to user mode. The restoration path is also dependent on the privilege level and the delegation state. Because the entire process is driven by a handful of registers, the hardware can be extremely lightweight, but the software has to be precise.\n\nSo why does this feel so strange? Because the entire exception system is built on a minimal set of CSRs that can be re‑wired on the fly, giving the OS the illusion of a full interrupt controller while keeping the silicon footprint small. What happens when a user‑mode program triggers an illegal instruction? Let’s find out in Part 2. Like and subscribe for Part 2!"
-      },
-      {
-        "part_number": 2,
-        "title": "Trap Pathways Explained • Part 2 #Shorts #TechShorts",
-        "badge": "RISC‑V INSIGHTS 🛠️ • PART 2",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "part2",
-          "shorts",
-          "developer"
-        ],
-        "script": "Inside the RISC‑V trap handler, the real work begins. The first thing the processor does is latch the PC of the faulting instruction into mepc. The instruction’s opcode, immediate, and register operands are still in the pipeline, but the pipeline is flushed. The mstatus register is updated with the current privilege level and interrupt enable bits. The cause of the trap is written to mcause, where bit 31 indicates interrupt or exception, and bits 0‑30 encode the specific code (e.g., 11 for illegal instruction, 3 for misaligned load). If the trap is asynchronous, the processor also writes the interrupt pending bits into mip.\n\nBecause RISC‑V can delegate traps, the handler must first check the delegation CSRs. If the trap is delegated, the processor jumps to the lower privilege handler. The delegation is performed by comparing the cause code against the bits set in medeleg (for exceptions) or mideleg (for interrupts). If the bit is set, the processor jumps to the address in the corresponding lower‑privilege mtvec. If not, it stays in machine mode.\n\nThe handler’s body is written in assembly or C, and it follows a strict calling convention. The first few registers (a0‑a7) are used to pass arguments. The handler typically reads the faulting instruction from the instruction memory using the address in mepc, decodes it, and decides whether it can be emulated. For example, a misaligned load can be handled by fetching the aligned word, masking, and shifting. If the handler can recover, it writes the result back to the destination register, increments mepc by the instruction length, and writes the new PC to the CSR. If recovery is impossible, the handler may call the operating system’s fault handler, which usually terminates the process.\n\nThe final step is to restore the machine context. The handler clears the interrupt enable bit in mstatus, restores the previous privilege level, and writes the return address into the appropriate CSR (mepc for machine, sepc for supervisor). The mret instruction is then executed, which loads the PC from the return CSR and clears the interrupt flag in mstatus. This sequence is tiny but must be exact; any mistake can leave the processor in an inconsistent state, causing a system hang or a privilege escalation.\n\nSo far we’ve seen how the hardware routes traps, how delegation works, and how the handler restores context. But what about the real‑world bugs that have plagued RISC‑V cores? Find out in Part 3. Like and subscribe for Part 3!"
-      },
-      {
-        "part_number": 3,
-        "title": "RISC‑V Catastrophes & Fixes • Part 3 #Shorts #TechShorts",
-        "badge": "RISC‑V INSIGHTS 🛠️ • PART 3",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "techshorts",
-          "technology",
-          "part3",
-          "shorts",
-          "developer"
-        ],
-        "script": "During the first wave of commercial RISC‑V cores, a subtle bug in the unaligned load path caused catastrophic failures. The core’s load‑store unit was designed to perform a single memory read, but when the address was not 4‑byte aligned, the hardware would fetch the containing word and mask it. The problem was that the mask logic was only applied to the low‑order bytes, leaving the upper bytes untouched. If an unaligned load crossed a page boundary, the second word would be fetched from the next page, which might be unmapped. The CPU would still return the low‑order word, but the upper bytes would contain stale data from the previous page, corrupting user memory. In extreme cases, this led to a kernel panic that was triggered by a benign user program performing a misaligned load in a hot path. The bug was discovered during a stress test of a new 3.0‑core CPU, and the vendor had to release a micro‑code patch that added a boundary check before the load. The patch increased the load latency by 5 %, but it was essential to prevent data corruption.\n\nAnother infamous incident involved the medeleg CSR. A firmware update accidentally cleared the bit that delegated illegal instruction traps to supervisor mode. As a result, every illegal instruction in a user process was caught by the machine handler, which then attempted to terminate the process by calling the machine‑mode fault handler. The fault handler, however, was not re‑entrant, so it crashed the entire system. The incident cost the vendor a $3 million recall for their embedded boards. The fix involved adding a watchdog that verified the medeleg settings at boot and reset them to a safe default if they were corrupted.\n\nThese real‑world catastrophes highlight why the RISC‑V community has moved to stricter specification enforcement. The new RISC‑V 3.0 spec introduces the PMP (Physical Memory Protection) unit, which allows the OS to restrict which physical addresses a user program can access. It also defines a standard way to report unaligned access violations, so that the OS can decide whether to emulate or fault. Moreover, the spec now requires a formal verification of the trap handling path using the RISC‑V Formal Verification framework, reducing the chance of subtle bugs.\n\nThe take‑away is that a minimalistic trap system can be powerful, but it also demands meticulous implementation. The next series will peel back the curtain on microcontroller power‑management techniques, revealing how designers balance performance, energy, and reliability. Stay tuned and make sure to like and subscribe!"
-      }
-    ],
-    "current_part_index": 2
-  },
+  "active_series": null,
   "last_fact_index": -1,
   "last_series_index": 3,
   "ai_past_topics": [
@@ -305,6 +255,11 @@
       "topic": "FLOATING POINT SECRETS & DISASTERS",
       "total_parts": 3,
       "completed_at": "2026-08-24T10:26:43.472901+00:00"
+    },
+    {
+      "topic": "THE SECRET OF RISC‑V EXCEPTION HANDLING",
+      "total_parts": 3,
+      "completed_at": "2026-08-25T21:53:12.405865+00:00"
     }
   ]
 }
