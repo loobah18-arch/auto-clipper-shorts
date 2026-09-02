@@ -189,63 +189,7 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": {
-    "series_id": "modern_cryptography",
-    "topic": "THE CRYPTOGRAPHY REVOLUTION",
-    "badge_base": "CYBERSECURITY 🛡️",
-    "next_topic_teaser": "why zero point one plus zero point two is not zero point three and the space rockets it exploded",
-    "total_parts": 3,
-    "parts": [
-      {
-        "part_number": 1,
-        "title": "How SSH Logs You In Without Sending Your Password • Part 1 🔐 #Shorts",
-        "badge": "CYBERSECURITY • PART 1",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "cybersecurity",
-          "ssh",
-          "encryption",
-          "infosec",
-          "linux",
-          "networking",
-          "shorts"
-        ],
-        "script": "How do SSH keys log you into top secret cloud servers across the globe without ever transmitting your password across the internet? It all comes down to an ingenious mathematical concept known as asymmetric public key cryptography. When you generate an SSH key pair on your computer, your machine uses a cryptographically secure random number generator to create two mathematically linked keys: a public key and a private key. You freely share the public key and store it on any remote server in the world, while your private key remains encrypted and heavily guarded on your local machine. When you initiate a connection, the server never asks for your secret passphrase. Instead, the server generates a random string of numbers called a cryptographic nonce, encrypts it using your public key, and sends the scrambled puzzle back to your computer. Only the corresponding private key on your machine possesses the mathematical trapdoor required to decrypt that challenge! Your computer decrypts the number, signs it with your private key, and sends back the proof. The server verifies the signature and opens access instantly, without a single sensitive credential ever traversing the network! In Part 2, we uncover why even a billion supercomputers running for trillions of years cannot crack elliptic curve cryptography. Drop a like and subscribe for Part 2!"
-      },
-      {
-        "part_number": 2,
-        "title": "Why Supercomputers Cannot Crack Elliptic Curves • Part 2 🛡️ #Shorts",
-        "badge": "CYBERSECURITY • PART 2",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "cybersecurity",
-          "encryption",
-          "math",
-          "infosec",
-          "techfacts",
-          "shorts"
-        ],
-        "script": "Welcome back to Part 2 of The Cryptography Revolution! Once a cryptographic challenge is locked with your public key, why can't a hacker intercept the transmission and solve it? Because modern security relies on Elliptic Curve Cryptography and the mathematical hardness of the discrete logarithm problem. An elliptic curve is defined by the algebraic formula y squared equals x cubed plus ax plus b, plotted over a finite prime field. When you multiply a point on this geometric curve by a secret scalar number, the resulting point bounces unpredictably across the grid. Calculating the final point in the forward direction takes less than a millisecond on a smartphone processor. However, if an attacker is given the starting point and the ending point, finding the original secret multiplier requires checking every single possibility one by one! For a standard 256-bit elliptic curve key, there are more possible combinations than the estimated number of atoms in the entire observable universe! Even if you networked every supercomputer on Earth running continuously until the death of our sun, they could not brute force your private key. In Part 3, we reveal Zero-Knowledge Proofs and how computers mathematically prove secret knowledge without revealing a single letter. Like and subscribe for Part 3!"
-      },
-      {
-        "part_number": 3,
-        "title": "Zero-Knowledge Proofs: Proving Secrets Without Sharing Them • Part 3 🤯 #Shorts",
-        "badge": "CYBERSECURITY • PART 3",
-        "voice": "en-US-ChristopherNeural",
-        "tags": [
-          "cybersecurity",
-          "zkp",
-          "encryption",
-          "privacy",
-          "math",
-          "blockchain",
-          "shorts"
-        ],
-        "script": "Welcome back to the finale of The Cryptography Revolution! Imagine proving you know the secret combination to a bank vault without ever typing the code, speaking the numbers, or giving away a single clue. This mathematical breakthrough is known as a Zero-Knowledge Proof! First conceptualized by Shafi Goldwasser, Silvio Micali, and Charles Rackoff in nineteen eighty-five, zero-knowledge protocols allow a prover to mathematically demonstrate the truth of a statement to a verifier without conveying any additional information. Modern implementations like zk-SNARKs convert computational statements into quadratic arithmetic programs and polynomial commitments. By sampling random evaluation points on these polynomials, a computer can prove that a complex calculation was executed correctly with ninety-nine point nine nine nine percent mathematical certainty, while keeping the underlying data completely confidential! Zero-knowledge technology is currently transforming digital identity, private electronic voting, and scaling decentralized computing networks worldwide. And that is how advanced mathematics protects human freedom in the digital age. In our next series, we'll be discussing why zero point one plus zero point two is not zero point three and the space rockets it exploded, so stay tuned and make sure to like and subscribe!"
-      }
-    ],
-    "current_part_index": 2
-  },
+  "active_series": null,
   "last_fact_index": -1,
   "last_series_index": 2,
   "ai_past_topics": [
@@ -331,6 +275,11 @@
       "topic": "LINUX KERNEL & ARCHITECTURE SECRETS",
       "total_parts": 3,
       "completed_at": "2026-08-31T23:56:39.845098+00:00"
+    },
+    {
+      "topic": "THE CRYPTOGRAPHY REVOLUTION",
+      "total_parts": 3,
+      "completed_at": "2026-09-02T12:51:37.426846+00:00"
     }
   ]
 }
