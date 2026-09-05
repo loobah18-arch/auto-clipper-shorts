@@ -189,61 +189,7 @@
       "created_at": "2026-08-11T03:27:23.595104+00:00"
     }
   ],
-  "active_series": {
-    "series_id": "first_computer_bug",
-    "topic": "THE HISTORY & ANATOMY OF COMPUTER BUGS",
-    "badge_base": "TECH HISTORY 📜",
-    "next_topic_teaser": "how ninety nine percent of the global internet travels under the ocean",
-    "total_parts": 3,
-    "parts": [
-      {
-        "part_number": 1,
-        "title": "The Crazy True Story of the First Computer Bug • Part 1 🪲 #TechShorts",
-        "badge": "TECH HISTORY • PART 1",
-        "voice": "en-US-GuyNeural",
-        "tags": [
-          "techhistory",
-          "programming",
-          "debugging",
-          "computerscience",
-          "gracehopper",
-          "shorts"
-        ],
-        "script": "Have you ever wondered why software engineers and developers across the world call fixing broken code debugging? The origin story is completely literal and involves a real two-inch moth trapped inside an electromechanical supercomputer! In nineteen forty-seven, computing pioneer Grace Hopper and her engineering team were operating the Harvard Mark Two computer for the United States Navy. The Mark Two was a massive sixteen-ton machine composed of thousands of mechanical relays, vacuum tubes, and rotating shafts that filled an entire room. Suddenly, the computer began producing severe calculation errors and halted operations. The engineering team spent hours manually testing electrical circuits across hundreds of relay panels until they reached panel F. Wedged tightly between the electrical contact points of relay number seventy was an actual dead moth that had flown in through an open window and short-circuited the electrical signal! The team carefully extracted the insect with tweezers, taped it into their official Navy logbook, and penned the famous line: First actual case of bug being found. In Part 2, we uncover how a satellite software glitch nearly triggered a full-scale nuclear world war during the Cold War. Like and subscribe so you don't miss Part 2!"
-      },
-      {
-        "part_number": 2,
-        "title": "The Satellite Bug That Nearly Started WWIII • Part 2 🛰️ #Shorts",
-        "badge": "TECH HISTORY • PART 2",
-        "voice": "en-US-GuyNeural",
-        "tags": [
-          "techhistory",
-          "history",
-          "computerscience",
-          "bugs",
-          "coldwar",
-          "shorts"
-        ],
-        "script": "Welcome back to Part 2 of Computer Bug History! On September twenty-sixth, nineteen eighty-three, Soviet early-warning computers inside the secret Serpukhov-15 bunker suddenly flashed flashing red emergency sirens. The automated Oko satellite detection software reported that the United States had launched five nuclear intercontinental ballistic missiles directly at Soviet territory! Military protocol and chain of command dictated an immediate retaliatory nuclear strike that would have triggered World War Three within minutes. However, duty officer Stanislav Petrov noticed that the satellite system was relatively new and reasoned that a genuine first-strike attack would involve hundreds of simultaneous missiles, not just five. Petrov bravely defied military protocol, declared the alerts a false alarm, and held back the nuclear retaliation. Subsequent software audits proved he was right: the satellite's orbital tracking software contained a catastrophic false-positive edge case! When the high-altitude Molniya satellite reached a specific orbital alignment, sunlight glinting off high-altitude storm clouds was misinterpreted by the optical sensor algorithms as thermal rocket plumes! In Part 3, we reveal the Year 2038 Unix Epoch Time Bomb that threatens millions of legacy servers worldwide. Drop a like and subscribe for Part 3!"
-      },
-      {
-        "part_number": 3,
-        "title": "The Year 2038 Unix Epoch Time Bomb • Part 3 ⏳ #Shorts",
-        "badge": "TECH HISTORY • PART 3",
-        "voice": "en-US-GuyNeural",
-        "tags": [
-          "techhistory",
-          "y2k38",
-          "linux",
-          "programming",
-          "clocks",
-          "shorts"
-        ],
-        "script": "Welcome back to the finale of Computer Bug History! On January nineteenth, twenty thirty-eight, millions of 32-bit operating systems, banking mainframes, and embedded industrial controllers will face a digital apocalypse known as the Year 2038 Problem! Unix-based operating systems store time as the number of elapsed seconds since the Unix Epoch: midnight UTC on January first, nineteen seventy. In 32-bit systems, this timestamp is stored as a signed thirty-two bit integer. At exactly three fourteen AM and seven seconds UTC on January nineteenth, twenty thirty-eight, the counter will reach its maximum positive limit of two billion one hundred forty-seven million four hundred eighty-three thousand six hundred forty-seven seconds! On the very next second, the integer will overflow into the negative sign bit, instantly resetting the system clock to December thirteenth, nineteen zero-one! Unpatched servers, industrial power grids, medical devices, and aviation controllers will experience catastrophic scheduling logic failures. Global software engineers are currently undertaking massive infrastructure migrations to sixty-four bit time integers, which will extend the clock's overflow safety threshold by another two hundred ninety-two billion years! In our next series, we'll be exploring how ninety nine percent of the global internet travels under the ocean, so stay tuned and make sure to like and subscribe!"
-      }
-    ],
-    "current_part_index": 2
-  },
+  "active_series": null,
   "last_fact_index": -1,
   "last_series_index": 4,
   "ai_past_topics": [
@@ -339,6 +285,11 @@
       "topic": "FLOATING POINT SECRETS & DISASTERS",
       "total_parts": 3,
       "completed_at": "2026-09-03T22:41:11.572324+00:00"
+    },
+    {
+      "topic": "THE HISTORY & ANATOMY OF COMPUTER BUGS",
+      "total_parts": 3,
+      "completed_at": "2026-09-05T11:54:55.380999+00:00"
     }
   ]
 }
