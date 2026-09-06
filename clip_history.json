@@ -245,7 +245,7 @@
         "script": "Welcome back to the finale of How the Global Internet Actually Works! When a deep sea fiber optic cable snaps twenty thousand feet below the surface, how do engineers fix it without draining the entire ocean? They deploy specialized hundred-million-dollar cable repair ships equipped with five-ton robotic submarines. First, engineers on land shoot optical time-domain reflectometer light pulses down the broken line. By measuring the exact microsecond the laser bounce returns, they pinpoint the break location within a few meters! The ship navigates to the coordinate using satellite dynamic positioning, and launches a remote-operated submarine equipped with diamond-tipped saws and heavy hydraulic grapples. The robot cuts the severed cable, seals the open end, and hoists it to the surface ship's dust-free cleanroom deck. There, specialized optical technicians use microscopic fusion splicers to laser weld each individual glass strand together with sub-micron alignment. While repairs take weeks at sea, global Border Gateway Protocol routers automatically reroute internet traffic across alternate trans-oceanic routes in milliseconds, ensuring you never notice a single dropped connection! And that is the invisible engineering keeping our planet connected. In our next series, we'll be breaking down the secret Linux kernel process architecture and memory management subsystems, so stay tuned and make sure to like and subscribe!"
       }
     ],
-    "current_part_index": 1
+    "current_part_index": 2
   },
   "last_fact_index": -1,
   "last_series_index": 0,
