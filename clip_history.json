@@ -244,7 +244,7 @@
         "script": "Welcome back to the finale of The Cryptography Revolution! Imagine proving you know the secret combination to a bank vault without ever typing the code, speaking the numbers, or giving away a single clue. This mathematical breakthrough is known as a Zero-Knowledge Proof! First conceptualized by Shafi Goldwasser, Silvio Micali, and Charles Rackoff in nineteen eighty-five, zero-knowledge protocols allow a prover to mathematically demonstrate the truth of a statement to a verifier without conveying any additional information. Modern implementations like zk-SNARKs convert computational statements into quadratic arithmetic programs and polynomial commitments. By sampling random evaluation points on these polynomials, a computer can prove that a complex calculation was executed correctly with ninety-nine point nine nine nine percent mathematical certainty, while keeping the underlying data completely confidential! Zero-knowledge technology is currently transforming digital identity, private electronic voting, and scaling decentralized computing networks worldwide. And that is how advanced mathematics protects human freedom in the digital age. In our next series, we'll be discussing why zero point one plus zero point two is not zero point three and the space rockets it exploded, so stay tuned and make sure to like and subscribe!"
       }
     ],
-    "current_part_index": 1
+    "current_part_index": 2
   },
   "last_fact_index": -1,
   "last_series_index": 2,
