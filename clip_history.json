@@ -242,7 +242,7 @@
         "script": "Welcome back to the finale of Computer Bug History! On January nineteenth, twenty thirty-eight, millions of 32-bit operating systems, banking mainframes, and embedded industrial controllers will face a digital apocalypse known as the Year 2038 Problem! Unix-based operating systems store time as the number of elapsed seconds since the Unix Epoch: midnight UTC on January first, nineteen seventy. In 32-bit systems, this timestamp is stored as a signed thirty-two bit integer. At exactly three fourteen AM and seven seconds UTC on January nineteenth, twenty thirty-eight, the counter will reach its maximum positive limit of two billion one hundred forty-seven million four hundred eighty-three thousand six hundred forty-seven seconds! On the very next second, the integer will overflow into the negative sign bit, instantly resetting the system clock to December thirteenth, nineteen zero-one! Unpatched servers, industrial power grids, medical devices, and aviation controllers will experience catastrophic scheduling logic failures. Global software engineers are currently undertaking massive infrastructure migrations to sixty-four bit time integers, which will extend the clock's overflow safety threshold by another two hundred ninety-two billion years! In our next series, we'll be exploring how ninety nine percent of the global internet travels under the ocean, so stay tuned and make sure to like and subscribe!"
       }
     ],
-    "current_part_index": 1
+    "current_part_index": 2
   },
   "last_fact_index": -1,
   "last_series_index": 4,
