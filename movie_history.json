@@ -1,0 +1,12 @@
+{
+  "uploaded_movies": [
+    {
+      "movie_id": "the_platform_2019",
+      "title": "The Platform (2019)",
+      "youtube_id": null,
+      "timestamp": "2026-09-15T13:49:59.713231+00:00",
+      "video_path": "/data/data/com.termux/files/home/antigravity/auto-clipper-shorts/output/movie_short_the_platform_2019_20260915_191759.mp4",
+      "duration_sec": 54.82
+    }
+  ]
+}

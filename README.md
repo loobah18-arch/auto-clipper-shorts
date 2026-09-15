@@ -1,103 +1,116 @@
-# 💻 Auto Clipper Shorts — Tech Facts & Developer Tips Edition
+# 🎬 Auto Movie Explanation Shorts (MovieGyan & Movie Insight Style)
 
-Automatically finds viral moments in top tech, coding, and computer science channels (or generates standalone viral tech facts & developer tricks), transcribes them with Whisper AI, selects high-impact hooks with NVIDIA Nemotron / Groq LLM, renders vertical 9:16 Shorts with dynamic neon karaoke subtitles via FFmpeg, and uploads them to your YouTube Channel — **100% Free & Hands-Free via GitHub Actions**.
+An automated YouTube Shorts channel engine that produces high-retention 50-55 second **Movie Explanations, Plot Breakdowns, and Twist Reveals** in the signature style of viral channels like **MovieGyan** and **Movie Insight Hindi**.
+
+Generates neural narration (`edge-tts`), dynamic word-level neon karaoke subtitles (`.ass`), auto-sources official movie trailer clips (`yt-dlp`), slices fast 2.5–3.2s scene cuts, renders a 9:16 vertical split/blurred layout via FFmpeg, and uploads to YouTube with SEO metadata and Fair Use attribution — **100% Free & Automated via GitHub Actions**.
 
 ---
 
-## ⚡ 100% Free & Open-Source Stack
+## 🌟 Visual Layout & Aesthetic (MovieGyan Style)
 
-Just like our automated pipelines, this runs entirely on free tier tools:
+- **9:16 Vertical Framing (1080x1920)**: Engineered specifically for YouTube Shorts, TikTok, and Reels.
+- **Blurred Mirror Background**: Sourced trailer footage dynamically scaled, cropped to 1080x1920, and blurred (`boxblur=25:5`) to eliminate black bars.
+- **Centered 16:9 Foreground Movie Clip**: Crisp movie scenes positioned at `(W-w)/2:(H-h)/2 - 40`.
+- **Rapid Scene Switches (Fair Use & High Retention)**: Automatically extracts 15–20 dynamic scene segments (every 2.5–3.2s) across the trailer to keep pacing relentless.
+- **Top Badge Pill**: Sleek dark header badge (`🎬 MOVIE EXPLAINED • {MOVIE TITLE}`).
+- **Dynamic Neon Karaoke Subtitles**:
+  - Active spoken word: Highlighted in **Bright Yellow** (`&H0000FFFF&`) with pop scale.
+  - Inactive words: Crisp white with heavy black outline for 100% legibility.
+  - Placed comfortably in the lower third above YouTube Shorts UI buttons.
+- **Audio Mix**: Deep cinematic narrator voiceover (0dB) + subtle suspense/mystery thriller BGM (-18dB).
+
+---
+
+## ⚡ 100% Free Tech Stack
 
 | Component | Technology | Cost |
 |---|---|---|
-| **Audio Extraction** | `yt-dlp` | Free / Open-Source |
-| **Transcription & Word Timestamps** | `faster-whisper` (CPU int8) | Free / Open-Source |
-| **Viral Tech Hook Detection** | `NVIDIA Nemotron` / `Groq` | Free Tier API |
-| **9:16 Video & Karaoke Subtitles** | Pure `FFmpeg` + `ASS` engine | Free / Open-Source |
+| **Movie Script Engine** | Curated Catalog + Groq (Llama 3.3 70B) / DeepSeek | Free Tier |
+| **Neural Voiceover** | `edge-tts` (ChristopherNeural / MadhurNeural) | 100% Free |
+| **Footage Extraction** | `yt-dlp` (Official trailer & clip search) | Free / Open-Source |
+| **Subtitle Engine** | Word-Level Timing + Advanced ASS Karaoke | Free / Open-Source |
+| **Video Compositor** | `FFmpeg` (Multi-layer filtergraph) | Free / Open-Source |
 | **YouTube Upload** | Google YouTube Data API v3 | Free (10,000 units/day) |
-| **Scheduled Automation** | GitHub Actions (`ubuntu-latest`) | Free (2,000 min/month) |
+| **Cloud Automation** | GitHub Actions (`ubuntu-latest`) | Free (2,000 min/month) |
 
 ---
 
-## 🛡️ Curated Tech Sources & Creators
+## 📚 Curated Movie Catalog & AI Generation
 
-To keep your channel educational, high-retention, and copyright-safe, this pipeline uses curated tech, developer, and computer science creators:
+Includes 15+ pre-crafted viral thriller & mind-bending movie recaps in `movie_catalog.json`:
+- **The Platform (2019)** — The 333-floor vertical prison food mystery
+- **Fall (2022)** — Trapped on a 2,000-ft rusted tower with a chilling twist
+- **Coherence (2013)** — Passing comet fractures reality into infinite dimensions
+- **Shutter Island (2010)** — Asylum investigation and the iconic psychiatric twist
+- **Interstellar (2014)** — Gargantua black hole gravitational time dilation
+- **Source Code (2011)** — 8-minute recurring train explosion time loop
+- **The Mist (2007)** — Lovecraftian horrors and cinema's most heartbreaking ending
+- **Parasite (2019)** — Basement bunker secret under the luxury mansion
+- **A Quiet Place (2018)** — Blind sound-hunting alien predators
+- **Ex Machina (2014)** — AI Turing test and ruthless deception
+- **Don't Breathe (2016)** — Blind military veteran's dark basement secret
+- **Vivarium (2019)** — Infinite suburban labyrinth extraterrestrial zoo
+- **Predestination (2014)** — Ultimate bootstrap paradox time loop
+- **The Truman Show (1998)** — Life as a 24/7 unscripted global TV show
+- **Triangle (2009)** — Abandoned ocean liner temporal purgatory loop
 
-| Channel / Topic | Focus Area | Tags & Badges |
-|---|---|---|
-| **Fireship** | Fast Tech Insights, Code in 100s | `DEV HACK ⚡`, `#Coding` |
-| **NetworkChuck** | Linux Superpowers, Cloud, Hacking | `LINUX TRICK 🐧`, `#Linux` |
-| **Computerphile** | Deep Computer Science & Cryptography | `TECH FACT 💡`, `#ComputerScience` |
-| **ByteByteGo (Alex Xu)** | System Design & Backend Architecture | `SYSTEM DESIGN 🏗️`, `#Developer` |
-| **ThePrimeTime (ThePrimeagen)** | Software Engineering & Dev Tools | `DEV PRO TIP 💻`, `#Programming` |
-| **Waveform Clips (MKBHD Team)** | Future Tech, AI Hardware & Gadgets | `AI INSIGHT 🤖`, `#FutureTech` |
-
-*All generated descriptions automatically credit the creator and link back to the full original episode.*
-
----
-
-## 🎬 Video Layout & Aesthetic (9:16 Vertical)
-
-1. **Background**: Original 16:9 footage scaled to 1080x1920 with heavy Gaussian blur and subtle dark vignette for depth.
-2. **Foreground**: 1080p crisp center crop with high contrast.
-3. **Top Header**: Stylized Speaker / Topic badge.
-4. **Bottom Subtitles**: High-energy ASS karaoke subtitles:
-   - Active word glowing yellow highlight (`&H002BF5FF`)
-   - Thick black stroke for 100% readability on any background
-   - Vertical margin positioned above YouTube Shorts interface buttons
-
----
-
-## ⚙️ Quick Setup (5 Minutes)
-
-### 1. Create a New GitHub Repository
-Create a new GitHub repository for your clipping channel (e.g. `auto-clipper-shorts`).
-
+### On-Demand AI Generation
+Pass any movie name:
 ```bash
-cd auto-clipper-shorts
-git init
-git add .
-git commit -m "Initial commit for auto-clipper-shorts"
-git branch -M main
-git remote add origin git@github.com:<YOUR_USERNAME>/auto-clipper-shorts.git
-git push -u origin main
+python generate_movie_short.py --movie "Inception"
+```
+Uses Groq / DeepSeek to generate a complete viral 50-55s movie breakdown formatted for MovieGyan storytelling.
+
+---
+
+## 🚀 Usage
+
+### 1. Local Testing (Dry Run)
+Generate a movie explanation Short without uploading:
+```bash
+# Rotate to next movie from catalog:
+python generate_movie_short.py --dry-run
+
+# Specific movie:
+python generate_movie_short.py --movie "Shutter Island" --dry-run
+
+# Hindi language voiceover (hi-IN-MadhurNeural):
+python generate_movie_short.py --movie "The Platform" --lang hi --dry-run
 ```
 
-### 2. Set Up YouTube OAuth for the New Channel
-Run the helper locally once:
+### 2. View Catalog and Upload History
 ```bash
-python auth_setup.py
+python generate_movie_short.py --list
 ```
-Log in with your **new YouTube channel account**. It will output:
-- `CLIENT_ID`
-- `CLIENT_SECRET`
-- `REFRESH_TOKEN`
 
-### 3. Add GitHub Secrets
-In your new GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**:
+### 3. Run Pipeline Unit Tests
+```bash
+python test_movie_pipeline.py
+python test_pipeline.py
+```
 
-| Secret Name | Where to get it |
-|---|---|
-| `NVIDIA_API_KEY` | Free / Developer API key from [build.nvidia.com](https://build.nvidia.com) (Nemotron 3 Ultra 550B) |
-| `GROQ_API_KEY` | Free from [console.groq.com](https://console.groq.com) (Fallback LLM) |
-| `MINIMAX_API_KEY` | Optional: [platform.minimax.io](https://platform.minimax.io) for H3 / Hailuo avatar gesture video generation |
-| `MINIMAX_VIDEO_MODEL` | Optional: `hailuo-h3` (default) or `video-01` |
-| `CLIENT_ID` | From Google Cloud Console |
-| `CLIENT_SECRET` | From Google Cloud Console |
-| `REFRESH_TOKEN` | From `auth_setup.py` |
+### 4. Upload to YouTube
+Provide your YouTube OAuth tokens in `.env`:
+```env
+CLIENT_ID=your_client_id
+CLIENT_SECRET=your_client_secret
+REFRESH_TOKEN=your_refresh_token
+PRIVACY_STATUS=public
+```
+Run:
+```bash
+python generate_movie_short.py --movie "The Platform" --upload
+```
 
 ---
 
-## 🚀 How to Run
+## 🤖 GitHub Actions Automation
 
-### Automatic (Scheduled)
-Runs twice daily automatically at **08:00 and 20:00 UTC** via GitHub Actions.
-
-### Manual Trigger
-1. Go to **Actions → 🎬 Auto Podcast Clipper Shorts → Run workflow**.
-2. Optionally enter a specific **YouTube video URL** to clip on demand!
-
-### Local Dry Run
-```bash
-python main.py --dry-run --channel lex_fridman
-```
+Trigger manually or on schedule via `.github/workflows/daily_clip.yml`:
+1. Go to **GitHub Repo → Actions → 🎬 Auto Movie Explanation Shorts (MovieGyan Style)**.
+2. Click **Run workflow**.
+3. Optionally enter:
+   - `movie_name`: e.g. `Interstellar` (or leave blank to auto-rotate from catalog).
+   - `lang`: `en` or `hi`.
+   - `dry_run`: `true` to test render and inspect video artifact without uploading.
+4. Download the rendered MP4 & Thumbnail directly from the workflow **Artifacts** (`movie-explanation-short`).

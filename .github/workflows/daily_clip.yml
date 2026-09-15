@@ -1,4 +1,4 @@
-name: 🎬 Auto Podcast Clipper Shorts
+name: 🎬 Auto Movie Explanation Shorts (MovieGyan Style)
 
 on:
   # schedule:
@@ -6,12 +6,17 @@ on:
   #   - cron: '15 8,20 * * *'
   workflow_dispatch:
     inputs:
-      video_url:
-        description: 'Direct YouTube video URL to clip (leave blank for automatic rotation)'
+      movie_name:
+        description: 'Specific movie name to explain (leave blank for automatic catalog rotation)'
         required: false
         type: string
-      channel:
-        description: 'Specific channel ID from catalog (e.g. lex_fridman, big_think, huberman_lab)'
+      lang:
+        description: 'Narration language (en or hi)'
+        required: false
+        default: 'en'
+        type: string
+      voice:
+        description: 'Neural voice override (e.g. en-US-ChristopherNeural or hi-IN-MadhurNeural)'
         required: false
         type: string
       dry_run:
@@ -101,7 +106,7 @@ jobs:
           done
 
       - name: 🧪 Run Pipeline Unit Tests
-        run: python test_pipeline.py
+        run: python test_pipeline.py && python test_movie_pipeline.py
 
       - name: 🚀 Run Auto-Clipper Pipeline
         id: run_pipeline
@@ -118,31 +123,24 @@ jobs:
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
           PRIVACY_STATUS: 'public'
-          INPUT_VIDEO_URL: ${{ inputs.video_url }}
-          INPUT_CHANNEL: ${{ inputs.channel }}
+          INPUT_MOVIE_NAME: ${{ inputs.movie_name }}
+          INPUT_LANG: ${{ inputs.lang }}
+          INPUT_VOICE: ${{ inputs.voice }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          if [ -n "$INPUT_VIDEO_URL" ] || [ -n "$INPUT_CHANNEL" ]; then
-            echo "Running custom URL/Channel clip pipeline..."
-            ARGS=()
-            if [ -n "$INPUT_VIDEO_URL" ]; then ARGS+=(--url "$INPUT_VIDEO_URL"); fi
-            if [ -n "$INPUT_CHANNEL" ]; then ARGS+=(--channel "$INPUT_CHANNEL"); fi
-            if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
-            python main.py "${ARGS[@]}" 2>&1 | tee pipeline_debug.log
-          else
-            echo "Running Tech Fact Short Generator (Neural TTS + Studio Visualizer)..."
-            GEN_ARGS=()
-            if [ "$INPUT_DRY_RUN" = "true" ]; then
-              GEN_ARGS+=(--dry-run)
-            fi
-            python generate_tech_fact_short.py "${GEN_ARGS[@]}" 2>&1 | tee pipeline_debug.log
-          fi
+          echo "🎬 Running Movie Explanation Shorts Generator (MovieGyan Style)..."
+          ARGS=()
+          if [ -n "$INPUT_MOVIE_NAME" ]; then ARGS+=(--movie "$INPUT_MOVIE_NAME"); fi
+          if [ -n "$INPUT_LANG" ]; then ARGS+=(--lang "$INPUT_LANG"); fi
+          if [ -n "$INPUT_VOICE" ]; then ARGS+=(--voice "$INPUT_VOICE"); fi
+          if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
+          python generate_movie_short.py "${ARGS[@]}" 2>&1 | tee pipeline_debug.log
 
       - name: 📦 Upload Generated Video Artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: generated-tech-short
+          name: movie-explanation-short
           path: |
             output/*.mp4
             output/*.jpg
@@ -155,8 +153,8 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           TARGET_BRANCH="${GITHUB_REF_NAME:-main}"
-          git add clip_history.json || true
-          git commit -m "🤖 Auto-clip state update [skip ci]" || echo "No changes to commit"
+          git add movie_history.json clip_history.json || true
+          git commit -m "🤖 Auto-clip movie state update [skip ci]" || echo "No changes to commit"
           git fetch origin "$TARGET_BRANCH" || true
           git pull --rebase origin "$TARGET_BRANCH" || true
           git push origin "HEAD:$TARGET_BRANCH" || echo "Push skipped or nothing to push"
