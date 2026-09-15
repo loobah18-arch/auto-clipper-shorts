@@ -78,7 +78,30 @@ python generate_movie_short.py --movie "Shutter Island" --dry-run
 python generate_movie_short.py --movie "The Platform" --lang hi --dry-run
 ```
 
-### 2. View Catalog and Upload History
+### 2. Sourcing Raw Footage & Scene Packs
+The pipeline provides 3 flexible ways to source movie clips:
+1. **Automated Studio Trailers (Default):** Pipeline queries YouTube via `yt-dlp` for `"{Movie Title} official trailer 1080p"`, downloads, and auto-slices dynamic 2.5–3.2s cuts across the film.
+2. **Local High-Res Movie File:** Pass any `.mp4` or `.mkv` file directly:
+   ```bash
+   python generate_movie_short.py --movie "Inception" --video-file /path/to/inception_1080p.mp4
+   ```
+3. **Editor Scene Packs:** Search YouTube for `"[Movie] scene pack 4k no watermark"`, download with `yt-dlp`, and pass it via `--video-file`.
+
+### 3. Maximizing Monetization (YPP) Approval
+To ensure approval under YouTube's Partner Program (Reused Content policies):
+1. **Critical Analysis Scripts:** The AI script engine focuses on *psychological theories, directorial symbolism, and hidden details* rather than dry summaries.
+2. **Channel Watermark & Branding:** Add your channel handle to prove authentic channel identity:
+   ```bash
+   python generate_movie_short.py --movie "Fall" --watermark "@CinemaInsights"
+   ```
+3. **Custom Human Voiceover Support:** Record your voiceover on your phone or mic and pass it in:
+   ```bash
+   python generate_movie_short.py --movie "Fall" --audio-file voiceover.mp3
+   ```
+   The pipeline will automatically synchronize dynamic karaoke subtitles to your real voice!
+4. **Cinematic Color Grading:** Applied automatically to the foreground footage to provide a unique digital hash and enhanced contrast.
+
+### 4. View Catalog and Upload History
 ```bash
 python generate_movie_short.py --list
 ```

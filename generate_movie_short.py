@@ -228,7 +228,16 @@ All copyright belongs to the respective film studios and production companies.
         return None
 
 
-def run_pipeline(movie_name: str = None, voice: str = None, lang: str = "en", dry_run: bool = False, force_upload: bool = False):
+def run_pipeline(
+    movie_name: str = None,
+    voice: str = None,
+    lang: str = "en",
+    dry_run: bool = False,
+    force_upload: bool = False,
+    video_file: str = None,
+    audio_file: str = None,
+    watermark: str = None
+):
     """Executes the complete Movie Explanation Short creation workflow."""
     start_time = datetime.now(timezone.utc)
     log("=" * 65)
@@ -239,12 +248,13 @@ def run_pipeline(movie_name: str = None, voice: str = None, lang: str = "en", dr
     movie_data = select_next_movie(movie_name, lang=lang)
     movie_id = movie_data.get("id", re.sub(r"[^\w]", "_", movie_data.get("title", "movie")).lower())
     title = movie_data.get("title", "Movie Explained")
-    script_text = movie_data.get("script")
+    script_text = movie_data.get("script", "")
     badge_text = movie_data.get("badge", title)
     search_query = movie_data.get("search_query", f"{title} official trailer")
 
     log(f"📖 Movie: {title}")
-    log(f"🎙️ Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
+    if script_text:
+        log(f"🎙️ Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
 
     # Determine TTS Voice
     if not voice:
@@ -259,27 +269,40 @@ def run_pipeline(movie_name: str = None, voice: str = None, lang: str = "en", dr
     final_short_path = OUTPUT_DIR / f"movie_short_{movie_id}_{timestamp}.mp4"
     thumb_path = OUTPUT_DIR / f"thumb_{movie_id}_{timestamp}.jpg"
 
-    # 2. Synthesize Audio
-    sentences = asyncio.run(generate_speech_audio(script_text, audio_path, voice=voice))
-    duration = get_audio_duration(audio_path)
+    # 2. Audio Generation (or use custom human voice)
+    if audio_file and Path(audio_file).exists():
+        log(f"🎙️ Using custom human voiceover: '{audio_file}'")
+        shutil.copyfile(audio_file, audio_path)
+        duration = get_audio_duration(audio_path)
+        # Generate word boundaries from script or dummy
+        sim_words = [{"text": script_text, "start": 0.0, "end": duration}]
+        words = create_word_timestamps_from_sentences(sim_words)
+    else:
+        sentences = asyncio.run(generate_speech_audio(script_text, audio_path, voice=voice))
+        duration = get_audio_duration(audio_path)
+        words = create_word_timestamps_from_sentences(sentences)
+
     log(f"⏱️ Audio narration duration: {duration:.2f} seconds")
 
     # 3. Generate Subtitles (MovieGyan Style)
-    words = create_word_timestamps_from_sentences(sentences)
     generate_moviegyan_subtitles(words, subtitles_path, group_size=3)
 
-    # 4. Sourcing Trailer Clips
-    trailer_ok = download_movie_trailer(search_query, raw_trailer_path)
-    if trailer_ok:
-        sliced_ok = slice_trailer_dynamic_scenes(raw_trailer_path, duration, sliced_video_path)
+    # 4. Sourcing Video Clips (Local video file or YouTube Trailer)
+    if video_file and Path(video_file).exists():
+        log(f"🎞️ Sourcing scenes from local video file: '{video_file}'")
+        sliced_ok = slice_trailer_dynamic_scenes(Path(video_file), duration, sliced_video_path)
     else:
-        sliced_ok = False
+        trailer_ok = download_movie_trailer(search_query, raw_trailer_path)
+        if trailer_ok:
+            sliced_ok = slice_trailer_dynamic_scenes(raw_trailer_path, duration, sliced_video_path)
+        else:
+            sliced_ok = False
 
     if not sliced_ok or not sliced_video_path.exists():
         log("⚠️ Trailer sourcing unavailable, generating procedural visuals...")
         create_fallback_procedural_video(duration, title, sliced_video_path)
 
-    # 5. Render Final 9:16 Short
+    # 5. Render Final 9:16 Short (with Color Grade & Optional Watermark)
     bgm_file = BGM_DIR / "cinematic_suspense_thriller.mp3"
     render_movie_explanation_short(
         sliced_video_path=sliced_video_path,
@@ -288,7 +311,8 @@ def run_pipeline(movie_name: str = None, voice: str = None, lang: str = "en", dr
         movie_title=title,
         badge_text=badge_text,
         output_final_path=final_short_path,
-        bgm_path=bgm_file
+        bgm_path=bgm_file,
+        watermark_text=watermark
     )
 
     # 6. Generate Thumbnail
@@ -334,6 +358,9 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Render video locally without uploading to YouTube")
     parser.add_argument("--upload", action="store_true", help="Force upload to YouTube")
     parser.add_argument("--list", action="store_true", help="List catalog movies and upload history")
+    parser.add_argument("--video-file", type=str, default=None, help="Path to local high-res movie or scene pack MP4/MKV")
+    parser.add_argument("--audio-file", type=str, default=None, help="Path to custom human-recorded voiceover MP3/WAV")
+    parser.add_argument("--watermark", type=str, default=None, help="Channel watermark text (e.g. '@CinemaInsights')")
     args = parser.parse_args()
 
     if args.list:
@@ -352,7 +379,10 @@ def main():
         voice=args.voice,
         lang=args.lang,
         dry_run=args.dry_run,
-        force_upload=args.upload
+        force_upload=args.upload,
+        video_file=args.video_file,
+        audio_file=args.audio_file,
+        watermark=args.watermark
     )
 
 

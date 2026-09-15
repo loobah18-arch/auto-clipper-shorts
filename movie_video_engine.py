@@ -290,19 +290,21 @@ def render_movie_explanation_short(
     movie_title: str,
     badge_text: str,
     output_final_path: Path,
-    bgm_path: Path = None
+    bgm_path: Path = None,
+    watermark_text: str = None
 ) -> Path:
     """
     Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
     - Fullscreen blurred background
-    - 16:9 centered foreground clip
+    - 16:9 centered foreground clip with cinematic color grading & sharpness
+    - Channel watermark & branding for YPP review verification
     - Sleek top badge pill with movie title
     - Bold animated karaoke subtitles in lower-third
     - Crystal clear voiceover with suspense BGM
     """
     duration = get_audio_duration(narration_audio_path)
     clean_badge = re.sub(r"[^A-Za-z0-9\s\(\)\-\.\,\!\?]", "", badge_text or movie_title).strip().upper()[:28]
-    badge_display = f"🎬 MOVIE EXPLAINED • {clean_badge}"
+    badge_display = f"🎬 MOVIE ANALYSIS • {clean_badge}"
 
     font_path = find_system_font()
     if os.path.exists(font_path):
@@ -321,16 +323,20 @@ def render_movie_explanation_short(
     has_bgm = bgm_path and bgm_path.exists()
     log(f"🎨 Rendering Movie Explanation Short (1080x1920, {duration:.1f}s)...")
 
-    # Filtergraph:
-    # 0:v = sliced movie scenes
-    # 1:a = narration voiceover
-    # 2:a = suspense BGM (if present)
+    # Optional channel watermark for YPP brand identity
+    watermark_filter = ""
+    if watermark_text:
+        clean_wm = re.sub(r"[^A-Za-z0-9@\._\- ]", "", watermark_text).strip()
+        watermark_filter = f",drawtext=text='{clean_wm}':fontsize=26:fontcolor=white@0.65:{font_opt}:x=w-text_w-50:y=h-text_h-240"
+
+    # Filtergraph with transformative color grading & subtle unsharp masking for unique digital fingerprint
     video_filters = (
         "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5,eq=brightness=-0.12:contrast=1.05[bg];"
-        "[0:v]scale=1040:-2[fg];"
+        "[0:v]scale=1040:-2,eq=contrast=1.08:brightness=-0.03:saturation=1.12,unsharp=3:3:0.5[fg];"
         "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 40[comp];"
         f"[comp]drawbox=x=40:y=120:w=1000:h=90:color=black@0.75:t=fill,"
-        f"drawtext=text='{badge_display}':fontsize=36:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=148,"
+        f"drawtext=text='{badge_display}':fontsize=36:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=148"
+        f"{watermark_filter},"
         f"ass='{ass_esc}'[vfinal]"
     )
 
