@@ -190,7 +190,13 @@ def get_audio_duration(audio_path: Path) -> float:
 
 def download_movie_trailer(search_query: str, output_path: Path, trailer_url: str = None) -> bool:
     """
-    Downloads the official movie trailer using direct URL or multi-client YouTube search via yt-dlp.
+    Downloads the official movie trailer using direct URL or search query via yt-dlp.
+    Applies multi-strategy fallback:
+    1. Direct URL / Query with default yt-dlp client heuristics (NO cookies, avoids bot detection)
+    2. Section download (00:00:10 to 00:01:40) to grab trailer footage quickly
+    3. Direct stream URL resolution (yt-dlp -g) + FFmpeg streaming capture
+    4. Client-specific fallbacks (android, tv, web)
+    5. Cookies fallback as last resort
     """
     try:
         from main import ytdlp_cookies_args
@@ -199,46 +205,121 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
         cookies = []
 
     candidate_targets = []
-    if trailer_url:
-        candidate_targets.append(("direct_url", trailer_url))
+    if trailer_url and trailer_url.strip():
+        candidate_targets.append(("direct_url", trailer_url.strip()))
 
+    clean_query = re.sub(r"[^\w\s]", " ", search_query).strip()
     candidate_targets.extend([
-        ("query", f"ytsearch3:{search_query}"),
-        ("query_trailer", f"ytsearch3:{search_query} official trailer 1080p"),
-        ("query_clips", f"ytsearch3:{search_query} movie scenes clips")
+        ("trailer_query", f"ytsearch2:{clean_query} official trailer 1080p"),
+        ("direct_query", f"ytsearch2:{clean_query} official trailer"),
+        ("clip_query", f"ytsearch2:{clean_query} movie scenes clips"),
     ])
 
-    client_combos = [
-        ["--extractor-args", "youtube:player_client=ios,mweb,web"],
-        ["--extractor-args", "youtube:player_client=android,mweb"],
-        ["--extractor-args", "youtube:player_client=web,default"],
-        []
-    ]
+    fmt_selector = "bv*[height<=1080]+ba/b[height<=1080]/best/18/22/b"
 
     for tag, target in candidate_targets:
-        log(f"🔍 Attempting trailer fetch ({tag}): '{target}'...")
-        for client_args in client_combos:
-            cmd = [
+        log(f"🔍 Sourcing movie footage ({tag}): '{target}'...")
+
+        # Strategy 1: Standard yt-dlp download without cookies (default client, zero interference)
+        cmd_default = [
+            "yt-dlp",
+            target,
+            "--no-playlist",
+            "--no-warnings",
+            "-f", fmt_selector,
+            "--merge-output-format", "mp4",
+            "-o", str(output_path),
+            "--no-check-certificates"
+        ]
+        try:
+            res = subprocess.run(cmd_default, capture_output=True, text=True, timeout=90)
+            if output_path.exists() and output_path.stat().st_size > 300_000:
+                log(f"✅ Sourced movie trailer ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+                return True
+            if res.stderr:
+                err_line = res.stderr.strip().split("\n")[-1]
+                log(f"   ↳ [default] Notice: {err_line[:100]}")
+        except Exception as e:
+            log(f"   ↳ [default] Error: {e}")
+
+        # Strategy 2: Fast section download (first 90s, avoids huge files & timeouts)
+        cmd_section = [
+            "yt-dlp",
+            target,
+            "--download-sections", "*00:00:10-00:01:40",
+            "--no-playlist",
+            "--no-warnings",
+            "-f", fmt_selector,
+            "--merge-output-format", "mp4",
+            "-o", str(output_path),
+            "--no-check-certificates"
+        ]
+        try:
+            res = subprocess.run(cmd_section, capture_output=True, text=True, timeout=60)
+            if output_path.exists() and output_path.stat().st_size > 300_000:
+                log(f"✅ Sourced movie trailer section ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+                return True
+            if res.stderr:
+                err_line = res.stderr.strip().split("\n")[-1]
+                log(f"   ↳ [section] Notice: {err_line[:100]}")
+        except Exception as e:
+            log(f"   ↳ [section] Error: {e}")
+
+        # Strategy 3: Direct stream resolution via yt-dlp -g + FFmpeg capture
+        try:
+            g_cmd = [
+                "yt-dlp", "-g",
+                "-f", fmt_selector,
+                "--no-warnings",
+                "--no-check-certificates",
+                target
+            ]
+            g_res = subprocess.run(g_cmd, capture_output=True, text=True, timeout=30)
+            urls = [l.strip() for l in g_res.stdout.strip().split("\n") if l.strip().startswith("http")]
+            if urls:
+                log(f"   ↳ Stream resolved ({len(urls)} URLs). Capturing with FFmpeg...")
+                if len(urls) >= 2:
+                    ff_cmd = [
+                        "ffmpeg", "-y",
+                        "-ss", "00:00:10", "-t", "90", "-i", urls[0],
+                        "-ss", "00:00:10", "-t", "90", "-i", urls[1],
+                        "-c:v", "libx264", "-preset", "ultrafast",
+                        "-c:a", "aac", "-b:a", "128k",
+                        str(output_path)
+                    ]
+                else:
+                    ff_cmd = [
+                        "ffmpeg", "-y",
+                        "-ss", "00:00:10", "-t", "90", "-i", urls[0],
+                        "-c:v", "libx264", "-preset", "ultrafast",
+                        "-c:a", "aac", "-b:a", "128k",
+                        str(output_path)
+                    ]
+                subprocess.run(ff_cmd, capture_output=True, timeout=60)
+                if output_path.exists() and output_path.stat().st_size > 300_000:
+                    log(f"✅ Sourced movie trailer stream ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+                    return True
+        except Exception as e:
+            log(f"   ↳ [stream] Notice: {e}")
+
+        # Strategy 4: Cookies fallback (only if cookies exist and anonymous failed)
+        if cookies:
+            cmd_cookies = [
                 "yt-dlp",
                 target,
                 "--no-playlist",
-                "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best/bestvideo+bestaudio",
+                "-f", fmt_selector,
                 "--merge-output-format", "mp4",
                 "-o", str(output_path),
                 "--no-check-certificates"
-            ] + cookies + client_args
-
+            ] + cookies
             try:
-                res = subprocess.run(cmd, capture_output=True, text=True, timeout=95)
-                if output_path.exists() and output_path.stat().st_size > 500_000:
-                    log(f"✅ Downloaded movie footage ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+                subprocess.run(cmd_cookies, capture_output=True, text=True, timeout=60)
+                if output_path.exists() and output_path.stat().st_size > 300_000:
+                    log(f"✅ Sourced movie trailer with cookies ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
                     return True
-                else:
-                    if res.returncode != 0:
-                        err_line = res.stderr.strip().split("\n")[-1] if res.stderr else "Unknown error"
-                        log(f"   ↳ Notice: {err_line[:110]}")
-            except Exception as e:
-                log(f"   ↳ Error: {e}")
+            except Exception:
+                pass
 
     log("⚠️ All YouTube video download candidates failed.")
     return False
@@ -423,7 +504,7 @@ def render_movie_explanation_short(
     """
     duration = get_audio_duration(narration_audio_path)
     clean_badge = re.sub(r"[^A-Za-z0-9\s\(\)\-\.\,\!\?]", "", badge_text or movie_title).strip().upper()[:28]
-    badge_display = f"🎬 MOVIE ANALYSIS • {clean_badge}"
+    badge_display = f"MOVIE RECAP • {clean_badge}"
 
     font_path = find_system_font()
     if os.path.exists(font_path):
