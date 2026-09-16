@@ -34,6 +34,7 @@ from movie_video_engine import (
     get_audio_duration,
     download_movie_trailer,
     slice_trailer_dynamic_scenes,
+    create_cinematic_movie_visual_fallback,
     render_movie_explanation_short,
     generate_thumbnail,
     log,
@@ -104,30 +105,7 @@ def select_next_movie(requested_movie: str = None, lang: str = "en") -> dict:
     return selected
 
 
-def create_fallback_procedural_video(duration: float, title: str, output_path: Path):
-    """
-    Creates a procedural cinematic dark video if trailer download fails,
-    ensuring the video rendering never halts.
-    """
-    log("⚠️ Generating procedural cinematic background visual fallback...")
-    font_path = find_system_font()
-    font_opt = f"fontfile='{font_path}'" if os.path.exists(font_path) else "font='DejaVu Sans'"
-    clean_title = re.sub(r"[^A-Za-z0-9\s]", "", title).strip().upper()[:24]
 
-    cmd = [
-        "ffmpeg", "-y",
-        "-f", "lavfi", "-i", f"color=c=#0f111a:s=1080x1920:d={duration:.2f}",
-        "-f", "lavfi", "-i", f"color=c=#1a1f2c:s=1040x585:d={duration:.2f}",
-        "-filter_complex", (
-            f"[0:v][1:v]overlay=(W-w)/2:(H-h)/2 - 40[base];"
-            f"[base]drawtext=text='{clean_title}':fontsize=48:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=(h-text_h)/2 - 40[v]"
-        ),
-        "-map", "[v]",
-        "-t", f"{duration:.2f}",
-        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-        str(output_path)
-    ]
-    subprocess.run(cmd, check=True)
 
 
 def upload_movie_to_youtube(video_path: Path, thumb_path: Path, movie_data: dict, dry_run: bool = False) -> str:
@@ -292,15 +270,16 @@ def run_pipeline(
         log(f"🎞️ Sourcing scenes from local video file: '{video_file}'")
         sliced_ok = slice_trailer_dynamic_scenes(Path(video_file), duration, sliced_video_path)
     else:
-        trailer_ok = download_movie_trailer(search_query, raw_trailer_path)
+        trailer_url = movie_data.get("trailer_url")
+        trailer_ok = download_movie_trailer(search_query, raw_trailer_path, trailer_url=trailer_url)
         if trailer_ok:
             sliced_ok = slice_trailer_dynamic_scenes(raw_trailer_path, duration, sliced_video_path)
         else:
             sliced_ok = False
 
     if not sliced_ok or not sliced_video_path.exists():
-        log("⚠️ Trailer sourcing unavailable, generating procedural visuals...")
-        create_fallback_procedural_video(duration, title, sliced_video_path)
+        log("⚠️ Trailer sourcing unavailable, generating authentic movie visual fallback...")
+        create_cinematic_movie_visual_fallback(duration, title, sliced_video_path)
 
     # 5. Render Final 9:16 Short (with Color Grade & Optional Watermark)
     bgm_file = BGM_DIR / "cinematic_suspense_thriller.mp3"

@@ -123,6 +123,7 @@ jobs:
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
           PRIVACY_STATUS: 'public'
+          POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           INPUT_MOVIE_NAME: ${{ inputs.movie_name }}
           INPUT_LANG: ${{ inputs.lang }}
           INPUT_VOICE: ${{ inputs.voice }}
