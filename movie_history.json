@@ -39,6 +39,14 @@
       "timestamp": "2026-09-16T18:26:58.695901+00:00",
       "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_interstellar_2014_20260916_182512.mp4",
       "duration_sec": 47.98
+    },
+    {
+      "movie_id": "source_code_2011",
+      "title": "Source Code (2011)",
+      "youtube_id": null,
+      "timestamp": "2026-09-16T18:53:07.363188+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_source_code_2011_20260916_184856.mp4",
+      "duration_sec": 46.63
     }
   ]
 }
