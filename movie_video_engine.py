@@ -229,22 +229,22 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
     # Configurations designed to completely bypass YouTube datacenter IP bot detection
     client_configs = [
         # Android client uses native protobuf app API - immune to web bot check
-        ("android", ["--extractor-args", "youtube:player_client=android"], "18/22/b/best/bv*+ba"),
-        ("android_pot", ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url};youtube:player_client=android"], "18/22/b/best/bv*+ba"),
+        ("android", ["--extractor-args", "youtube:player_client=android"], "18/22/bv*[height<=720]+ba/b/best"),
+        ("android_pot", ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url}", "--extractor-args", "youtube:player_client=android"], "18/22/bv*[height<=720]+ba/b/best"),
         ("tv", ["--extractor-args", "youtube:player_client=tv"], "b/best/18/22"),
-        ("mweb_pot", ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url};youtube:player_client=mweb"], "18/22/b/best"),
-        ("default", [], "bv*[height<=1080]+ba/b[height<=1080]/best/18/22/b")
+        ("mweb_pot", ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url}", "--extractor-args", "youtube:player_client=mweb"], "18/22/b/best"),
+        ("default", [], "bv*[height<=720]+ba/b/best/18/22")
     ]
 
     for tag, target in candidate_targets:
         log(f"🔍 Sourcing movie footage ({tag}): '{target}'...")
 
         for client_name, client_args, fmt in client_configs:
-            # 1. Direct section download (fastest, extracts 90s core scenes)
+            # 1. Direct section download (fastest, extracts 45s core scenes)
             cmd_section = [
                 "yt-dlp",
                 target,
-                "--download-sections", "*00:00:10-00:01:40",
+                "--download-sections", "*00:00:10-00:00:55",
                 "--no-playlist",
                 "--no-warnings",
                 "-f", fmt,
@@ -254,12 +254,17 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
             ] + client_args
 
             try:
-                res = subprocess.run(cmd_section, capture_output=True, text=True, timeout=50)
+                res = subprocess.run(cmd_section, capture_output=True, text=True, timeout=90)
                 if output_path.exists() and output_path.stat().st_size > 250_000:
                     log(f"✅ Sourced movie trailer [{client_name}] ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
                     return True
+                elif res.returncode != 0 and res.stderr:
+                    err_msg = res.stderr.strip().splitlines()[-1]
+                    log(f"   ↳ [{client_name}] Section notice: {err_msg[:95]}")
+            except subprocess.TimeoutExpired:
+                log(f"   ↳ [{client_name}] Section download timed out after 90s")
             except Exception as e:
-                pass
+                log(f"   ↳ [{client_name}] Section error: {e}")
 
             # 2. Full trailer download with this client
             cmd_full = [
@@ -274,12 +279,17 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
             ] + client_args
 
             try:
-                res = subprocess.run(cmd_full, capture_output=True, text=True, timeout=60)
+                res = subprocess.run(cmd_full, capture_output=True, text=True, timeout=90)
                 if output_path.exists() and output_path.stat().st_size > 250_000:
                     log(f"✅ Sourced movie trailer [{client_name}] ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
                     return True
+                elif res.returncode != 0 and res.stderr:
+                    err_msg = res.stderr.strip().splitlines()[-1]
+                    log(f"   ↳ [{client_name}] Full notice: {err_msg[:95]}")
+            except subprocess.TimeoutExpired:
+                log(f"   ↳ [{client_name}] Full download timed out after 90s")
             except Exception as e:
-                pass
+                log(f"   ↳ [{client_name}] Full error: {e}")
 
             # 3. Direct stream resolution via yt-dlp -g + FFmpeg capture
             try:
@@ -289,15 +299,15 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
                     "--no-warnings",
                     "--no-check-certificates",
                 ] + client_args + [target]
-                g_res = subprocess.run(g_cmd, capture_output=True, text=True, timeout=25)
+                g_res = subprocess.run(g_cmd, capture_output=True, text=True, timeout=30)
                 urls = [l.strip() for l in g_res.stdout.strip().split("\n") if l.strip().startswith("http")]
                 if urls:
                     log(f"   ↳ Direct stream resolved [{client_name}] ({len(urls)} URLs). Capturing with FFmpeg...")
                     if len(urls) >= 2:
                         ff_cmd = [
                             "ffmpeg", "-y",
-                            "-ss", "00:00:10", "-t", "90", "-i", urls[0],
-                            "-ss", "00:00:10", "-t", "90", "-i", urls[1],
+                            "-ss", "00:00:10", "-t", "60", "-i", urls[0],
+                            "-ss", "00:00:10", "-t", "60", "-i", urls[1],
                             "-c:v", "libx264", "-preset", "ultrafast",
                             "-c:a", "aac", "-b:a", "128k",
                             str(output_path)
@@ -305,17 +315,17 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
                     else:
                         ff_cmd = [
                             "ffmpeg", "-y",
-                            "-ss", "00:00:10", "-t", "90", "-i", urls[0],
+                            "-ss", "00:00:10", "-t", "60", "-i", urls[0],
                             "-c:v", "libx264", "-preset", "ultrafast",
                             "-c:a", "aac", "-b:a", "128k",
                             str(output_path)
                         ]
-                    subprocess.run(ff_cmd, capture_output=True, timeout=50)
+                    subprocess.run(ff_cmd, capture_output=True, timeout=60)
                     if output_path.exists() and output_path.stat().st_size > 250_000:
                         log(f"✅ Sourced movie trailer stream [{client_name}] ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
                         return True
-            except Exception:
-                pass
+            except Exception as e:
+                log(f"   ↳ [{client_name}] Stream error: {e}")
 
         # Optional last resort with cookies
         if cookies:
@@ -469,6 +479,7 @@ def slice_trailer_dynamic_scenes(trailer_path: Path, target_duration: float, out
 
     cmd = [
         "ffmpeg", "-y",
+        "-stream_loop", "-1",
         "-i", str(trailer_path),
         "-filter_complex", concat_filter,
         "-map", "[vconcat]",
@@ -487,6 +498,7 @@ def slice_trailer_dynamic_scenes(trailer_path: Path, target_duration: float, out
         # Simple fallback trim
         fb_cmd = [
             "ffmpeg", "-y",
+            "-stream_loop", "-1",
             "-ss", f"{usable_start:.2f}",
             "-i", str(trailer_path),
             "-t", f"{target_duration:.2f}",
