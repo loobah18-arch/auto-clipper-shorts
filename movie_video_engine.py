@@ -198,11 +198,22 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
     4. Client-specific fallbacks (android, tv, web)
     5. Cookies fallback as last resort
     """
+    # Check local clips directory first (allows manual clip curation without network dependency)
+    clean_stem = re.sub(r"_\d{8}_\d{6}$", "", output_path.stem)
+    for folder in ["raw_clips", "clips", "videos"]:
+        for cand in [WORKSPACE_DIR / folder / f"{output_path.stem}.mp4", WORKSPACE_DIR / folder / f"{clean_stem}.mp4"]:
+            if cand.exists() and cand.stat().st_size > 300_000:
+                log(f"🎬 Found local curated movie clip: {cand.name} ({cand.stat().st_size / 1024 / 1024:.1f} MB)")
+                shutil.copy2(cand, output_path)
+                return True
+
     try:
         from main import ytdlp_cookies_args
         cookies = ytdlp_cookies_args()
     except Exception:
         cookies = []
+
+    pot_url = os.environ.get("YT_DLP_POT_PROVIDER_URL") or os.environ.get("POT_PROVIDER_URL") or "http://127.0.0.1:4416"
 
     candidate_targets = []
     if trailer_url and trailer_url.strip():
@@ -215,107 +226,111 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
         ("clip_query", f"ytsearch2:{clean_query} movie scenes clips"),
     ])
 
-    fmt_selector = "bv*[height<=1080]+ba/b[height<=1080]/best/18/22/b"
+    # Configurations designed to completely bypass YouTube datacenter IP bot detection
+    client_configs = [
+        # Android client uses native protobuf app API - immune to web bot check
+        ("android", ["--extractor-args", "youtube:player_client=android"], "18/22/b/best/bv*+ba"),
+        ("android_pot", ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url};youtube:player_client=android"], "18/22/b/best/bv*+ba"),
+        ("tv", ["--extractor-args", "youtube:player_client=tv"], "b/best/18/22"),
+        ("mweb_pot", ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url};youtube:player_client=mweb"], "18/22/b/best"),
+        ("default", [], "bv*[height<=1080]+ba/b[height<=1080]/best/18/22/b")
+    ]
 
     for tag, target in candidate_targets:
         log(f"🔍 Sourcing movie footage ({tag}): '{target}'...")
 
-        # Strategy 1: Standard yt-dlp download without cookies (default client, zero interference)
-        cmd_default = [
-            "yt-dlp",
-            target,
-            "--no-playlist",
-            "--no-warnings",
-            "-f", fmt_selector,
-            "--merge-output-format", "mp4",
-            "-o", str(output_path),
-            "--no-check-certificates"
-        ]
-        try:
-            res = subprocess.run(cmd_default, capture_output=True, text=True, timeout=90)
-            if output_path.exists() and output_path.stat().st_size > 300_000:
-                log(f"✅ Sourced movie trailer ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
-                return True
-            if res.stderr:
-                err_line = res.stderr.strip().split("\n")[-1]
-                log(f"   ↳ [default] Notice: {err_line[:100]}")
-        except Exception as e:
-            log(f"   ↳ [default] Error: {e}")
-
-        # Strategy 2: Fast section download (first 90s, avoids huge files & timeouts)
-        cmd_section = [
-            "yt-dlp",
-            target,
-            "--download-sections", "*00:00:10-00:01:40",
-            "--no-playlist",
-            "--no-warnings",
-            "-f", fmt_selector,
-            "--merge-output-format", "mp4",
-            "-o", str(output_path),
-            "--no-check-certificates"
-        ]
-        try:
-            res = subprocess.run(cmd_section, capture_output=True, text=True, timeout=60)
-            if output_path.exists() and output_path.stat().st_size > 300_000:
-                log(f"✅ Sourced movie trailer section ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
-                return True
-            if res.stderr:
-                err_line = res.stderr.strip().split("\n")[-1]
-                log(f"   ↳ [section] Notice: {err_line[:100]}")
-        except Exception as e:
-            log(f"   ↳ [section] Error: {e}")
-
-        # Strategy 3: Direct stream resolution via yt-dlp -g + FFmpeg capture
-        try:
-            g_cmd = [
-                "yt-dlp", "-g",
-                "-f", fmt_selector,
-                "--no-warnings",
-                "--no-check-certificates",
-                target
-            ]
-            g_res = subprocess.run(g_cmd, capture_output=True, text=True, timeout=30)
-            urls = [l.strip() for l in g_res.stdout.strip().split("\n") if l.strip().startswith("http")]
-            if urls:
-                log(f"   ↳ Stream resolved ({len(urls)} URLs). Capturing with FFmpeg...")
-                if len(urls) >= 2:
-                    ff_cmd = [
-                        "ffmpeg", "-y",
-                        "-ss", "00:00:10", "-t", "90", "-i", urls[0],
-                        "-ss", "00:00:10", "-t", "90", "-i", urls[1],
-                        "-c:v", "libx264", "-preset", "ultrafast",
-                        "-c:a", "aac", "-b:a", "128k",
-                        str(output_path)
-                    ]
-                else:
-                    ff_cmd = [
-                        "ffmpeg", "-y",
-                        "-ss", "00:00:10", "-t", "90", "-i", urls[0],
-                        "-c:v", "libx264", "-preset", "ultrafast",
-                        "-c:a", "aac", "-b:a", "128k",
-                        str(output_path)
-                    ]
-                subprocess.run(ff_cmd, capture_output=True, timeout=60)
-                if output_path.exists() and output_path.stat().st_size > 300_000:
-                    log(f"✅ Sourced movie trailer stream ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
-                    return True
-        except Exception as e:
-            log(f"   ↳ [stream] Notice: {e}")
-
-        # Strategy 4: Cookies fallback (only if cookies exist and anonymous failed)
-        if cookies:
-            cmd_cookies = [
+        for client_name, client_args, fmt in client_configs:
+            # 1. Direct section download (fastest, extracts 90s core scenes)
+            cmd_section = [
                 "yt-dlp",
                 target,
+                "--download-sections", "*00:00:10-00:01:40",
                 "--no-playlist",
-                "-f", fmt_selector,
+                "--no-warnings",
+                "-f", fmt,
                 "--merge-output-format", "mp4",
                 "-o", str(output_path),
                 "--no-check-certificates"
-            ] + cookies
+            ] + client_args
+
             try:
-                subprocess.run(cmd_cookies, capture_output=True, text=True, timeout=60)
-                if output_path.exists() and output_path.stat().st_size > 300_000:
+                res = subprocess.run(cmd_section, capture_output=True, text=True, timeout=50)
+                if output_path.exists() and output_path.stat().st_size > 250_000:
+                    log(f"✅ Sourced movie trailer [{client_name}] ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+                    return True
+            except Exception as e:
+                pass
+
+            # 2. Full trailer download with this client
+            cmd_full = [
+                "yt-dlp",
+                target,
+                "--no-playlist",
+                "--no-warnings",
+                "-f", fmt,
+                "--merge-output-format", "mp4",
+                "-o", str(output_path),
+                "--no-check-certificates"
+            ] + client_args
+
+            try:
+                res = subprocess.run(cmd_full, capture_output=True, text=True, timeout=60)
+                if output_path.exists() and output_path.stat().st_size > 250_000:
+                    log(f"✅ Sourced movie trailer [{client_name}] ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+                    return True
+            except Exception as e:
+                pass
+
+            # 3. Direct stream resolution via yt-dlp -g + FFmpeg capture
+            try:
+                g_cmd = [
+                    "yt-dlp", "-g",
+                    "-f", fmt,
+                    "--no-warnings",
+                    "--no-check-certificates",
+                ] + client_args + [target]
+                g_res = subprocess.run(g_cmd, capture_output=True, text=True, timeout=25)
+                urls = [l.strip() for l in g_res.stdout.strip().split("\n") if l.strip().startswith("http")]
+                if urls:
+                    log(f"   ↳ Direct stream resolved [{client_name}] ({len(urls)} URLs). Capturing with FFmpeg...")
+                    if len(urls) >= 2:
+                        ff_cmd = [
+                            "ffmpeg", "-y",
+                            "-ss", "00:00:10", "-t", "90", "-i", urls[0],
+                            "-ss", "00:00:10", "-t", "90", "-i", urls[1],
+                            "-c:v", "libx264", "-preset", "ultrafast",
+                            "-c:a", "aac", "-b:a", "128k",
+                            str(output_path)
+                        ]
+                    else:
+                        ff_cmd = [
+                            "ffmpeg", "-y",
+                            "-ss", "00:00:10", "-t", "90", "-i", urls[0],
+                            "-c:v", "libx264", "-preset", "ultrafast",
+                            "-c:a", "aac", "-b:a", "128k",
+                            str(output_path)
+                        ]
+                    subprocess.run(ff_cmd, capture_output=True, timeout=50)
+                    if output_path.exists() and output_path.stat().st_size > 250_000:
+                        log(f"✅ Sourced movie trailer stream [{client_name}] ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+                        return True
+            except Exception:
+                pass
+
+        # Optional last resort with cookies
+        if cookies:
+            try:
+                cmd_cookies = [
+                    "yt-dlp",
+                    target,
+                    "--no-playlist",
+                    "-f", "18/22/b/best",
+                    "--merge-output-format", "mp4",
+                    "-o", str(output_path),
+                    "--no-check-certificates"
+                ] + cookies
+                subprocess.run(cmd_cookies, capture_output=True, text=True, timeout=45)
+                if output_path.exists() and output_path.stat().st_size > 250_000:
                     log(f"✅ Sourced movie trailer with cookies ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
                     return True
             except Exception:
