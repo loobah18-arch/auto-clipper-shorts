@@ -15,6 +15,14 @@
       "timestamp": "2026-09-15T14:15:33.079627+00:00",
       "video_path": "/data/data/com.termux/files/home/antigravity/auto-clipper-shorts/output/movie_short_fall_2022_20260915_194338.mp4",
       "duration_sec": 48.14
+    },
+    {
+      "movie_id": "coherence_2013",
+      "title": "Coherence (2013)",
+      "youtube_id": null,
+      "timestamp": "2026-09-16T15:27:44.132681+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_coherence_2013_20260916_152630.mp4",
+      "duration_sec": 48.65
     }
   ]
 }
