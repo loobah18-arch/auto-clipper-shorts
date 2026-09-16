@@ -23,6 +23,14 @@
       "timestamp": "2026-09-16T15:27:44.132681+00:00",
       "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_coherence_2013_20260916_152630.mp4",
       "duration_sec": 48.65
+    },
+    {
+      "movie_id": "shutter_island_2010",
+      "title": "Shutter Island (2010)",
+      "youtube_id": null,
+      "timestamp": "2026-09-16T18:02:15.239779+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_shutter_island_2010_20260916_175909.mp4",
+      "duration_sec": 51.94
     }
   ]
 }
