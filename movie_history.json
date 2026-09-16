@@ -31,6 +31,14 @@
       "timestamp": "2026-09-16T18:02:15.239779+00:00",
       "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_shutter_island_2010_20260916_175909.mp4",
       "duration_sec": 51.94
+    },
+    {
+      "movie_id": "interstellar_2014",
+      "title": "Interstellar (2014)",
+      "youtube_id": null,
+      "timestamp": "2026-09-16T18:26:58.695901+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_interstellar_2014_20260916_182512.mp4",
+      "duration_sec": 47.98
     }
   ]
 }
