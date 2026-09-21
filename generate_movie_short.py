@@ -42,6 +42,7 @@ from movie_video_engine import (
     BGM_DIR,
     find_system_font
 )
+from ai_video_generator import generate_ai_video_track
 
 HISTORY_FILE = WORKSPACE_DIR / "movie_history.json"
 
@@ -214,7 +215,8 @@ def run_pipeline(
     force_upload: bool = False,
     video_file: str = None,
     audio_file: str = None,
-    watermark: str = None
+    watermark: str = None,
+    source: str = "ai"
 ):
     """Executes the complete Movie Explanation Short creation workflow."""
     start_time = datetime.now(timezone.utc)
@@ -265,20 +267,31 @@ def run_pipeline(
     # 3. Generate Subtitles (MovieGyan Style)
     generate_moviegyan_subtitles(words, subtitles_path, group_size=3)
 
-    # 4. Sourcing Video Clips (Local video file or YouTube Trailer)
+    # 4. Sourcing Video Clips (AI Video Generator directed by AI Model, or Trailer/File)
+    visual_prompts = movie_data.get("visual_prompts", [])
     if video_file and Path(video_file).exists():
         log(f"🎞️ Sourcing scenes from local video file: '{video_file}'")
         sliced_ok = slice_trailer_dynamic_scenes(Path(video_file), duration, sliced_video_path)
-    else:
+    elif source == "trailer":
         trailer_url = movie_data.get("trailer_url")
         trailer_ok = download_movie_trailer(search_query, raw_trailer_path, trailer_url=trailer_url)
         if trailer_ok:
             sliced_ok = slice_trailer_dynamic_scenes(raw_trailer_path, duration, sliced_video_path)
         else:
             sliced_ok = False
+    else:
+        # Default: AI Video Generator directed by AI Model
+        log(f"🤖 Sourcing visuals: Generating AI video scenes directed by AI model ({len(visual_prompts)} scenes)...")
+        sliced_ok = generate_ai_video_track(
+            visual_prompts=visual_prompts,
+            total_duration=duration,
+            output_video_path=sliced_video_path,
+            title=title,
+            script_text=script_text
+        )
 
     if not sliced_ok or not sliced_video_path.exists():
-        log("⚠️ Trailer sourcing unavailable, generating authentic movie visual fallback...")
+        log("⚠️ Primary video sourcing unavailable, generating authentic movie visual fallback...")
         create_cinematic_movie_visual_fallback(duration, title, sliced_video_path)
 
     # 5. Render Final 9:16 Short (with Color Grade & Optional Watermark)
@@ -340,6 +353,7 @@ def main():
     parser.add_argument("--video-file", type=str, default=None, help="Path to local high-res movie or scene pack MP4/MKV")
     parser.add_argument("--audio-file", type=str, default=None, help="Path to custom human-recorded voiceover MP3/WAV")
     parser.add_argument("--watermark", type=str, default=None, help="Channel watermark text (e.g. '@CinemaInsights')")
+    parser.add_argument("--source", type=str, choices=["ai", "trailer", "file"], default="ai", help="Video visuals source: 'ai' (AI Video Generator), 'trailer' (YouTube Trailer), or 'file'")
     args = parser.parse_args()
 
     if args.list:
@@ -361,7 +375,8 @@ def main():
         force_upload=args.upload,
         video_file=args.video_file,
         audio_file=args.audio_file,
-        watermark=args.watermark
+        watermark=args.watermark,
+        source=args.source
     )
 
 

@@ -24,6 +24,14 @@ on:
         required: false
         default: false
         type: boolean
+      source:
+        description: "Visuals source: 'ai' (AI Video Generator directed by AI model) or 'trailer' (YouTube Trailer)"
+        required: false
+        default: 'ai'
+        type: choice
+        options:
+          - 'ai'
+          - 'trailer'
 
 concurrency:
   group: auto_clipper_pipeline
@@ -129,12 +137,14 @@ jobs:
           INPUT_LANG: ${{ inputs.lang }}
           INPUT_VOICE: ${{ inputs.voice }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_SOURCE: ${{ inputs.source }}
         run: |
           echo "🎬 Running Movie Explanation Shorts Generator (MovieGyan Style)..."
           ARGS=()
           if [ -n "$INPUT_MOVIE_NAME" ]; then ARGS+=(--movie "$INPUT_MOVIE_NAME"); fi
           if [ -n "$INPUT_LANG" ]; then ARGS+=(--lang "$INPUT_LANG"); fi
           if [ -n "$INPUT_VOICE" ]; then ARGS+=(--voice "$INPUT_VOICE"); fi
+          if [ -n "$INPUT_SOURCE" ]; then ARGS+=(--source "$INPUT_SOURCE"); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
           python generate_movie_short.py "${ARGS[@]}" 2>&1 | tee pipeline_debug.log
 
