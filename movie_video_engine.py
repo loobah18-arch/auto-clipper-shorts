@@ -556,43 +556,16 @@ def render_movie_explanation_short(
         clean_wm = re.sub(r"[^A-Za-z0-9@\._\- ]", "", watermark_text).strip()
         watermark_filter = f",drawtext=text='{clean_wm}':fontsize=26:fontcolor=white@0.65:{font_opt}:x=w-text_w-50:y=h-text_h-240"
 
-    # Detect if input video is already vertical (e.g. from AI Video Generator)
-    is_vertical = False
-    try:
-        probe_cmd = [
-            "ffprobe", "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=width,height",
-            "-of", "csv=s=x:p=0",
-            str(sliced_video_path)
-        ]
-        p_res = subprocess.run(probe_cmd, capture_output=True, text=True)
-        if p_res.returncode == 0 and "x" in p_res.stdout:
-            vw, vh = map(int, p_res.stdout.strip().split("x"))
-            is_vertical = vh >= vw
-    except Exception:
-        pass
-
     # Filtergraph with transformative color grading & subtle unsharp masking for unique digital fingerprint
-    if is_vertical:
-        video_filters = (
-            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
-            "eq=contrast=1.08:brightness=-0.02:saturation=1.10,unsharp=3:3:0.4[comp];"
-            f"[comp]drawbox=x=40:y=120:w=1000:h=90:color=black@0.75:t=fill,"
-            f"drawtext=text='{badge_display}':fontsize=36:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=148"
-            f"{watermark_filter},"
-            f"ass='{ass_esc}'[vfinal]"
-        )
-    else:
-        video_filters = (
-            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5,eq=brightness=-0.12:contrast=1.05[bg];"
-            "[0:v]scale=1040:-2,eq=contrast=1.08:brightness=-0.03:saturation=1.12,unsharp=3:3:0.5[fg];"
-            "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 40[comp];"
-            f"[comp]drawbox=x=40:y=120:w=1000:h=90:color=black@0.75:t=fill,"
-            f"drawtext=text='{badge_display}':fontsize=36:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=148"
-            f"{watermark_filter},"
-            f"ass='{ass_esc}'[vfinal]"
-        )
+    video_filters = (
+        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5,eq=brightness=-0.12:contrast=1.05[bg];"
+        "[0:v]scale=1040:-2,eq=contrast=1.08:brightness=-0.03:saturation=1.12,unsharp=3:3:0.5[fg];"
+        "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 40[comp];"
+        f"[comp]drawbox=x=40:y=120:w=1000:h=90:color=black@0.75:t=fill,"
+        f"drawtext=text='{badge_display}':fontsize=36:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=148"
+        f"{watermark_filter},"
+        f"ass='{ass_esc}'[vfinal]"
+    )
 
     cmd = ["ffmpeg", "-y", "-i", str(sliced_video_path), "-i", str(narration_audio_path)]
     if has_bgm:

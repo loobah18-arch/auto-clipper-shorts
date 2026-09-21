@@ -85,26 +85,6 @@ class TestMoviePipeline(unittest.TestCase):
         font = find_system_font()
         self.assertTrue(len(font) > 0)
 
-    def test_ai_visual_prompts_generation(self):
-        from movie_ai_script import generate_movie_script_ai
-        res = generate_movie_script_ai("Inception", language="en")
-        self.assertIn("visual_prompts", res)
-        self.assertGreaterEqual(len(res["visual_prompts"]), 3)
-
-    def test_ai_video_generator_scene(self):
-        from ai_video_generator import generate_ai_video_track
-        test_out = OUTPUT_DIR / "unit_test_ai_track.mp4"
-        prompts = [
-            "Excavator tearing down concrete wall, 9:16 vertical",
-            "Golden retriever resting in sunlit room, 9:16 vertical"
-        ]
-        ok = generate_ai_video_track(prompts, total_duration=4.0, output_video_path=test_out, title="Unit Test Track")
-        self.assertTrue(ok)
-        self.assertTrue(test_out.exists())
-        self.assertGreater(test_out.stat().st_size, 1000)
-        if test_out.exists():
-            test_out.unlink()
-
 
 if __name__ == "__main__":
     unittest.main()
