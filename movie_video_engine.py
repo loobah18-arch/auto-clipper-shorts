@@ -188,6 +188,160 @@ def get_audio_duration(audio_path: Path) -> float:
     return float(res.stdout.strip())
 
 
+def parse_timestamp_to_seconds(ts: str) -> float:
+    """Parses 'HH:MM:SS' or 'MM:SS' into float seconds."""
+    if not ts:
+        return 0.0
+    parts = [float(p) for p in str(ts).strip().split(":")]
+    if len(parts) == 3:
+        return parts[0] * 3600.0 + parts[1] * 60.0 + parts[2]
+    elif len(parts) == 2:
+        return parts[0] * 60.0 + parts[1]
+    elif len(parts) == 1:
+        return parts[0]
+    return 0.0
+
+
+def download_movie_from_gdrive(file_id: str, output_path: Path) -> bool:
+    """
+    Downloads the genuine BluRay movie file from Google Drive using gdown.
+    Caches the file locally to prevent redundant downloads across parts.
+    """
+    if output_path.exists() and output_path.stat().st_size > 10_000_000:
+        log(f"🎬 Movie already exists in cache: {output_path.name} ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+        return True
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    log(f"📥 Sourcing genuine movie file from Google Drive (ID: {file_id}) -> {output_path.name}...")
+    try:
+        import gdown
+        gdown.download(id=file_id, output=str(output_path), quiet=False, fuzzy=True)
+        if output_path.exists() and output_path.stat().st_size > 10_000_000:
+            log(f"✅ Movie file downloaded from Google Drive: {output_path.name} ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+            return True
+        else:
+            log(f"⚠️ Google Drive download completed but file is missing or too small: {output_path}")
+    except Exception as e:
+        log(f"⚠️ Google Drive download error via gdown: {e}")
+
+    # Fallback to gdown CLI
+    try:
+        cmd = ["gdown", "--id", file_id, "-O", str(output_path)]
+        subprocess.run(cmd, check=True, timeout=600)
+        if output_path.exists() and output_path.stat().st_size > 10_000_000:
+            log(f"✅ Movie file downloaded via gdown CLI: {output_path.name} ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
+            return True
+    except Exception as e2:
+        log(f"⚠️ gdown CLI fallback failed: {e2}")
+
+    return False
+
+
+def slice_movie_timeline_scenes(
+    movie_path: Path,
+    timeline_start_str: str,
+    timeline_end_str: str,
+    target_duration: float,
+    output_sliced_path: Path
+) -> bool:
+    """
+    Slices 18-24 dynamic 2.2-2.8s scenes strictly within the specified movie timeline window
+    (e.g. 00:01:30 to 00:26:00) so the visuals chronologically and accurately match the
+    narrative of that specific part. Strips 100% of original movie audio.
+    """
+    start_sec = parse_timestamp_to_seconds(timeline_start_str)
+    end_sec = parse_timestamp_to_seconds(timeline_end_str)
+
+    if end_sec <= start_sec or end_sec <= 0:
+        start_sec = 60.0
+        end_sec = 1800.0
+
+    usable_span = max(10.0, end_sec - start_sec)
+    num_cuts = int(target_duration // 2.5) + 1
+    cut_duration = round(target_duration / max(1, num_cuts), 2)
+    cut_duration = max(2.0, min(3.2, cut_duration))
+
+    step = usable_span / max(1, num_cuts)
+    segments = []
+    for i in range(num_cuts):
+        seg_start = start_sec + (i * step) + random.uniform(-1.0, 1.0)
+        seg_start = max(start_sec, min(end_sec - cut_duration, seg_start))
+        segments.append((seg_start, cut_duration))
+
+    log(f"🎬 Slicing {len(segments)} narrative scenes (~{cut_duration:.1f}s each) between {timeline_start_str} and {timeline_end_str}...")
+
+    temp_dir = output_sliced_path.parent / f"temp_slices_{output_sliced_path.stem}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    slice_files = []
+
+    try:
+        for idx, (s_time, c_dur) in enumerate(segments):
+            seg_file = temp_dir / f"slice_{idx:03d}.mp4"
+            cmd_slice = [
+                "ffmpeg", "-y",
+                "-ss", f"{s_time:.2f}",
+                "-i", str(movie_path),
+                "-t", f"{c_dur:.2f}",
+                "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1",
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-crf", "22",
+                "-an",
+                str(seg_file)
+            ]
+            res = subprocess.run(cmd_slice, capture_output=True, text=True, timeout=45)
+            if res.returncode == 0 and seg_file.exists() and seg_file.stat().st_size > 5000:
+                slice_files.append(seg_file)
+            else:
+                log(f"   ↳ Slice {idx} at {s_time:.1f}s notice: {res.stderr[-100:] if res.stderr else 'failed'}")
+
+        if len(slice_files) >= 3:
+            concat_list_file = temp_dir / "concat_list.txt"
+            with open(concat_list_file, "w", encoding="utf-8") as f:
+                for sf in slice_files:
+                    f.write(f"file '{sf.resolve()}'\n")
+
+            cmd_concat = [
+                "ffmpeg", "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", str(concat_list_file),
+                "-t", f"{target_duration:.2f}",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-an",
+                str(output_sliced_path)
+            ]
+            subprocess.run(cmd_concat, check=True, timeout=120)
+            if output_sliced_path.exists() and output_sliced_path.stat().st_size > 100_000:
+                log(f"✅ Successfully assembled {len(slice_files)} timeline scenes from movie into {output_sliced_path.name}")
+                return True
+    except Exception as e:
+        log(f"⚠️ Slicing scenes failed: {e}")
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    # Fallback to single seek slice if multi-slice had issues
+    try:
+        fb_cmd = [
+            "ffmpeg", "-y",
+            "-ss", f"{start_sec:.2f}",
+            "-i", str(movie_path),
+            "-t", f"{target_duration:.2f}",
+            "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-an",
+            str(output_sliced_path)
+        ]
+        subprocess.run(fb_cmd, check=True, timeout=60)
+        return output_sliced_path.exists() and output_sliced_path.stat().st_size > 100_000
+    except Exception as e:
+        log(f"⚠️ Fallback slice failed: {e}")
+        return False
+
+
 def download_movie_trailer(search_query: str, output_path: Path, trailer_url: str = None) -> bool:
     """
     Downloads the official movie trailer using direct URL or search query via yt-dlp.

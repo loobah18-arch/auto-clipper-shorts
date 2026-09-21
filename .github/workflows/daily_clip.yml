@@ -7,7 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       movie_name:
-        description: 'Specific movie name to explain (leave blank for automatic catalog rotation)'
+        description: 'Specific movie name to explain (leave blank for automatic sequence continuation)'
+        required: false
+        type: string
+      part:
+        description: 'Specific part number (e.g. 1, 2, 3... leave blank for automatic sequence continuation)'
         required: false
         type: string
       lang:
@@ -63,6 +67,14 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: ${{ runner.os }}-whisper-base-en-v1
+
+      - name: 💾 Cache Genuine Movie Files
+        uses: actions/cache@v4
+        with:
+          path: cache
+          key: ${{ runner.os }}-movie-cache-v1-${{ hashFiles('movie_catalog.json') }}
+          restore-keys: |
+            ${{ runner.os }}-movie-cache-v1-
 
       - name: 🦕 Set up Deno (JS runtime for yt-dlp)
         continue-on-error: true
@@ -126,6 +138,7 @@ jobs:
           POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           YT_DLP_POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           INPUT_MOVIE_NAME: ${{ inputs.movie_name }}
+          INPUT_PART: ${{ inputs.part }}
           INPUT_LANG: ${{ inputs.lang }}
           INPUT_VOICE: ${{ inputs.voice }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
@@ -133,6 +146,7 @@ jobs:
           echo "🎬 Running Movie Explanation Shorts Generator (MovieGyan Style)..."
           ARGS=()
           if [ -n "$INPUT_MOVIE_NAME" ]; then ARGS+=(--movie "$INPUT_MOVIE_NAME"); fi
+          if [ -n "$INPUT_PART" ]; then ARGS+=(--part "$INPUT_PART"); fi
           if [ -n "$INPUT_LANG" ]; then ARGS+=(--lang "$INPUT_LANG"); fi
           if [ -n "$INPUT_VOICE" ]; then ARGS+=(--voice "$INPUT_VOICE"); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi

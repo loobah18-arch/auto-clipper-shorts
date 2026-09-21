@@ -17,6 +17,7 @@ from movie_video_engine import (
     create_word_timestamps_from_sentences,
     generate_moviegyan_subtitles,
     find_system_font,
+    parse_timestamp_to_seconds,
     OUTPUT_DIR
 )
 
@@ -84,6 +85,35 @@ class TestMoviePipeline(unittest.TestCase):
     def test_font_finder(self):
         font = find_system_font()
         self.assertTrue(len(font) > 0)
+
+    def test_parse_timestamp_to_seconds(self):
+        self.assertEqual(parse_timestamp_to_seconds("00:01:30"), 90.0)
+        self.assertEqual(parse_timestamp_to_seconds("01:25:00"), 5100.0)
+        self.assertEqual(parse_timestamp_to_seconds("05:15"), 315.0)
+        self.assertEqual(parse_timestamp_to_seconds("45"), 45.0)
+
+    def test_multipart_movie_catalog(self):
+        m = get_movie_from_catalog("The Avengers")
+        self.assertIsNotNone(m)
+        self.assertIn("parts", m)
+        self.assertEqual(len(m["parts"]), 5)
+        self.assertEqual(m.get("gdrive_folder_id"), "1Ru9E0k_GkY8jVHpn7S3mwLbJcToUXTRy")
+        self.assertTrue(len(m.get("gdrive_file_id")) > 15)
+
+        part1 = m["parts"][0]
+        self.assertEqual(part1["part_number"], 1)
+        self.assertIn("timeline_start", part1)
+        self.assertIn("timeline_end", part1)
+        word_count = len(part1["script"].split())
+        self.assertTrue(90 <= word_count <= 160)
+
+    def test_select_next_movie_multipart_resolution(self):
+        from generate_movie_short import select_next_movie
+        res = select_next_movie("The Avengers (2012)", requested_part=2)
+        self.assertEqual(res["part_number"], 2)
+        self.assertIn("Part 2", res["title"])
+        self.assertEqual(res["timeline_start"], "00:26:00")
+        self.assertEqual(res["timeline_end"], "00:52:00")
 
 
 if __name__ == "__main__":
