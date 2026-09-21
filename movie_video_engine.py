@@ -215,7 +215,7 @@ def download_movie_from_gdrive(file_id: str, output_path: Path) -> bool:
     log(f"📥 Sourcing genuine movie file from Google Drive (ID: {file_id}) -> {output_path.name}...")
     try:
         import gdown
-        gdown.download(id=file_id, output=str(output_path), quiet=False, fuzzy=True)
+        gdown.download(id=file_id, output=str(output_path), quiet=False)
         if output_path.exists() and output_path.stat().st_size > 10_000_000:
             log(f"✅ Movie file downloaded from Google Drive: {output_path.name} ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
             return True
@@ -226,7 +226,7 @@ def download_movie_from_gdrive(file_id: str, output_path: Path) -> bool:
 
     # Fallback to gdown CLI
     try:
-        cmd = ["gdown", "--id", file_id, "-O", str(output_path)]
+        cmd = ["gdown", file_id, "-O", str(output_path)]
         subprocess.run(cmd, check=True, timeout=600)
         if output_path.exists() and output_path.stat().st_size > 10_000_000:
             log(f"✅ Movie file downloaded via gdown CLI: {output_path.name} ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")
