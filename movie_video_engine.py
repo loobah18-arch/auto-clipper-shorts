@@ -55,7 +55,7 @@ def find_system_font() -> str:
     return "DejaVu Sans"
 
 
-async def generate_speech_audio(script_text: str, output_audio_path: Path, voice: str = "en-US-ChristopherNeural") -> list:
+async def generate_speech_audio(script_text: str, output_audio_path: Path, voice: str = "en-US-AvaNeural", rate: str = "+3%") -> list:
     """
     Generates TTS audio and extracts sentence boundaries using edge-tts.
     Returns sentence timing segments.
@@ -63,8 +63,8 @@ async def generate_speech_audio(script_text: str, output_audio_path: Path, voice
     if not edge_tts:
         raise RuntimeError("edge-tts is required for speech generation.")
 
-    log(f"🎙️ Synthesizing voiceover with voice: '{voice}'...")
-    communicate = edge_tts.Communicate(script_text, voice)
+    log(f"🎙️ Synthesizing voiceover with voice: '{voice}' (rate={rate})...")
+    communicate = edge_tts.Communicate(script_text, voice, rate=rate)
     
     sentences = []
     audio_data = bytearray()
@@ -710,12 +710,19 @@ def render_movie_explanation_short(
         clean_wm = re.sub(r"[^A-Za-z0-9@\._\- ]", "", watermark_text).strip()
         watermark_filter = f",drawtext=text='{clean_wm}':fontsize=26:fontcolor=white@0.65:{font_opt}:x=w-text_w-50:y=h-text_h-240"
 
-    # Filtergraph with transformative color grading & subtle unsharp masking for unique digital fingerprint
+    # Multi-layered anti-copyright transformation filtergraph:
+    # 1. Fullscreen blurred background (boxblur 28:6, darkened)
+    # 2. Foreground 16:9 movie box: color grading (+12% contrast, +15% saturation, gamma 0.97),
+    #    cinematic vignette, high-pass unsharp (5:5:0.8) modifying frequency coefficients,
+    #    subtle temporal film noise (5) preventing static hash matching
+    # 3. Gold frame border outlining the movie box
+    # 4. Top header badge pill and lower-third dynamic karaoke subtitles
     video_filters = (
-        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5,eq=brightness=-0.12:contrast=1.05[bg];"
-        "[0:v]scale=1040:-2,eq=contrast=1.08:brightness=-0.03:saturation=1.12,unsharp=3:3:0.5[fg];"
+        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:6,eq=brightness=-0.14:contrast=1.06[bg];"
+        "[0:v]scale=1040:-2,eq=contrast=1.12:brightness=-0.02:saturation=1.15:gamma=0.97,vignette=PI/4.5,unsharp=5:5:0.8:5:5:0.4,noise=alls=5:allf=t[fg];"
         "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 40[comp];"
-        f"[comp]drawbox=x=40:y=120:w=1000:h=90:color=black@0.75:t=fill,"
+        f"[comp]drawbox=x=18:y=626:w=1044:h=589:color=gold@0.45:t=2,"
+        f"drawbox=x=40:y=120:w=1000:h=90:color=black@0.75:t=fill,"
         f"drawtext=text='{badge_display}':fontsize=36:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=148"
         f"{watermark_filter},"
         f"ass='{ass_esc}'[vfinal]"

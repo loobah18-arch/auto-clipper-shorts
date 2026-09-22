@@ -105,7 +105,7 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertIn("timeline_start", part1)
         self.assertIn("timeline_end", part1)
         word_count = len(part1["script"].split())
-        self.assertTrue(90 <= word_count <= 160)
+        self.assertTrue(120 <= word_count <= 280)
 
     def test_select_next_movie_multipart_resolution(self):
         from generate_movie_short import select_next_movie

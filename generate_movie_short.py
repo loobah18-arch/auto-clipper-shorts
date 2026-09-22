@@ -312,9 +312,9 @@ def run_pipeline(
     if script_text:
         log(f"🎙️ Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
 
-    # Determine TTS Voice
+    # Determine TTS Voice (Default: highly natural human female narrator)
     if not voice:
-        voice = "hi-IN-MadhurNeural" if lang == "hi" else "en-US-ChristopherNeural"
+        voice = "hi-IN-SwaraNeural" if lang == "hi" else "en-US-AvaNeural"
 
     # Paths
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
