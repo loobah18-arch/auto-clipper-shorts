@@ -18,7 +18,10 @@ from movie_video_engine import (
     generate_moviegyan_subtitles,
     find_system_font,
     parse_timestamp_to_seconds,
-    OUTPUT_DIR
+    OUTPUT_DIR,
+    BGM_DIR,
+    DEFAULT_BGM_OFFSETS,
+    get_default_bgm_offset
 )
 
 
@@ -114,6 +117,35 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertIn("Part 2", res["title"])
         self.assertEqual(res["timeline_start"], "00:26:00")
         self.assertEqual(res["timeline_end"], "00:52:00")
+
+    def test_default_bgm_file_exists(self):
+        sukuna_bgm = BGM_DIR / "malevolent_shrine_sukuna.mp3"
+        self.assertTrue(sukuna_bgm.exists(), "malevolent_shrine_sukuna.mp3 must exist in assets/bgm")
+        self.assertGreater(sukuna_bgm.stat().st_size, 1_000_000, "BGM file must be complete (>1MB)")
+
+    def test_default_bgm_offset_distribution(self):
+        offset1 = get_default_bgm_offset(part_number=1)
+        offset2 = get_default_bgm_offset(part_number=2)
+        offset3 = get_default_bgm_offset(part_number=3)
+        offset4 = get_default_bgm_offset(part_number=4)
+        offset5 = get_default_bgm_offset(part_number=5)
+
+        self.assertEqual(offset1, 0.0)
+        self.assertEqual(offset2, 35.0)
+        self.assertEqual(offset3, 60.0)
+        self.assertEqual(offset4, 95.0)
+        self.assertEqual(offset5, 118.0)
+
+        # Offsets across consecutive parts must be distinct
+        self.assertNotEqual(offset1, offset2)
+        self.assertNotEqual(offset2, offset3)
+        self.assertNotEqual(offset3, offset4)
+
+    def test_standalone_movie_bgm_offsets(self):
+        offset_a = get_default_bgm_offset(part_number=None, movie_title="Interstellar (2014)")
+        offset_b = get_default_bgm_offset(part_number=None, movie_title="Inception (2010)")
+        self.assertIn(offset_a, DEFAULT_BGM_OFFSETS)
+        self.assertIn(offset_b, DEFAULT_BGM_OFFSETS)
 
 
 if __name__ == "__main__":

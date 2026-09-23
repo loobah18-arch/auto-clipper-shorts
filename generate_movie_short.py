@@ -220,6 +220,10 @@ Genre: {movie_data.get('genre', 'Action / Sci-Fi / Thriller')}
 
 {next_teaser}
 
+🎵 Background Music:
+"Sukuna vs Mahoraga (Malevolent Shrine)" Jujutsu Kaisen S2 EP17 OST [Epic Cover] by Pharozen
+Track: https://youtu.be/vxTLtmpnKn8
+
 📌 Transformative Fair Use Notice:
 This video is a critical analysis, educational breakdown, and commentary on the movie '{series_display}'.
 All original movie audio was 100% stripped and replaced with original narration and custom background music.
@@ -390,7 +394,8 @@ def run_pipeline(
         create_cinematic_movie_visual_fallback(duration, title, sliced_video_path)
 
     # 5. Render Final 9:16 Short (with Color Grade & Optional Watermark)
-    bgm_file = BGM_DIR / "cinematic_suspense_thriller.mp3"
+    bgm_file = BGM_DIR / "malevolent_shrine_sukuna.mp3"
+    part_num = movie_data.get("part_number")
     render_movie_explanation_short(
         sliced_video_path=sliced_video_path,
         narration_audio_path=audio_path,
@@ -399,7 +404,9 @@ def run_pipeline(
         badge_text=badge_text,
         output_final_path=final_short_path,
         bgm_path=bgm_file,
-        watermark_text=watermark
+        watermark_text=watermark,
+        part_number=part_num,
+        bgm_volume=0.065
     )
 
     # 6. Generate Thumbnail

@@ -2250,6 +2250,9 @@ def get_background_music_info() -> Path:
     """
     bgm_dir = Path(__file__).resolve().parent / "assets" / "bgm"
     if bgm_dir.exists():
+        sukuna_bgm = bgm_dir / "malevolent_shrine_sukuna.mp3"
+        if sukuna_bgm.exists():
+            return sukuna_bgm
         candidates = sorted(list(bgm_dir.glob("*.mp3")))
         if candidates:
             return random.choice(candidates)

@@ -664,6 +664,25 @@ def slice_trailer_dynamic_scenes(trailer_path: Path, target_duration: float, out
         return True
 
 
+# Thematic start offsets for "Sukuna vs Mahoraga (Malevolent Shrine)" OST [182.6s total]:
+# Different parts / shorts receive different movements of the song:
+# Part 1 (0.0s):   Ominous Domain Expansion Prelude, Chimes & Eerie Ambience
+# Part 2 (35.0s):  Rising Tension, Heavy Strings & Dark Heartbeat Percussion
+# Part 3 (60.0s):  Full Orchestral Choral Explosion & Heavy Taiko Drums
+# Part 4 (95.0s):  Dark Suspense Breakdown, Distorted Bass & Vocal Stems
+# Part 5 (118.0s): Apocalyptic Climax & Rapid Brass Swells
+DEFAULT_BGM_OFFSETS = [0.0, 35.0, 60.0, 95.0, 118.0]
+
+
+def get_default_bgm_offset(part_number: int = None, movie_title: str = "") -> float:
+    """Returns a tailored start offset into the BGM for variety across parts and shorts."""
+    if part_number is not None and part_number > 0:
+        return DEFAULT_BGM_OFFSETS[(part_number - 1) % len(DEFAULT_BGM_OFFSETS)]
+    if movie_title:
+        return DEFAULT_BGM_OFFSETS[abs(hash(movie_title)) % len(DEFAULT_BGM_OFFSETS)]
+    return 0.0
+
+
 def render_movie_explanation_short(
     sliced_video_path: Path,
     narration_audio_path: Path,
@@ -672,7 +691,10 @@ def render_movie_explanation_short(
     badge_text: str,
     output_final_path: Path,
     bgm_path: Path = None,
-    watermark_text: str = None
+    watermark_text: str = None,
+    part_number: int = None,
+    bgm_start_offset: float = None,
+    bgm_volume: float = 0.065
 ) -> Path:
     """
     Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
@@ -681,7 +703,7 @@ def render_movie_explanation_short(
     - Channel watermark & branding for YPP review verification
     - Sleek top badge pill with movie title
     - Bold animated karaoke subtitles in lower-third
-    - Crystal clear voiceover with suspense BGM
+    - Crystal clear voiceover with dark suspense BGM
     """
     duration = get_audio_duration(narration_audio_path)
     clean_badge = re.sub(r"[^A-Za-z0-9\s\(\)\-\.\,\!\?]", "", badge_text or movie_title).strip().upper()[:28]
@@ -695,14 +717,21 @@ def render_movie_explanation_short(
 
     ass_esc = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
 
-    # Select BGM
+    # Select BGM (Default: Jujutsu Kaisen Malevolent Shrine dark epic cover)
     if not bgm_path or not bgm_path.exists():
-        bgm_path = BGM_DIR / "cinematic_suspense_thriller.mp3"
+        bgm_path = BGM_DIR / "malevolent_shrine_sukuna.mp3"
+        if not bgm_path.exists():
+            bgm_path = BGM_DIR / "cinematic_suspense_thriller.mp3"
         if not bgm_path.exists():
             bgm_path = BGM_DIR / "cinematic_suspense_drone.mp3"
 
     has_bgm = bgm_path and bgm_path.exists()
+    if has_bgm and bgm_start_offset is None:
+        bgm_start_offset = get_default_bgm_offset(part_number, movie_title)
+
     log(f"🎨 Rendering Movie Explanation Short (1080x1920, {duration:.1f}s)...")
+    if has_bgm:
+        log(f"🎵 Using dark BGM: {bgm_path.name} (start_offset={bgm_start_offset:.1f}s, vol={bgm_volume:.3f})")
 
     # Optional channel watermark for YPP brand identity
     watermark_filter = ""
@@ -731,12 +760,21 @@ def render_movie_explanation_short(
     cmd = ["ffmpeg", "-y", "-i", str(sliced_video_path), "-i", str(narration_audio_path)]
     if has_bgm:
         cmd.extend(["-stream_loop", "-1", "-i", str(bgm_path)])
-        audio_filters = "[1:a]volume=1.0[voice];[2:a]volume=0.15,lowpass=f=3000[bgm];[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2[afinal]"
+        # Subdued dark BGM mix:
+        # 1. Speech boosted to 1.15x for crystal-clear narration
+        # 2. BGM trimmed to thematic movement offset, smooth 1.5s fade-in, lowpass filtered (3200Hz) to prevent vocal clashes, and kept low (0.065)
+        # 3. normalize=0 ensures voice volume is not cut in half, alimiter protects against clipping
+        audio_filters = (
+            f"[1:a]volume=1.15[voice];"
+            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=1.5,volume={bgm_volume:.3f},lowpass=f=3200[bgm];"
+            f"[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[afinal]"
+        )
         filter_complex = f"{video_filters};{audio_filters}"
         map_args = ["-map", "[vfinal]", "-map", "[afinal]"]
     else:
         filter_complex = video_filters
         map_args = ["-map", "[vfinal]", "-map", "1:a"]
+
 
     cmd.extend([
         "-filter_complex", filter_complex,
