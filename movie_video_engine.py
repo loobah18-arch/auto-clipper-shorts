@@ -257,9 +257,9 @@ def slice_movie_timeline_scenes(
         end_sec = 1800.0
 
     usable_span = max(10.0, end_sec - start_sec)
-    num_cuts = int(target_duration // 2.5) + 1
+    num_cuts = int(target_duration // 1.6) + 1
     cut_duration = round(target_duration / max(1, num_cuts), 2)
-    cut_duration = max(2.0, min(3.2, cut_duration))
+    cut_duration = max(1.3, min(2.0, cut_duration))
 
     step = usable_span / max(1, num_cuts)
     segments = []
@@ -706,6 +706,12 @@ def render_movie_explanation_short(
     - Crystal clear voiceover with dark suspense BGM
     """
     duration = get_audio_duration(narration_audio_path)
+    # YouTube Shorts strict copyright threshold: Movie recap content must stay strictly <= 58s
+    MAX_SHORT_DURATION = 58.0
+    if duration > MAX_SHORT_DURATION:
+        log(f"⚠️ Audio duration ({duration:.1f}s) clamped to {MAX_SHORT_DURATION}s to stay strictly under 1 minute for YouTube Shorts copyright safety.")
+        duration = MAX_SHORT_DURATION
+
     clean_badge = re.sub(r"[^A-Za-z0-9\s\(\)\-\.\,\!\?]", "", badge_text or movie_title).strip().upper()[:28]
     badge_display = f"MOVIE RECAP • {clean_badge}"
 
@@ -741,14 +747,14 @@ def render_movie_explanation_short(
 
     # Multi-layered anti-copyright transformation filtergraph:
     # 1. Fullscreen blurred background (boxblur 28:6, darkened)
-    # 2. Foreground 16:9 movie box: color grading (+12% contrast, +15% saturation, gamma 0.97),
+    # 2. Foreground 16:9 movie box: color grading (+14% contrast, +18% saturation, gamma 0.96),
     #    cinematic vignette, high-pass unsharp (5:5:0.8) modifying frequency coefficients,
-    #    subtle temporal film noise (5) preventing static hash matching
+    #    temporal film noise (7) preventing static hash matching
     # 3. Gold frame border outlining the movie box
     # 4. Top header badge pill and lower-third dynamic karaoke subtitles
     video_filters = (
         "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:6,eq=brightness=-0.14:contrast=1.06[bg];"
-        "[0:v]scale=1040:-2,eq=contrast=1.12:brightness=-0.02:saturation=1.15:gamma=0.97,vignette=PI/4.5,unsharp=5:5:0.8:5:5:0.4,noise=alls=5:allf=t[fg];"
+        "[0:v]scale=1040:-2,eq=contrast=1.14:brightness=-0.03:saturation=1.18:gamma=0.96,vignette=PI/4.2,unsharp=5:5:0.8:5:5:0.4,noise=alls=7:allf=t[fg];"
         "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 40[comp];"
         f"[comp]drawbox=x=18:y=626:w=1044:h=589:color=gold@0.45:t=2,"
         f"drawbox=x=40:y=120:w=1000:h=90:color=black@0.75:t=fill,"

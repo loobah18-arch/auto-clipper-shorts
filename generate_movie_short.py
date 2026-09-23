@@ -341,6 +341,11 @@ def run_pipeline(
         duration = get_audio_duration(audio_path)
         words = create_word_timestamps_from_sentences(sentences)
 
+    MAX_SHORT_DURATION = 58.0
+    if duration > MAX_SHORT_DURATION:
+        log(f"⚠️ Audio narration ({duration:.2f}s) clamped to {MAX_SHORT_DURATION}s to stay strictly under 1 minute for YouTube Shorts copyright safety.")
+        duration = MAX_SHORT_DURATION
+
     log(f"⏱️ Audio narration duration: {duration:.2f} seconds")
 
     # 3. Generate Subtitles (MovieGyan Style)

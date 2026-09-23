@@ -99,24 +99,27 @@ class TestMoviePipeline(unittest.TestCase):
         m = get_movie_from_catalog("The Avengers")
         self.assertIsNotNone(m)
         self.assertIn("parts", m)
-        self.assertEqual(len(m["parts"]), 5)
+        self.assertEqual(len(m["parts"]), 8)
         self.assertEqual(m.get("gdrive_folder_id"), "1Ru9E0k_GkY8jVHpn7S3mwLbJcToUXTRy")
         self.assertTrue(len(m.get("gdrive_file_id")) > 15)
 
+        # Verify all 8 parts are strictly under 145 words (~55s, strictly < 1 min)
+        for p in m["parts"]:
+            wc = len(p["script"].split())
+            self.assertTrue(110 <= wc <= 145, f"Part {p['part_number']} script has {wc} words, must be <= 145 words")
+
         part1 = m["parts"][0]
         self.assertEqual(part1["part_number"], 1)
-        self.assertIn("timeline_start", part1)
-        self.assertIn("timeline_end", part1)
-        word_count = len(part1["script"].split())
-        self.assertTrue(120 <= word_count <= 280)
+        self.assertEqual(part1["timeline_start"], "00:01:00")
+        self.assertEqual(part1["timeline_end"], "00:16:00")
 
     def test_select_next_movie_multipart_resolution(self):
         from generate_movie_short import select_next_movie
         res = select_next_movie("The Avengers (2012)", requested_part=2)
         self.assertEqual(res["part_number"], 2)
         self.assertIn("Part 2", res["title"])
-        self.assertEqual(res["timeline_start"], "00:26:00")
-        self.assertEqual(res["timeline_end"], "00:52:00")
+        self.assertEqual(res["timeline_start"], "00:16:00")
+        self.assertEqual(res["timeline_end"], "00:32:00")
 
     def test_default_bgm_file_exists(self):
         sukuna_bgm = BGM_DIR / "malevolent_shrine_sukuna.mp3"
