@@ -105,14 +105,24 @@
       "timestamp": "2026-09-23T08:53:40.512954+00:00",
       "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260923_085023.mp4",
       "duration_sec": 96.62
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 1",
+      "part_number": 1,
+      "total_parts": 8,
+      "youtube_id": "kj4AsXOcxBY",
+      "timestamp": "2026-09-24T05:49:03.344030+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260924_054715.mp4",
+      "duration_sec": 50.66
     }
   ],
   "current_series": {
     "movie_id": "the_avengers_2012",
     "movie_title": "The Avengers (2012)",
-    "current_part": 0,
+    "current_part": 1,
     "total_parts": 8,
     "completed": false,
-    "last_updated": "2026-09-23T09:02:00+00:00"
+    "last_updated": "2026-09-24T05:49:03.344011+00:00"
   }
 }
