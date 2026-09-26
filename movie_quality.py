@@ -23,14 +23,36 @@ class MediaInfo:
 
 
 def _number(value: str | int | float | bool | None, field: str) -> float:
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
+    """Coerce an ffprobe field to float.
+
+    ffprobe's JSON writer emits scalars as strings (``"duration": "53.541000"``)
+    even when the value is numeric, so string coercion is required here.
+    """
+    if isinstance(value, bool):
+        raise MediaValidationError(f"ffprobe did not return a numeric {field}")
+    if isinstance(value, (int, float)):
         return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError:
+            pass
     raise MediaValidationError(f"ffprobe did not return a numeric {field}")
 
 
 def _integer(value: str | int | float | bool | None, field: str) -> int:
-    if isinstance(value, int) and not isinstance(value, bool):
+    """Coerce an ffprobe field to int, tolerating numeric string output."""
+    if isinstance(value, bool):
+        raise MediaValidationError(f"ffprobe did not return an integer {field}")
+    if isinstance(value, int):
         return value
+    if isinstance(value, (float, str)):
+        try:
+            parsed = float(value.strip() if isinstance(value, str) else value)
+        except ValueError:
+            raise MediaValidationError(f"ffprobe did not return an integer {field}") from None
+        if parsed.is_integer():
+            return int(parsed)
     raise MediaValidationError(f"ffprobe did not return an integer {field}")
 
 
@@ -100,6 +122,9 @@ def probe_media(path: Path) -> MediaInfo:
         for stream in streams
     )
     duration_value = format_data.get("duration")
+    if duration_value is None:
+        # Some containers omit format-level duration; the video stream carries it.
+        duration_value = video_stream.get("duration")
     info = MediaInfo(
         duration_sec=_number(duration_value, "duration"),
         width=_integer(video_stream.get("width"), "video width"),
