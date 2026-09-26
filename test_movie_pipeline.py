@@ -26,7 +26,14 @@ from movie_pipeline_state import (
 )
 import movie_quality
 import movie_video_engine
-from movie_quality import MediaInfo, MediaValidationError, probe_media, validate_media_info
+from movie_quality import (
+    MediaInfo,
+    MediaValidationError,
+    PLACEHOLDER_SOURCE_TYPES,
+    probe_media,
+    validate_media_info,
+    validate_upload_source,
+)
 from movie_video_engine import (
     TRAILER_CLIENT_CONFIGS,
     create_word_timestamps_from_sentences,
@@ -263,6 +270,26 @@ class TestMoviePipeline(unittest.TestCase):
                 info = probe_media(media)
         self.assertAlmostEqual(info.duration_sec, 42.0, places=3)
         self.assertEqual((info.width, info.height), (1080, 1920))
+
+    def test_upload_refuses_placeholder_render_by_default(self):
+        """A Short with no licensed footage must not reach the channel."""
+        # Hardcoded on purpose: deriving the expectation from the constant would
+        # make this test pass vacuously if the constant were emptied.
+        self.assertIn("neutral_fallback", PLACEHOLDER_SOURCE_TYPES)
+        with self.assertRaises(MediaValidationError):
+            validate_upload_source("neutral_fallback")
+        # Explicit operator opt-in is the only way through.
+        validate_upload_source("neutral_fallback", allow_fallback=True)
+
+    def test_upload_allows_licensed_footage_sources(self):
+        for source_type in ("authorized_trailer", "local_media", "private_media"):
+            validate_upload_source(source_type)
+            validate_upload_source(source_type, allow_fallback=False)
+
+    def test_orchestrator_wires_the_placeholder_upload_guard(self):
+        orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
+        self.assertIn("validate_upload_source(", orchestrator)
+        self.assertIn("ALLOW_FALLBACK_UPLOAD", orchestrator)
 
     def test_probe_media_rejects_non_numeric_duration(self):
         payload = {
