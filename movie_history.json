@@ -154,6 +154,19 @@
       "status": "rendered",
       "content_hash": "5a49533bcbd7585427039f94df5990aa85d6313a9360744ec51411358c7f388e",
       "source_type": "neutral_fallback"
+    },
+    {
+      "movie_id": "the_platform_2019",
+      "title": "The Platform (2019)",
+      "part_number": null,
+      "total_parts": null,
+      "youtube_id": null,
+      "timestamp": "2026-09-26T07:03:13.916504+00:00",
+      "video_path": "movie_short_the_platform_2019_20260926_070131.mp4",
+      "duration_sec": 53.57,
+      "status": "rendered",
+      "content_hash": "5a49533bcbd7585427039f94df5990aa85d6313a9360744ec51411358c7f388e",
+      "source_type": "neutral_fallback"
     }
   ],
   "current_series": {
