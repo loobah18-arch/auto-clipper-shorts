@@ -9,9 +9,29 @@ MAX_SHORT_DURATION = 58.0
 EXPECTED_WIDTH = 1080
 EXPECTED_HEIGHT = 1920
 
+# Source types that carry no licensed footage. A render built from these is
+# placeholder content and must not reach the channel by accident.
+PLACEHOLDER_SOURCE_TYPES = frozenset({"neutral_fallback"})
+
 
 class MediaValidationError(Exception):
     """Raised when a generated Short does not meet the render contract."""
+
+
+def validate_upload_source(source_type: str, allow_fallback: bool = False) -> None:
+    """Refuse to publish renders that contain no licensed footage.
+
+    Callers pass ``allow_fallback`` only when the operator opted in explicitly
+    (ALLOW_FALLBACK_UPLOAD=true), because a placeholder Short is a publishing
+    decision, not a technical fallback.
+    """
+    if source_type in PLACEHOLDER_SOURCE_TYPES and not allow_fallback:
+        raise MediaValidationError(
+            f"Refusing to upload: source_type={source_type!r} means the Short is only the "
+            "neutral motion background. Supply licensed clips in raw_clips/, point "
+            "trailer_url at footage you have rights to, or set ALLOW_FALLBACK_UPLOAD=true "
+            "to publish placeholder renders deliberately."
+        )
 
 
 @dataclass(frozen=True, slots=True)

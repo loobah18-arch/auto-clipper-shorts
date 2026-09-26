@@ -42,7 +42,7 @@ from movie_pipeline_state import (
     uploaded_part_numbers,
     write_manifest,
 )
-from movie_quality import MAX_SHORT_DURATION, MediaValidationError, probe_media
+from movie_quality import MAX_SHORT_DURATION, MediaValidationError, probe_media, validate_upload_source
 from movie_video_engine import (
     generate_speech_audio,
     create_word_timestamps_from_sentences,
@@ -412,6 +412,14 @@ def run_pipeline(
         source_type = "neutral_fallback"
         log("⚠️ No authorized footage available; generating a neutral motion background...")
         create_cinematic_movie_visual_fallback(duration, title, sliced_video_path)
+
+    if upload_requested:
+        # Fail closed: a Short with no licensed footage is placeholder content
+        # and must not reach the channel. Render output is discarded on purpose.
+        validate_upload_source(
+            source_type,
+            allow_fallback=os.environ.get("ALLOW_FALLBACK_UPLOAD", "false").lower() == "true",
+        )
 
     configured_bgm = os.environ.get("MOVIE_BGM_PATH", "").strip()
     bgm_file = Path(configured_bgm) if configured_bgm and Path(configured_bgm).exists() else None
