@@ -1,9 +1,9 @@
 name: 🎬 Auto Movie Explanation Shorts (MovieGyan Style)
 
 on:
-  # schedule:
-  #   # Runs twice daily at 08:15 and 20:15 UTC (off-peak minute prevents GitHub queue drops)
-  #   - cron: '15 8,20 * * *'
+  schedule:
+    # Runs twice daily at 08:15 and 20:15 UTC (off-peak minute prevents GitHub queue drops)
+    - cron: '15 8,20 * * *'
   workflow_dispatch:
     inputs:
       movie_name:
@@ -31,12 +31,12 @@ on:
       privacy_status:
         description: 'YouTube privacy status for non-dry runs'
         required: false
-        default: 'unlisted'
+        default: 'public'
         type: choice
         options:
+          - 'public'
           - 'unlisted'
           - 'private'
-          - 'public'
 
 concurrency:
   group: auto_clipper_pipeline
@@ -152,7 +152,7 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
-          PRIVACY_STATUS: ${{ inputs.privacy_status }}
+          PRIVACY_STATUS: ${{ inputs.privacy_status || 'public' }}
           POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           YT_DLP_POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           ALLOW_PRIVATE_MEDIA_SOURCES: ${{ secrets.ALLOW_PRIVATE_MEDIA_SOURCES || 'false' }}

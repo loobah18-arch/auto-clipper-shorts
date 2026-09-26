@@ -249,7 +249,7 @@ Narration and commentary are original to this channel. Visuals are sourced only 
                 "categoryId": "1"  # Film & Animation
             },
             "status": {
-                "privacyStatus": os.environ.get("PRIVACY_STATUS", "unlisted"),
+                "privacyStatus": os.environ.get("PRIVACY_STATUS") or "public",
                 "selfDeclaredMadeForKids": False
             }
         }
