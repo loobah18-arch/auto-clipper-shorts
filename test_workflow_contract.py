@@ -83,6 +83,22 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertNotIn("YT_DLP_POT_PROVIDER_URL", workflow)
         self.assertNotIn("POT_PROVIDER_URL:", workflow)
 
+    def test_trailer_sourcing_tries_multiple_player_clients(self):
+        """GitHub runner IPs are bot-gated by YouTube's default web client."""
+        engine = (WORKSPACE_DIR / "movie_video_engine.py").read_text(encoding="utf-8")
+        for client in ("tv", "web_safari", "android", "ios", "mweb"):
+            self.assertIn(f"youtube:player_client={client}", engine)
+        self.assertIn("--extractor-args", engine)
+
+    def test_trailer_sourcing_keeps_safety_boundaries(self):
+        """Client fallback must not reintroduce cert bypasses or cookie scraping."""
+        engine = (WORKSPACE_DIR / "movie_video_engine.py").read_text(encoding="utf-8")
+        download_block = engine[engine.index("def download_movie_trailer"):]
+        download_block = download_block[:download_block.index("\ndef ", 10)]
+        self.assertNotIn("--no-check-certificates", download_block)
+        self.assertNotIn("--cookies", download_block)
+        self.assertNotIn("cookies-from-browser", download_block)
+
 
 if __name__ == "__main__":
     unittest.main()
