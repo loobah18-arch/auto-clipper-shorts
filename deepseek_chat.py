@@ -270,10 +270,13 @@ def query_assistant(user_prompt: str) -> str:
 
     # 1. Automatic GitHub Workflow Intent Recognition
     if any(k in p_lower for k in ("run workflow", "trigger workflow", "dispatch workflow", "run daily clip", "run any of the")):
-        print(f"{C_CYAN}🤖 Auto-detected Workflow request: Running GitHub Actions workflow daily_clip.yml...{C_RESET}")
-        run_res = run_command_output(["gh", "workflow", "run", "daily_clip.yml", "--ref", "main"])
-        wf_runs = run_command_output(["gh", "run", "list", "--workflow", "daily_clip.yml", "-L", "3"])
-        auto_data.append(f"[Live Action Executed - GitHub Workflow Triggered]:\nTrigger Result: {run_res or 'Workflow dispatched successfully to main branch'}\nRecent Runs Status:\n{wf_runs}")
+        if os.environ.get("ALLOW_AUTONOMOUS_WORKFLOWS", "false").lower() != "true":
+            auto_data.append("[Workflow action blocked: set ALLOW_AUTONOMOUS_WORKFLOWS=true to enable explicit workflow dispatch]")
+        else:
+            print(f"{C_CYAN}🤖 Auto-detected Workflow request: Running GitHub Actions workflow daily_clip.yml...{C_RESET}")
+            run_res = run_command_output(["gh", "workflow", "run", "daily_clip.yml", "--ref", "main"])
+            wf_runs = run_command_output(["gh", "run", "list", "--workflow", "daily_clip.yml", "-L", "3"])
+            auto_data.append(f"[Live Action Executed - GitHub Workflow Triggered]:\nTrigger Result: {run_res or 'Workflow dispatched successfully to main branch'}\nRecent Runs Status:\n{wf_runs}")
 
     # 2. Automatic GitHub / Repository Intent Recognition
     elif any(k in p_lower for k in ("github", "repo", "repository", "git status", "my git", "my remote", "branch")):
@@ -286,11 +289,14 @@ def query_assistant(user_prompt: str) -> str:
 
     # 3. Automatic Git Push Intent Recognition
     if any(k in p_lower for k in ("push code", "push to github", "commit and push", "push my changes")):
-        print(f"{C_CYAN}🤖 Auto-detected Push request: Staging, committing & pushing code to GitHub...{C_RESET}")
-        run_command_output(["git", "add", "."])
-        commit_res = run_command_output(["git", "commit", "-m", "Auto-commit via Assistant"])
-        push_res = run_command_output(["git", "push", "origin", "HEAD"])
-        auto_data.append(f"[Live Git Push Action Executed]:\nCommit Result: {commit_res}\nPush Result: {push_res}")
+        if os.environ.get("ALLOW_AUTONOMOUS_GIT", "false").lower() != "true":
+            auto_data.append("[Git action blocked: set ALLOW_AUTONOMOUS_GIT=true to enable automated staging, commit, and push]")
+        else:
+            print(f"{C_CYAN}🤖 Auto-detected Push request: Staging, committing & pushing code to GitHub...{C_RESET}")
+            run_command_output(["git", "add", "."])
+            commit_res = run_command_output(["git", "commit", "-m", "Auto-commit via Assistant"])
+            push_res = run_command_output(["git", "push", "origin", "HEAD"])
+            auto_data.append(f"[Live Git Push Action Executed]:\nCommit Result: {commit_res}\nPush Result: {push_res}")
 
     # 4. Automatic Web Search Intent Recognition
     search_match = re.search(r"(?:search for|search web for|search|look up|google|find online)\s+([^\.\?\n]+)", user_prompt, re.IGNORECASE)

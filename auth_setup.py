@@ -8,8 +8,7 @@ import sys
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = [
-    "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube"
+    "https://www.googleapis.com/auth/youtube.upload"
 ]
 
 def main():

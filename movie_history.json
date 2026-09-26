@@ -98,10 +98,11 @@
     },
     {
       "movie_id": "the_avengers_2012",
-      "title": "The Avengers (2012) - Part 2",
+      "title": "The Avengers (2012) - Part 2 (Blocked/Removed)",
       "part_number": 2,
       "total_parts": 5,
-      "youtube_id": "z_a59DEo5Pk",
+      "status": "failed",
+      "youtube_id": null,
       "timestamp": "2026-09-23T08:53:40.512954+00:00",
       "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260923_085023.mp4",
       "duration_sec": 96.62

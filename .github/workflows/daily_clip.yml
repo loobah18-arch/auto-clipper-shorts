@@ -28,6 +28,15 @@ on:
         required: false
         default: false
         type: boolean
+      privacy_status:
+        description: 'YouTube privacy status for non-dry runs'
+        required: false
+        default: 'unlisted'
+        type: choice
+        options:
+          - 'unlisted'
+          - 'private'
+          - 'public'
 
 concurrency:
   group: auto_clipper_pipeline
@@ -46,7 +55,7 @@ jobs:
     # to automatically generate PO Tokens for YouTube requests.
     services:
       bgutil-provider:
-        image: brainicism/bgutil-ytdlp-pot-provider:latest
+        image: brainicism/bgutil-ytdlp-pot-provider:1.3.1
         ports:
           - 4416:4416
 
@@ -77,48 +86,57 @@ jobs:
             ${{ runner.os }}-movie-cache-v1-
 
       - name: 🦕 Set up Deno (JS runtime for yt-dlp)
-        continue-on-error: true
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
-      - name: 🦕 Fallback Deno Setup if Needed
+      - name: 🦕 Verify Deno Setup
         run: |
-          if ! command -v deno &> /dev/null; then
-            echo "Installing Deno via direct script..."
-            curl -fsSL https://deno.land/install.sh | sh || true
-            echo "$HOME/.deno/bin" >> $GITHUB_PATH
-          fi
+          set -euo pipefail
+          command -v deno
+          deno --version
 
 
       - name: 🎥 Install FFmpeg & System Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-liberation aria2
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-liberation fonts-noto-core aria2
 
-      - name: ⬆️ Upgrade yt-dlp to latest
-        run: pip install -U yt-dlp
+
 
       - name: 📦 Install Python Dependencies
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: 🔍 Verify PO Token Provider
         run: |
-          echo "Checking bgutil PO Token server..."
-          for i in 1 2 3 4 5; do
-            if curl -sf http://127.0.0.1:4416/ping; then
-              echo ""
-              echo "✅ PO Token server is ready!"
+          set -euo pipefail
+          ready=false
+          for attempt in 1 2 3 4 5 6; do
+            if curl -sf http://127.0.0.1:4416/ping >/dev/null; then
+              ready=true
               break
             fi
-            echo "Waiting for server... (attempt $i)"
+            echo "Waiting for PO Token provider (attempt ${attempt}/6)..."
             sleep 5
           done
+          if [ "$ready" != "true" ]; then
+            echo "PO Token provider did not become ready" >&2
+            exit 1
+          fi
+          echo "PO Token provider is ready"
 
       - name: 🧪 Run Pipeline Unit Tests
-        run: python test_pipeline.py && python test_movie_pipeline.py
+        run: |
+          set -euo pipefail
+           python -m compileall -q generate_movie_short.py movie_video_engine.py movie_pipeline_state.py movie_quality.py test_workflow_contract.py
+
+           python test_pipeline.py
+           python test_movie_pipeline.py
+           python test_workflow_contract.py
+
 
       - name: 🚀 Run Auto-Clipper Pipeline
         id: run_pipeline
@@ -134,15 +152,22 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
-          PRIVACY_STATUS: 'public'
+          PRIVACY_STATUS: ${{ inputs.privacy_status }}
           POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           YT_DLP_POT_PROVIDER_URL: 'http://127.0.0.1:4416'
+          ALLOW_PRIVATE_MEDIA_SOURCES: ${{ secrets.ALLOW_PRIVATE_MEDIA_SOURCES || 'false' }}
+          GDRIVE_FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
+          GDRIVE_FILE_NAME: ${{ secrets.GDRIVE_FILE_NAME }}
+          MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH }}
+          ALLOW_TRAILER_SEARCH: 'false'
+          ALLOW_EXTERNAL_ARTWORK: 'false'
           INPUT_MOVIE_NAME: ${{ inputs.movie_name }}
           INPUT_PART: ${{ inputs.part }}
           INPUT_LANG: ${{ inputs.lang }}
           INPUT_VOICE: ${{ inputs.voice }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
+          set -euo pipefail
           echo "🎬 Running Movie Explanation Shorts Generator (MovieGyan Style)..."
           ARGS=()
           if [ -n "$INPUT_MOVIE_NAME" ]; then ARGS+=(--movie "$INPUT_MOVIE_NAME"); fi
@@ -152,26 +177,51 @@ jobs:
           if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
           python generate_movie_short.py "${ARGS[@]}" 2>&1 | tee pipeline_debug.log
 
+
+
+      - name: 🧾 Capture Render Diagnostics
+        if: always()
+        run: |
+          set -euo pipefail
+          report="output/ffprobe_report.txt"
+          : > "$report"
+          for video in output/movie_short_*.mp4; do
+            [ -e "$video" ] || continue
+            {
+              echo "FILE: $video"
+              ffprobe -v error -show_streams -show_format -of json "$video"
+            } >> "$report"
+          done
+
       - name: 📦 Upload Generated Video Artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: movie-explanation-short
           path: |
-            output/*.mp4
-            output/*.jpg
+            output/movie_short_*.mp4
+            output/thumb_*.jpg
+            output/*_subtitles_*.ass
+            output/render_manifest_*.json
+            output/ffprobe_report.txt
+            pipeline_debug.log
           retention-days: 7
-          if-no-files-found: ignore
+          if-no-files-found: warn
 
       - name: 💾 Commit Updated History & State
         if: always()
         run: |
+          set -euo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           TARGET_BRANCH="${GITHUB_REF_NAME:-main}"
-          git add movie_history.json clip_history.json || true
-          git commit -m "🤖 Auto-clip movie state update [skip ci]" || echo "No changes to commit"
-          git fetch origin "$TARGET_BRANCH" || true
-          git pull --rebase origin "$TARGET_BRANCH" || true
-          git push origin "HEAD:$TARGET_BRANCH" || echo "Push skipped or nothing to push"
+          git add movie_history.json
+          if git diff --cached --quiet; then
+            echo "No movie state changes to commit"
+            exit 0
+          fi
+          git commit -m "🤖 Auto-clip movie state update [skip ci]"
+          git fetch origin "$TARGET_BRANCH"
+          git rebase "origin/$TARGET_BRANCH"
+          git push origin "HEAD:$TARGET_BRANCH"
 

@@ -2244,18 +2244,13 @@ def get_background_video_info() -> tuple:
 
 
 def get_background_music_info() -> Path:
-    """
-    Finds one of the royalty-free background music tracks in assets/bgm/.
-    Returns Path if found, else None.
-    """
-    bgm_dir = Path(__file__).resolve().parent / "assets" / "bgm"
-    if bgm_dir.exists():
-        sukuna_bgm = bgm_dir / "malevolent_shrine_sukuna.mp3"
-        if sukuna_bgm.exists():
-            return sukuna_bgm
-        candidates = sorted(list(bgm_dir.glob("*.mp3")))
-        if candidates:
-            return random.choice(candidates)
+    """Return an explicitly configured, rights-cleared BGM path when provided."""
+    configured_path = os.environ.get("TECH_BGM_PATH", "").strip()
+    if configured_path:
+        path = Path(configured_path)
+        if path.exists():
+            return path
+        log(f"⚠️ Configured TECH_BGM_PATH does not exist: {configured_path}")
     return None
 
 
