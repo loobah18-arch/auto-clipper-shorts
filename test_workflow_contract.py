@@ -47,6 +47,42 @@ class TestWorkflowContract(unittest.TestCase):
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
         self.assertNotIn("YOUTUBE_COOKIES", workflow)
 
+    def test_po_token_plugin_installed_and_gated(self):
+        """A running PO Token server is useless without the yt-dlp plugin."""
+        requirements = (WORKSPACE_DIR / "requirements.txt").read_text(encoding="utf-8")
+        workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
+        self.assertIn("bgutil-ytdlp-pot-provider", requirements)
+        self.assertIn("pip show bgutil-ytdlp-pot-provider", workflow)
+
+    def test_po_token_plugin_version_matches_service_image(self):
+        """Version skew between plugin and server breaks token negotiation."""
+        requirements = (WORKSPACE_DIR / "requirements.txt").read_text(encoding="utf-8")
+        workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
+
+        plugin_version = None
+        for line in requirements.splitlines():
+            line = line.strip()
+            if line.startswith("bgutil-ytdlp-pot-provider"):
+                plugin_version = line.split("==", 1)[1].strip()
+                break
+
+        image_version = None
+        for line in workflow.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("image:") and "bgutil-ytdlp-pot-provider" in stripped:
+                image_version = stripped.rsplit(":", 1)[1].strip()
+                break
+
+        self.assertIsNotNone(plugin_version, "plugin must be version-pinned in requirements.txt")
+        self.assertIsNotNone(image_version, "service image must be version-pinned in the workflow")
+        self.assertEqual(plugin_version, image_version)
+
+    def test_dead_pot_env_vars_are_not_exported(self):
+        """The bgutil plugin auto-discovers 127.0.0.1:4416; these env vars do nothing."""
+        workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
+        self.assertNotIn("YT_DLP_POT_PROVIDER_URL", workflow)
+        self.assertNotIn("POT_PROVIDER_URL:", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
