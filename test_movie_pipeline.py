@@ -6,6 +6,7 @@ Tests catalog loading, AI script fallback, subtitle generation, and duration che
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -24,9 +25,12 @@ from movie_pipeline_state import (
     uploaded_part_numbers,
 )
 import movie_quality
+import movie_video_engine
 from movie_quality import MediaInfo, MediaValidationError, probe_media, validate_media_info
 from movie_video_engine import (
+    TRAILER_CLIENT_CONFIGS,
     create_word_timestamps_from_sentences,
+    download_movie_trailer,
     generate_moviegyan_subtitles,
     find_system_font,
     parse_timestamp_to_seconds,
@@ -271,6 +275,48 @@ class TestMoviePipeline(unittest.TestCase):
             with unittest.mock.patch.object(movie_quality.subprocess, "run", **_fake_run(payload)):
                 with self.assertRaises(MediaValidationError):
                     probe_media(media)
+
+    def test_trailer_client_table_shape_is_valid(self):
+        """(name, format_selector, extractor_args) - the extractor arg must be third."""
+        for name, fmt, extractor_args in TRAILER_CLIENT_CONFIGS:
+            self.assertTrue(
+                extractor_args.startswith("youtube:player_client="),
+                f"{name}: extractor_args must be an extractor-args string, got {extractor_args!r}",
+            )
+            self.assertIn(
+                name, extractor_args,
+                f"{name}: extractor_args must select the matching client",
+            )
+            self.assertNotIn("player_client", fmt, f"{name}: fmt must be a format selector")
+            self.assertTrue(fmt.startswith(("bv*", "b")), f"{name}: unexpected fmt {fmt!r}")
+
+    def test_trailer_download_passes_extractor_args_and_format_correctly(self):
+        """Guards the argument wiring: -f gets a format, --extractor-args gets IE_KEY:ARGS."""
+        recorded: list[list[str]] = []
+
+        def fake_run(cmd, *args, **kwargs):
+            recorded.append(list(cmd))
+            return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="ERROR: bot check")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "trailer.mp4"
+            with unittest.mock.patch.object(movie_video_engine.subprocess, "run", side_effect=fake_run):
+                result = download_movie_trailer("some movie", out, trailer_url="https://example.invalid/v")
+
+        self.assertFalse(result)
+        self.assertTrue(recorded, "yt-dlp should have been invoked")
+        for cmd in recorded:
+            for flag, prefix in (("--extractor-args", "youtube:player_client="), ("-f", None)):
+                if flag in cmd:
+                    value = cmd[cmd.index(flag) + 1]
+                    if prefix:
+                        self.assertTrue(
+                            value.startswith(prefix),
+                            f"--extractor-args got {value!r}, expected {prefix}*",
+                        )
+                    else:
+                        self.assertNotIn("player_client", value, f"-f got {value!r}")
+                        self.assertTrue(value.startswith(("bv*", "b")), f"-f got {value!r}")
 
 
 def _fake_run(payload: dict) -> dict:
