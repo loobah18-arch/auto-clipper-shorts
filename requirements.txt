@@ -7,4 +7,9 @@ google-auth-oauthlib>=1.2.0
 google-auth-httplib2>=0.2.0
 requests>=2.31.0
 gdown>=6.4.0
+# PO Token provider plugin. Required: without it yt-dlp ignores the running
+# bgutil server and YouTube rejects trailer downloads with "Sign in to confirm
+# you're not a bot". Keep this version aligned with the service image tag in
+# .github/workflows/daily_clip.yml.
+bgutil-ytdlp-pot-provider==2.0.0
 
