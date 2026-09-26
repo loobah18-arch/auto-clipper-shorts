@@ -403,15 +403,26 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
             ("trailer_query", f"ytsearch1:{clean_query} official trailer"),
         ])
 
+    # Player clients are tried in order. GitHub runners are datacenter IPs, so
+    # YouTube answers the default web client with "Sign in to confirm you're not
+    # a bot". The TV/mobile clients paired with the bgutil PO Token provider
+    # (see requirements.txt) are the standard cookie-free path. Certificate
+    # verification stays on, cookies stay off, and search stays opt-in.
     client_configs = [
-        ("default", [], "bv*[height<=720]+ba/best/18/22")
+        ("tv", "bv*[height<=720]+ba/b", "youtube:player_client=tv"),
+        ("web_safari", "bv*[height<=720]+ba/b", "youtube:player_client=web_safari"),
+        ("android", "bv*[height<=720]+ba/b", "youtube:player_client=android"),
+        ("ios", "bv*[height<=720]+ba/b", "youtube:player_client=ios"),
+        ("mweb", "bv*[height<=720]+ba/b", "youtube:player_client=mweb"),
+        ("default", "bv*[height<=720]+ba/best/18/22", "youtube:player_client=default"),
     ]
 
 
     for tag, target in candidate_targets:
         log(f"🔍 Sourcing movie footage ({tag}): '{target}'...")
 
-        for client_name, client_args, fmt in client_configs:
+        for client_name, extractor_args, fmt in client_configs:
+            client_args = ["--extractor-args", extractor_args]
             # 1. Direct section download (fastest, extracts 45s core scenes)
             cmd_section = [
                 "yt-dlp",
