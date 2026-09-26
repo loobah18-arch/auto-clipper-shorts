@@ -1,9 +1,11 @@
 name: 🎬 Auto Movie Explanation Shorts (MovieGyan Style)
 
 on:
-  schedule:
-    # Runs twice daily at 08:15 and 20:15 UTC (off-peak minute prevents GitHub queue drops)
-    - cron: '15 8,20 * * *'
+  # Schedule stays disabled by default. Uncomment only after reviewing a
+  # successful manual run, and keep privacy_status=unlisted until you trust it.
+  # schedule:
+  #   # Runs twice daily at 08:15 and 20:15 UTC (off-peak minute prevents GitHub queue drops)
+  #   - cron: '15 8,20 * * *'
   workflow_dispatch:
     inputs:
       movie_name:
@@ -31,12 +33,12 @@ on:
       privacy_status:
         description: 'YouTube privacy status for non-dry runs'
         required: false
-        default: 'public'
+        default: 'unlisted'
         type: choice
         options:
-          - 'public'
           - 'unlisted'
           - 'private'
+          - 'public'
 
 concurrency:
   group: auto_clipper_pipeline
@@ -131,12 +133,10 @@ jobs:
       - name: 🧪 Run Pipeline Unit Tests
         run: |
           set -euo pipefail
-           python -m compileall -q generate_movie_short.py movie_video_engine.py movie_pipeline_state.py movie_quality.py test_workflow_contract.py
-
-           python test_pipeline.py
-           python test_movie_pipeline.py
-           python test_workflow_contract.py
-
+          python -m compileall -q generate_movie_short.py movie_video_engine.py movie_pipeline_state.py movie_quality.py test_workflow_contract.py
+          python test_pipeline.py
+          python test_movie_pipeline.py
+          python test_workflow_contract.py
 
       - name: 🚀 Run Auto-Clipper Pipeline
         id: run_pipeline
@@ -151,8 +151,7 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
-          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
-          PRIVACY_STATUS: ${{ inputs.privacy_status || 'public' }}
+          PRIVACY_STATUS: ${{ inputs.privacy_status || 'unlisted' }}
           POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           YT_DLP_POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           ALLOW_PRIVATE_MEDIA_SOURCES: ${{ secrets.ALLOW_PRIVATE_MEDIA_SOURCES || 'false' }}
