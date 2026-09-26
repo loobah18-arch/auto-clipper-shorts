@@ -4,10 +4,12 @@ Unit tests for the Movie Explanation Shorts pipeline (MovieGyan style).
 Tests catalog loading, AI script fallback, subtitle generation, and duration checks.
 """
 
+import json
 import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 WORKSPACE_DIR = Path(__file__).resolve().parent
@@ -21,7 +23,8 @@ from movie_pipeline_state import (
     load_history,
     uploaded_part_numbers,
 )
-from movie_quality import MediaInfo, MediaValidationError, validate_media_info
+import movie_quality
+from movie_quality import MediaInfo, MediaValidationError, probe_media, validate_media_info
 from movie_video_engine import (
     create_word_timestamps_from_sentences,
     generate_moviegyan_subtitles,
@@ -221,6 +224,63 @@ class TestMoviePipeline(unittest.TestCase):
             validate_media_info(MediaInfo(50.0, 720, 1280, True))
         with self.assertRaises(MediaValidationError):
             validate_media_info(MediaInfo(50.0, 1080, 1920, False))
+
+    def test_probe_media_parses_ffprobe_string_scalars(self):
+        """ffprobe emits duration/width/height as JSON strings; they must parse."""
+        payload = {
+            "streams": [
+                {"codec_type": "video", "width": 1080, "height": 1920, "duration": "53.541000"},
+                {"codec_type": "audio", "duration": "53.541000"},
+            ],
+            "format": {"duration": "53.541000"},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            media = Path(tmp) / "short.mp4"
+            media.write_bytes(b"not-real-mp4")
+            with unittest.mock.patch.object(movie_quality.subprocess, "run", **_fake_run(payload)):
+                info = probe_media(media)
+        self.assertAlmostEqual(info.duration_sec, 53.541, places=3)
+        self.assertEqual((info.width, info.height), (1080, 1920))
+        self.assertTrue(info.has_audio)
+
+    def test_probe_media_falls_back_to_stream_duration(self):
+        """Containers without format-level duration still validate via the stream."""
+        payload = {
+            "streams": [
+                {"codec_type": "video", "width": "1080", "height": "1920", "duration": "42.0"},
+                {"codec_type": "audio"},
+            ],
+            "format": {},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            media = Path(tmp) / "short.mp4"
+            media.write_bytes(b"not-real-mp4")
+            with unittest.mock.patch.object(movie_quality.subprocess, "run", **_fake_run(payload)):
+                info = probe_media(media)
+        self.assertAlmostEqual(info.duration_sec, 42.0, places=3)
+        self.assertEqual((info.width, info.height), (1080, 1920))
+
+    def test_probe_media_rejects_non_numeric_duration(self):
+        payload = {
+            "streams": [{"codec_type": "video", "width": 1080, "height": 1920}],
+            "format": {"duration": "N/A"},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            media = Path(tmp) / "short.mp4"
+            media.write_bytes(b"not-real-mp4")
+            with unittest.mock.patch.object(movie_quality.subprocess, "run", **_fake_run(payload)):
+                with self.assertRaises(MediaValidationError):
+                    probe_media(media)
+
+
+def _fake_run(payload: dict) -> dict:
+    """Build a unittest.mock.patch kwargs dict returning a canned ffprobe payload."""
+
+    class _Result:
+        stdout = json.dumps(payload)
+        stderr = ""
+
+    return {"return_value": _Result()}
 
 
 if __name__ == "__main__":
