@@ -144,11 +144,27 @@ def _extract_json(content: str) -> dict:
     raise ValueError("model reply contained no JSON object")
 
 
+_JSON_ONLY_SUFFIX = (
+    "\n\nCRITICAL: Your entire reply must be one raw JSON object and nothing else. "
+    "No preamble, no explanation, no markdown code fences. Start the reply with { and end it with }."
+)
+
+
+class ModelReplyError(Exception):
+    """Raised when a provider replies but not in the expected JSON shape."""
+
+    def __init__(self, message: str, raw: str = ""):
+        super().__init__(message)
+        self.raw = raw
+
+
 def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
     """POST JSON and return the parsed reply object.
 
     Some hosted models reject ``response_format`` with a 400, so a 400/422 is
-    retried once without it before giving up on that model.
+    retried once without it. If the reply still is not JSON, the raw text is
+    carried on the exception so callers can use it as narration instead of
+    discarding a perfectly good answer.
     """
     request = urllib.request.Request(
         url,
@@ -163,13 +179,17 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
             print(f"[movie_ai_script] {payload.get('model')} rejected response_format; retrying without it")
             reduced = {k: v for k, v in payload.items() if k != "response_format"}
             reduced["messages"] = [
-                dict(m, content=m["content"] + "\nRespond with ONLY a raw JSON object, no markdown fences.")
-                if m["role"] == "system" else m
-                for m in reduced["messages"]
+                {**m, "content": m["content"] + _JSON_ONLY_SUFFIX} for m in reduced["messages"]
             ]
             return _post_json(url, reduced, headers, timeout)
         raise
-    return _extract_json(data["choices"][0]["message"]["content"])
+
+    content = data["choices"][0]["message"]["content"]
+    try:
+        return _extract_json(content)
+    except (ValueError, json.JSONDecodeError) as error:
+        print(f"[movie_ai_script] {payload.get('model')} reply was not JSON: {str(content)[:180]!r}")
+        raise ModelReplyError(str(error), raw=content or "") from error
 
 
 def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
@@ -194,6 +214,21 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
         result["script_source"] = source
         return result
 
+    def from_prose(raw: str, source: str) -> dict:
+        """Use a non-JSON AI reply as narration rather than throwing it away."""
+        text = re.sub(r"```[a-zA-Z]*", " ", raw or "").strip()
+        text = re.sub(r"\s+", " ", text)
+        if len(text.split()) < 25:
+            raise ModelReplyError("AI reply too short to use as narration", raw=raw)
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+        return finish({
+            "title": movie_name,
+            "badge": movie_name.upper()[:22],
+            "hook": sentences[0] if sentences else f"What really happened in {movie_name}?",
+            "script": text,
+            "tags": ["movieexplained", "movierecap", "moviegyan", "plottwist", "cinema", "shorts"],
+        }, source)
+
     groq_models = [
         m.strip() for m in os.environ.get("GROQ_MODEL", "").split(",") if m.strip()
     ] or GROQ_MODELS
@@ -217,6 +252,11 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
                     25,
                 )
                 return finish(result, "groq")
+            except ModelReplyError as e:
+                try:
+                    return from_prose(e.raw, "groq")
+                except ModelReplyError:
+                    print(f"[movie_ai_script] Groq model {model} gave unusable prose")
             except Exception as e:
                 print(f"[movie_ai_script] Groq model {model} failed: {e}")
 
@@ -239,6 +279,11 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
                     35,
                 )
                 return finish(result, "openrouter")
+            except ModelReplyError as e:
+                try:
+                    return from_prose(e.raw, "openrouter")
+                except ModelReplyError:
+                    print(f"[movie_ai_script] OpenRouter model {model} gave unusable prose")
             except Exception as e:
                 print(f"[movie_ai_script] OpenRouter model {model} failed: {e}")
 
@@ -259,6 +304,11 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
                 30,
             )
             return finish(result, "deepseek")
+        except ModelReplyError as e:
+            try:
+                return from_prose(e.raw, "deepseek")
+            except ModelReplyError:
+                print("[movie_ai_script] DeepSeek gave unusable prose")
         except Exception as e:
             print(f"[movie_ai_script] DeepSeek script generation failed: {e}")
 
