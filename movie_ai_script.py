@@ -9,6 +9,7 @@ instant fallback to curated catalog.
 
 import os
 import re
+import time
 import json
 import urllib.request
 import urllib.error
@@ -158,42 +159,67 @@ class ModelReplyError(Exception):
         self.raw = raw
 
 
+_MAX_RETRIES = 4
+_BACKOFF_BASE = 2.0
+
+# Once a provider/model answers successfully, reuse it for the remaining calls
+# instead of re-probing every fallback for each part.
+_PREFERRED: dict[str, str] = {}
+
+
 def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
     """POST JSON and return the parsed reply object.
 
-    Some hosted models reject ``response_format`` with a 400, so a 400/422 is
-    retried once without it. If the reply still is not JSON, the raw text is
-    carried on the exception so callers can use it as narration instead of
-    discarding a perfectly good answer.
+    Handles three provider quirks:
+    - some hosted models reject ``response_format`` with a 400, retried without it
+    - 429/5xx are retried with exponential backoff so bulk generation survives
+      free-tier rate limits
+    - reasoning models can return empty content, which is reported explicitly
     """
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", **headers},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            data = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
-        if error.code in (400, 422) and "response_format" in payload:
-            print(f"[movie_ai_script] {payload.get('model')} rejected response_format; retrying without it")
-            reduced = {k: v for k, v in payload.items() if k != "response_format"}
-            reduced["messages"] = [
-                {**m, "content": m["content"] + _JSON_ONLY_SUFFIX} for m in reduced["messages"]
-            ]
-            return _post_json(url, reduced, headers, timeout)
-        raise
+    last_error: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", **headers},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as error:
+            last_error = error
+            if error.code in (400, 422) and "response_format" in payload:
+                print(f"[movie_ai_script] {payload.get('model')} rejected response_format; retrying without it")
+                payload = {k: v for k, v in payload.items() if k != "response_format"}
+                payload["messages"] = [
+                    {**m, "content": m["content"] + _JSON_ONLY_SUFFIX} for m in payload["messages"]
+                ]
+                last_error = None
+                continue
+            if error.code == 429 or error.code >= 500:
+                delay = _BACKOFF_BASE ** (attempt + 1)
+                print(f"[movie_ai_script] {payload.get('model')} HTTP {error.code}; backing off {delay:.0f}s")
+                time.sleep(delay)
+                continue
+            raise
+        except (urllib.error.URLError, TimeoutError) as error:
+            last_error = error
+            delay = _BACKOFF_BASE ** (attempt + 1)
+            print(f"[movie_ai_script] {payload.get('model')} network error ({error}); retrying in {delay:.0f}s")
+            time.sleep(delay)
+            continue
+    else:
+        raise last_error if last_error else RuntimeError("request failed with no response")
 
-    content = data["choices"][0]["message"].get("content") or ""
+    message = data["choices"][0]["message"]
+    content = message.get("content") or ""
     if not content.strip():
-        # Reasoning models can spend the whole token budget on hidden reasoning
-        # and return an empty answer. Surface that instead of failing silently.
-        reasoning = data["choices"][0]["message"].get("reasoning") or ""
-        finish_reason = data["choices"][0].get("finish_reason")
+        reasoning = message.get("reasoning") or ""
         print(
             f"[movie_ai_script] {payload.get('model')} returned empty content "
-            f"(finish_reason={finish_reason}, reasoning_chars={len(reasoning)}). "
-            "Raise max_tokens if this repeats."
+            f"(finish_reason={data['choices'][0].get('finish_reason')}, "
+            f"reasoning_chars={len(reasoning)})."
         )
         raise ModelReplyError("empty completion", raw=reasoning)
     try:
@@ -243,6 +269,9 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
     groq_models = [
         m.strip() for m in os.environ.get("GROQ_MODEL", "").split(",") if m.strip()
     ] or GROQ_MODELS
+    preferred = _PREFERRED.get("groq")
+    if preferred in groq_models:
+        groq_models = [preferred] + [m for m in groq_models if m != preferred]
 
     if api_key_groq:
         for model in groq_models:
@@ -262,6 +291,7 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
                     {"Authorization": f"Bearer {api_key_groq}", "User-Agent": "MovieShortsBot/1.0"},
                     25,
                 )
+                _PREFERRED["groq"] = model
                 return finish(result, "groq")
             except ModelReplyError as e:
                 try:
@@ -289,6 +319,7 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
                     {"Authorization": f"Bearer {api_key_openrouter}"},
                     35,
                 )
+                _PREFERRED["openrouter"] = model
                 return finish(result, "openrouter")
             except ModelReplyError as e:
                 try:
