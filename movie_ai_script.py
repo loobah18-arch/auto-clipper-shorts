@@ -184,12 +184,23 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
             return _post_json(url, reduced, headers, timeout)
         raise
 
-    content = data["choices"][0]["message"]["content"]
+    content = data["choices"][0]["message"].get("content") or ""
+    if not content.strip():
+        # Reasoning models can spend the whole token budget on hidden reasoning
+        # and return an empty answer. Surface that instead of failing silently.
+        reasoning = data["choices"][0]["message"].get("reasoning") or ""
+        finish_reason = data["choices"][0].get("finish_reason")
+        print(
+            f"[movie_ai_script] {payload.get('model')} returned empty content "
+            f"(finish_reason={finish_reason}, reasoning_chars={len(reasoning)}). "
+            "Raise max_tokens if this repeats."
+        )
+        raise ModelReplyError("empty completion", raw=reasoning)
     try:
         return _extract_json(content)
     except (ValueError, json.JSONDecodeError) as error:
         print(f"[movie_ai_script] {payload.get('model')} reply was not JSON: {str(content)[:180]!r}")
-        raise ModelReplyError(str(error), raw=content or "") from error
+        raise ModelReplyError(str(error), raw=content) from error
 
 
 def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
@@ -246,7 +257,7 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
                         ],
                         "response_format": {"type": "json_object"},
                         "temperature": 0.7,
-                        "max_tokens": 600,
+                        "max_tokens": 4000,
                     },
                     {"Authorization": f"Bearer {api_key_groq}", "User-Agent": "MovieShortsBot/1.0"},
                     25,
@@ -273,7 +284,7 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
                         ],
                         "response_format": {"type": "json_object"},
                         "temperature": 0.7,
-                        "max_tokens": 600,
+                        "max_tokens": 4000,
                     },
                     {"Authorization": f"Bearer {api_key_openrouter}"},
                     35,
