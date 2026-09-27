@@ -128,17 +128,48 @@ OPENROUTER_MODELS = [
 ]
 
 
+def _extract_json(content: str) -> dict:
+    """Parse a JSON object from a model reply, tolerating code fences."""
+    text = (content or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end > start:
+        return json.loads(text[start:end + 1])
+    raise ValueError("model reply contained no JSON object")
+
+
 def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
-    """POST JSON and return the parsed 'choices' message, or raise."""
+    """POST JSON and return the parsed reply object.
+
+    Some hosted models reject ``response_format`` with a 400, so a 400/422 is
+    retried once without it before giving up on that model.
+    """
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", **headers},
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        data = json.loads(response.read().decode("utf-8"))
-    content = data["choices"][0]["message"]["content"]
-    return json.loads(content)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        if error.code in (400, 422) and "response_format" in payload:
+            print(f"[movie_ai_script] {payload.get('model')} rejected response_format; retrying without it")
+            reduced = {k: v for k, v in payload.items() if k != "response_format"}
+            reduced["messages"] = [
+                dict(m, content=m["content"] + "\nRespond with ONLY a raw JSON object, no markdown fences.")
+                if m["role"] == "system" else m
+                for m in reduced["messages"]
+            ]
+            return _post_json(url, reduced, headers, timeout)
+        raise
+    return _extract_json(data["choices"][0]["message"]["content"])
 
 
 def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
