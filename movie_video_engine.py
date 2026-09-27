@@ -236,6 +236,72 @@ def parse_timestamp_to_seconds(ts: str) -> float:
     return 0.0
 
 
+GDRIVE_MAP_FILENAME = "movie_gdrive_map.json"
+
+
+def load_gdrive_map() -> dict:
+    """Load the per-movie Google Drive map.
+
+    The map is intentionally NOT committed: it holds private Drive file IDs, so
+    it is gitignored locally and delivered to CI as the GDRIVE_MAP_B64 secret.
+    A missing or malformed map is not fatal - it just means "no Drive source".
+    """
+    map_path = WORKSPACE_DIR / GDRIVE_MAP_FILENAME
+    if not map_path.exists():
+        return {}
+    try:
+        with map_path.open("r", encoding="utf-8") as file_handle:
+            raw = json.load(file_handle)
+    except (OSError, json.JSONDecodeError) as error:
+        log(f"⚠️ Google Drive map at {map_path.name} could not be read: {error}")
+        return {}
+
+    if not isinstance(raw, dict):
+        log(f"⚠️ Google Drive map must be a JSON object; ignoring {map_path.name}.")
+        return {}
+
+    # Accept either {"movies": {...}} or a flat {movie_id: ...} document.
+    movies = raw.get("movies") if isinstance(raw.get("movies"), dict) else raw
+    return {str(key): value for key, value in movies.items() if isinstance(value, (dict, str))}
+
+
+def resolve_gdrive_source(movie_id: str, movie_data: dict | None = None) -> dict | None:
+    """Resolve the Google Drive source for a movie, or None when unavailable.
+
+    Precedence: GDRIVE_FILE_ID env override, then the Drive map, then a
+    ``gdrive_file_id`` field on the catalog entry.
+    """
+    movie_data = movie_data or {}
+
+    file_id = os.environ.get("GDRIVE_FILE_ID", "").strip()
+    file_name = os.environ.get("GDRIVE_FILE_NAME", "").strip()
+    timeline_start = None
+    timeline_end = None
+
+    if not file_id:
+        entry = load_gdrive_map().get(movie_id)
+        if isinstance(entry, str):
+            file_id = entry.strip()
+        elif isinstance(entry, dict):
+            file_id = str(entry.get("file_id", "")).strip()
+            file_name = str(entry.get("file_name", "")).strip() or file_name
+            timeline_start = entry.get("timeline_start")
+            timeline_end = entry.get("timeline_end")
+
+    if not file_id:
+        file_id = str(movie_data.get("gdrive_file_id", "")).strip()
+
+    if not file_id:
+        return None
+
+    return {
+        "file_id": file_id,
+        "file_name": file_name or f"{movie_id}.mkv",
+        "timeline_start": timeline_start,
+        "timeline_end": timeline_end,
+    }
+
+
 def download_movie_from_gdrive(file_id: str, output_path: Path) -> bool:
     """
     Downloads the genuine BluRay movie file from Google Drive using gdown.

@@ -49,6 +49,7 @@ from movie_video_engine import (
     generate_moviegyan_subtitles,
     get_audio_duration,
     download_movie_from_gdrive,
+    resolve_gdrive_source,
     slice_movie_timeline_scenes,
     download_movie_trailer,
     slice_trailer_dynamic_scenes,
@@ -359,6 +360,11 @@ def run_pipeline(
     sliced_ok = False
     source_type = "neutral_fallback"
 
+    # Source priority:
+    #   1. explicit --video-file (deliberate per-invocation override)
+    #   2. Google Drive raw movie (highest automatic priority)
+    #   3. configured trailer_url
+    #   4. neutral motion background
     if video_file and Path(video_file).exists():
         source_type = "local_media"
         log(f"🎞️ Sourcing scenes from local video file: '{video_file}'")
@@ -375,26 +381,37 @@ def run_pipeline(
             sliced_ok = slice_trailer_dynamic_scenes(
                 Path(video_file), duration, sliced_video_path, seed=render_seed
             )
-    elif os.environ.get("ALLOW_PRIVATE_MEDIA_SOURCES", "false").lower() == "true" and (
-        os.environ.get("GDRIVE_FILE_ID") or movie_data.get("gdrive_file_id")
-    ):
-        source_type = "private_media"
-        gdrive_id = str(os.environ.get("GDRIVE_FILE_ID") or movie_data["gdrive_file_id"])
-        movie_filename = str(
-            os.environ.get("GDRIVE_FILE_NAME")
-            or movie_data.get("gdrive_file_name", f"{movie_id}_movie.mkv")
-        )
-        target_movie_path = cache_dir / movie_filename
-        log(f"🎬 Sourcing authorized private media: {movie_filename}...")
-        gdrive_ok = download_movie_from_gdrive(gdrive_id, target_movie_path)
-        if gdrive_ok and target_movie_path.exists():
-            sliced_ok = slice_movie_timeline_scenes(
-                target_movie_path,
-                str(movie_data.get("timeline_start", "00:01:00")),
-                str(movie_data.get("timeline_end", "00:26:00")),
-                duration,
-                sliced_video_path,
-                seed=render_seed,
+    else:
+        private_allowed = os.environ.get("ALLOW_PRIVATE_MEDIA_SOURCES", "false").lower() == "true"
+        gdrive_source = resolve_gdrive_source(movie_id, movie_data)
+        if private_allowed and gdrive_source:
+            source_type = "private_media"
+            target_movie_path = cache_dir / gdrive_source["file_name"]
+            log(f"📀 Sourcing raw movie from Google Drive (highest priority): {gdrive_source['file_name']}...")
+            gdrive_ok = download_movie_from_gdrive(gdrive_source["file_id"], target_movie_path)
+            if gdrive_ok and target_movie_path.exists():
+                timeline_start = str(
+                    gdrive_source.get("timeline_start")
+                    or movie_data.get("timeline_start")
+                    or "00:01:00"
+                )
+                timeline_end = str(
+                    gdrive_source.get("timeline_end")
+                    or movie_data.get("timeline_end")
+                    or "00:26:00"
+                )
+                sliced_ok = slice_movie_timeline_scenes(
+                    target_movie_path,
+                    timeline_start,
+                    timeline_end,
+                    duration,
+                    sliced_video_path,
+                    seed=render_seed,
+                )
+        elif gdrive_source and not private_allowed:
+            log(
+                "⚠️ Google Drive source found but ALLOW_PRIVATE_MEDIA_SOURCES is not 'true'; "
+                "skipping Drive. Set the repo secret to enable it."
             )
 
     if not sliced_ok:
