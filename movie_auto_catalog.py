@@ -329,6 +329,11 @@ def build_entry(
     }
 
 
+def _allow_template_scripts() -> bool:
+    """Opt-in escape hatch for registering titles without working AI access."""
+    return os.environ.get("ALLOW_TEMPLATE_SCRIPTS", "false").lower() == "true"
+
+
 def _build_part(
     display_title: str,
     part_title: str,
@@ -349,6 +354,7 @@ def _build_part(
         "badge": str(generated.get("badge") or display_title)[:28],
         "hook": str(generated.get("hook") or f"What really happened in {part_title}?"),
         "script": str(generated.get("script") or ""),
+        "script_source": str(generated.get("script_source") or "template"),
         "tags": list(generated.get("tags") or ["movieexplained", "shorts"]),
         "window_start_frac": window[0],
         "window_end_frac": window[1],
@@ -357,6 +363,14 @@ def _build_part(
         "season": season,
         "episode_number": episode_number,
     }
+
+
+def _has_real_scripts(entry: dict) -> bool:
+    """True when every part carries genuine AI narration, not the template."""
+    return all(
+        part.get("script_source") not in (None, "", "template")
+        for part in entry.get("parts", [])
+    )
 
 
 def _title_matches_curated(filename: str, curated: set[str]) -> bool:
@@ -433,8 +447,11 @@ def sync_auto_catalog(
     added = 0
     curated = _curated_titles()
     for key, members in sorted(groups.items()):
-        if key in known:
+        existing = next((m for m in auto_catalog["movies"] if m.get("id") == key), None)
+        if existing is not None and _has_real_scripts(existing):
             continue
+        if existing is not None:
+            log(f"Regenerating '{key}': previous scripts were placeholders.")
         sample = members[0][0]
         if _title_matches_curated(sample, curated):
             log(f"Skipping '{humanize(sample)}': already present in the curated catalog.")
@@ -442,6 +459,14 @@ def sync_auto_catalog(
         entry = build_entry(members, key, language=language, movie_parts=movie_parts)
         if not entry:
             continue
+        if not _has_real_scripts(entry) and not _allow_template_scripts():
+            log(
+                f"Not registering '{entry['title']}': no AI script provider is available, "
+                "so every part would be placeholder narration. Fix the API keys and re-run."
+            )
+            continue
+        if existing is not None:
+            auto_catalog["movies"] = [m for m in auto_catalog["movies"] if m.get("id") != key]
         auto_catalog["movies"].append(entry)
         known.add(key)
         added += 1

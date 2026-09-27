@@ -116,10 +116,40 @@ def get_movie_from_catalog(movie_query: str = None) -> dict:
     return None
 
 
+GROQ_MODELS = [
+    "openai/gpt-oss-120b",   # production tier; replaced the retired llama-3.3-70b-versatile
+    "qwen/qwen3.6-27b",      # documented alternative
+    "llama-3.3-70b-versatile",  # retired 2026-08-16; kept last for enterprise keys
+]
+
+OPENROUTER_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct",
+    "anthropic/claude-3.5-sonnet",
+]
+
+
+def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
+    """POST JSON and return the parsed 'choices' message, or raise."""
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", **headers},
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    content = data["choices"][0]["message"]["content"]
+    return json.loads(content)
+
+
 def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
     """
-    Generates a fresh MovieGyan-style movie explanation script using Groq / DeepSeek / OpenRouter.
-    Falls back to catalog if no API keys are configured.
+    Generates a fresh MovieGyan-style movie explanation script using Groq /
+    OpenRouter / DeepSeek, falling back to a generic template only if every
+    provider fails.
+
+    The returned dict always carries ``script_source``: "groq", "openrouter" or
+    "deepseek" for real AI output, or "template" for the built-in fallback.
+    Callers that need genuine narration must check this.
     """
     api_key_groq = os.environ.get("GROQ_API_KEY")
     api_key_deepseek = os.environ.get("DEEPSEEK_API_KEY")
@@ -128,72 +158,86 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
     sys_prompt = SYSTEM_PROMPT_HI if language == "hi" else SYSTEM_PROMPT_EN
     user_prompt = f"Create a viral movie explanation Short for the film: '{movie_name}'. Highlight the premise, psychological tension, and the shocking plot twist or ending."
 
-    # Try Groq first (ultra-fast, free tier friendly)
-    if api_key_groq:
-        try:
-            payload = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": [
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.7,
-                "max_tokens": 600
-            }
-            req = urllib.request.Request(
-                "https://api.groq.com/openai/v1/chat/completions",
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key_groq}",
-                    "User-Agent": "MovieShortsBot/1.0"
-                }
-            )
-            with urllib.request.urlopen(req, timeout=25) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                content = data["choices"][0]["message"]["content"]
-                result = json.loads(content)
-                result["search_query"] = f"{result.get('title', movie_name)} official trailer"
-                return result
-        except Exception as e:
-            print(f"[movie_ai_script] Groq script generation failed: {e}")
+    def finish(result: dict, source: str) -> dict:
+        result["search_query"] = f"{result.get('title', movie_name)} official trailer"
+        result["script_source"] = source
+        return result
 
-    # Try DeepSeek fallback
+    groq_models = [
+        m.strip() for m in os.environ.get("GROQ_MODEL", "").split(",") if m.strip()
+    ] or GROQ_MODELS
+
+    if api_key_groq:
+        for model in groq_models:
+            try:
+                result = _post_json(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    {
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": sys_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "response_format": {"type": "json_object"},
+                        "temperature": 0.7,
+                        "max_tokens": 600,
+                    },
+                    {"Authorization": f"Bearer {api_key_groq}", "User-Agent": "MovieShortsBot/1.0"},
+                    25,
+                )
+                return finish(result, "groq")
+            except Exception as e:
+                print(f"[movie_ai_script] Groq model {model} failed: {e}")
+
+    if api_key_openrouter:
+        for model in OPENROUTER_MODELS:
+            try:
+                result = _post_json(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    {
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": sys_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "response_format": {"type": "json_object"},
+                        "temperature": 0.7,
+                        "max_tokens": 600,
+                    },
+                    {"Authorization": f"Bearer {api_key_openrouter}"},
+                    35,
+                )
+                return finish(result, "openrouter")
+            except Exception as e:
+                print(f"[movie_ai_script] OpenRouter model {model} failed: {e}")
+
     if api_key_deepseek:
         try:
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.7
-            }
-            req = urllib.request.Request(
+            result = _post_json(
                 "https://api.deepseek.com/chat/completions",
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key_deepseek}"
-                }
+                {
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.7,
+                },
+                {"Authorization": f"Bearer {api_key_deepseek}"},
+                30,
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                content = data["choices"][0]["message"]["content"]
-                result = json.loads(content)
-                result["search_query"] = f"{result.get('title', movie_name)} official trailer"
-                return result
+            return finish(result, "deepseek")
         except Exception as e:
             print(f"[movie_ai_script] DeepSeek script generation failed: {e}")
 
-    # Fallback to catalog match or default
     catalog_match = get_movie_from_catalog(movie_name)
     if catalog_match:
-        return catalog_match
+        found = dict(catalog_match)
+        found["script_source"] = "catalog"
+        return found
 
-    # Default procedural script if nothing else matched
+    # Generic template. Flagged so callers can refuse to publish filler.
     return {
         "title": f"{movie_name.title()}",
         "badge": f"{movie_name.upper()[:22]}",
@@ -206,7 +250,8 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
             f"When the final sequence arrives, the truth is revealed in a devastating twist that changes how you view every previous scene. "
             f"Drop a like and subscribe for more mind-blowing movie explanations!"
         ),
-        "tags": ["movieexplained", "movierecap", "moviegyan", "plottwist", "cinema", "shorts"]
+        "tags": ["movieexplained", "movierecap", "moviegyan", "plottwist", "cinema", "shorts"],
+        "script_source": "template",
     }
 
 
