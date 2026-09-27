@@ -124,11 +124,16 @@ GROQ_MODELS = [
 ]
 
 OPENROUTER_MODELS = [
-    # Verified present in the OpenRouter catalogue. claude-3.5-sonnet was
-    # removed upstream and returned 404, so it is deliberately not listed.
+    # Free tier first: these work on a zero-credit account and all return valid
+    # JSON in object mode. Verified live. Free-tier budget without credits is
+    # ~20 requests/minute and ~50/day, which the 6-parts-per-run ingest cap fits.
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "nvidia/nemotron-3.5-lightning:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    # Paid fallbacks, used once the account has credits.
     "meta-llama/llama-3.3-70b-instruct",
     "anthropic/claude-sonnet-4",
-    "qwen/qwen-2.5-72b-instruct",
 ]
 
 
@@ -215,7 +220,16 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
     else:
         raise last_error if last_error else RuntimeError("request failed with no response")
 
-    message = data["choices"][0]["message"]
+    # Some provider errors return 200 with no choices (free-tier throttling, or a
+    # moderation/empty completion envelope). Treat that as a soft failure so the
+    # next model is tried instead of raising KeyError.
+    if not isinstance(data.get("choices"), list) or not data["choices"]:
+        detail = (data.get("error") or {}).get("message") if isinstance(data.get("error"), dict) else None
+        raise ModelReplyError(
+            f"provider returned no choices{f': {detail}' if detail else ''}"
+        )
+
+    message = data["choices"][0].get("message") or {}
     content = message.get("content") or ""
     if not content.strip():
         reasoning = message.get("reasoning") or ""

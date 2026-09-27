@@ -88,10 +88,18 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertIsNone(m2)
 
     def test_ai_script_generator_fallback(self):
-        res = generate_movie_script_ai("Shutter Island", language="en")
+        # Explicitly clear provider keys so this exercises the template fallback
+        # deterministically instead of depending on the ambient environment (and
+        # never making a real network call). The title must not exist in the
+        # curated catalog, otherwise the catalog branch answers instead.
+        with unittest.mock.patch.dict(os.environ, {
+            "GROQ_API_KEY": "", "DEEPSEEK_API_KEY": "", "OPENROUTER_API_KEY": "",
+        }):
+            res = generate_movie_script_ai("Zzqx Nonexistent Film 2999", language="en")
         self.assertIsNotNone(res)
         self.assertIn("script", res)
         self.assertGreater(len(res["script"].split()), 50)
+        self.assertEqual(res.get("script_source"), "template")
 
     def test_word_timestamp_generation(self):
         sentences = [
@@ -439,10 +447,16 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertEqual(plan_windows(1), [(0.04, 0.96)])
 
     def test_generated_entry_partitions_a_movie_into_parts(self):
-        entry = build_entry(
-            [("Some.Movie.2020.1080p.mkv", "FILEID1", None)],
-            "some_movie_2020",
-        )
+        # Mocked: an unmocked build_entry would call a real AI provider whenever
+        # an API key happens to be present in the environment.
+        with unittest.mock.patch(
+            "movie_auto_catalog._generate_script",
+            return_value={"script": "real", "script_source": "groq"},
+        ):
+            entry = build_entry(
+                [("Some.Movie.2020.1080p.mkv", "FILEID1", None)],
+                "some_movie_2020",
+            )
         self.assertIsNotNone(entry)
         self.assertEqual(len(entry["parts"]), 6)
         for part in entry["parts"]:
@@ -456,7 +470,11 @@ class TestMoviePipeline(unittest.TestCase):
             ("Naruto Shippuden S01E02.mkv", "F2", 2),
             ("Naruto Shippuden S01E03.mkv", "F3", 3),
         ]
-        entry = build_entry(files, "naruto_shippuden")
+        with unittest.mock.patch(
+            "movie_auto_catalog._generate_script",
+            return_value={"script": "real", "script_source": "groq"},
+        ):
+            entry = build_entry(files, "naruto_shippuden")
         self.assertEqual(len(entry["parts"]), 3)
         self.assertEqual([p["episode_number"] for p in entry["parts"]], [1, 2, 3])
         self.assertEqual([p["gdrive_file_id"] for p in entry["parts"]], ["F1", "F2", "F3"])
@@ -524,7 +542,11 @@ class TestMoviePipeline(unittest.TestCase):
             ("Jujutsu Kaisen S01E01.mkv", "F3", 1),
             ("Jujutsu Kaisen S02E02.mkv", "F4", 2),
         ]
-        entry = build_entry(files, "jujutsu_kaisen")
+        with unittest.mock.patch(
+            "movie_auto_catalog._generate_script",
+            return_value={"script": "real", "script_source": "groq"},
+        ):
+            entry = build_entry(files, "jujutsu_kaisen")
         self.assertEqual(
             [(p["season"], p["episode_number"]) for p in entry["parts"]],
             [(1, 1), (1, 2), (2, 1), (2, 2)],
@@ -609,6 +631,41 @@ class TestMoviePipeline(unittest.TestCase):
             with unittest.mock.patch.object(orchestrator, "load_catalog", return_value={"movies": [entry]}):
                 with self.assertRaises(EpisodeNotReadyError):
                     select_next_movie()
+
+    def test_openrouter_fallback_includes_free_tier_models(self):
+        """A zero-credit account still needs a working fallback."""
+        from movie_ai_script import OPENROUTER_MODELS
+        free = [m for m in OPENROUTER_MODELS if m.endswith(":free")]
+        self.assertGreaterEqual(
+            len(free), 2,
+            "OpenRouter fallback must include verified free-tier models",
+        )
+        # Models that removed their free tier upstream must not be listed.
+        for gone in ("anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash-001"):
+            self.assertNotIn(gone, OPENROUTER_MODELS)
+
+    def test_malformed_provider_envelope_fails_softly(self):
+        """A 200 with no choices must not raise KeyError and waste the attempt."""
+        import urllib.request
+        from movie_ai_script import ModelReplyError, _post_json
+
+        class _FakeResponse:
+            def read(self):
+                return b'{"error": {"message": "free tier throttled"}}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        original = urllib.request.urlopen
+        urllib.request.urlopen = lambda *a, **k: _FakeResponse()
+        try:
+            with self.assertRaises(ModelReplyError):
+                _post_json("https://example.invalid", {"model": "t", "messages": []}, {}, 5)
+        finally:
+            urllib.request.urlopen = original
 
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
