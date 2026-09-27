@@ -1,5 +1,8 @@
 output/
 scratch/
+cache/
+# Real Drive map holds private file IDs - never commit it. Commit the .example instead.
+movie_gdrive_map.json
 *.log
 pipeline_debug.log
 .deepseek_chat_history.json

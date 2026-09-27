@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "Copy this file to movie_gdrive_map.json and fill in your own Drive file IDs.",
+    "movie_gdrive_map.json is gitignored and must never be committed - it holds",
+    "private Drive file IDs. For GitHub Actions, base64 this file and store it",
+    "as the GDRIVE_MAP_B64 repository secret; the workflow decodes it at runtime.",
+    "",
+    "Set the ALLOW_PRIVATE_MEDIA_SOURCES repository secret to 'true', otherwise",
+    "Drive sourcing stays disabled and the pipeline falls back to trailers.",
+    "",
+    "file_id       : the Google Drive file ID (the d= parameter in the share URL)",
+    "file_name     : local cache filename; keep the extension so ffmpeg probes it",
+    "timeline_start: optional HH:MM:SS window into the raw movie for this part",
+    "timeline_end  : optional HH:MM:SS window end; defaults to the catalog value"
+  ],
+  "movies": {
+    "the_avengers_2012": {
+      "file_id": "REPLACE_WITH_YOUR_DRIVE_FILE_ID",
+      "file_name": "the_avengers_2012.mkv",
+      "timeline_start": "00:01:00",
+      "timeline_end": "00:16:00"
+    },
+    "the_platform_2019": {
+      "file_id": "REPLACE_WITH_YOUR_DRIVE_FILE_ID",
+      "file_name": "the_platform_2019.mkv"
+    }
+  }
+}

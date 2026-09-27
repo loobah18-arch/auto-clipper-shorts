@@ -80,12 +80,27 @@ jobs:
           path: ~/.cache/huggingface
           key: ${{ runner.os }}-whisper-base-en-v1
 
+      - name: 🔐 Restore Google Drive Map
+        env:
+          GDRIVE_MAP_B64: ${{ secrets.GDRIVE_MAP_B64 }}
+        run: |
+          set -euo pipefail
+          # The map holds private Drive file IDs, so it is never committed. It is
+          # delivered as base64 and written here so the cache key can hash it.
+          if [ -z "$GDRIVE_MAP_B64" ]; then
+            echo "GDRIVE_MAP_B64 secret is not set; Google Drive sourcing stays disabled."
+            exit 0
+          fi
+          printf '%s' "$GDRIVE_MAP_B64" | base64 --decode > movie_gdrive_map.json
+          python -c "import json;json.load(open('movie_gdrive_map.json'));print('Drive map decoded and valid')"
+
       - name: 💾 Cache Genuine Movie Files
         uses: actions/cache@v4
         with:
           path: cache
-          key: ${{ runner.os }}-movie-cache-v1-${{ hashFiles('movie_catalog.json') }}
+          key: ${{ runner.os }}-movie-cache-v2-${{ hashFiles('movie_catalog.json', 'movie_gdrive_map.json') }}
           restore-keys: |
+            ${{ runner.os }}-movie-cache-v2-
             ${{ runner.os }}-movie-cache-v1-
 
       - name: 🦕 Set up Deno (JS runtime for yt-dlp)
