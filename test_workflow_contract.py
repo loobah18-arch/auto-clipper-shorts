@@ -36,28 +36,31 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIn("\n  schedule:\n", workflow)
         self.assertIn("- cron: '15 8,20 * * *'", workflow)
 
-    def test_scheduled_runs_still_land_unlisted_and_fail_closed(self):
-        """An active schedule must not mean automatic public publishing."""
+    def test_scheduled_runs_publish_publicly_but_still_fail_closed(self):
+        """Publishing is public by operator choice; the safety gates stay on."""
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
         orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
         quality = (WORKSPACE_DIR / "movie_quality.py").read_text(encoding="utf-8")
 
-        # Publishing defaults stay unlisted.
-        self.assertIn("default: 'unlisted'", workflow)
-        self.assertIn("inputs.privacy_status || 'unlisted'", workflow)
-        self.assertIn('os.environ.get("PRIVACY_STATUS") or "unlisted"', orchestrator)
-        # A footage-less render can never be published.
+        # Public is the configured default, in the workflow and the fallback.
+        self.assertIn("default: 'public'", workflow)
+        self.assertIn("inputs.privacy_status || 'public'", workflow)
+        self.assertIn('os.environ.get("PRIVACY_STATUS") or "public"', orchestrator)
+        # A footage-less render can never be published, public or not.
         self.assertIn("PLACEHOLDER_SOURCE_TYPES", quality)
         self.assertIn("validate_upload_source(", orchestrator)
         # Series only advances on a confirmed upload.
         self.assertIn("if status == RunStatus.UPLOADED.value", orchestrator)
 
-    def test_default_privacy_status_is_unlisted(self):
+    def test_existing_videos_can_be_republished(self):
+        """The maintenance path for changing visibility of past uploads."""
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
-        orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
-        self.assertIn("default: 'unlisted'", workflow)
-        self.assertIn("inputs.privacy_status || 'unlisted'", workflow)
-        self.assertIn('os.environ.get("PRIVACY_STATUS") or "unlisted"', orchestrator)
+        script = (WORKSPACE_DIR / "set_video_visibility.py").read_text(encoding="utf-8")
+        self.assertIn("set_visibility", workflow)
+        self.assertIn("set_video_visibility.py", workflow)
+        self.assertIn("privacyStatus", script)
+        # It must not run the normal pipeline when only flipping visibility.
+        self.assertIn("if: inputs.set_visibility == '' || inputs.set_visibility == null", workflow)
 
     def test_movie_step_does_not_receive_unused_cookie_secret(self):
         """YOUTUBE_COOKIES is only read by the podcast path in main.py."""

@@ -76,7 +76,7 @@ python generate_movie_short.py --movie "Inception" --video-file /path/to/authori
 ```
 
 ### 3. Publishing Safety
-- Keep the default `PRIVACY_STATUS` as `unlisted` until the content and source rights have been reviewed.
+- The default `PRIVACY_STATUS` is now `public`. Drop it back to `unlisted` (workflow input, or `PRIVACY_STATUS` for local runs) if the content and source rights have not been reviewed.
 - Use original or licensed narration, footage, and music.
 - Do not treat a Fair Use notice, watermark, or color grade as a guarantee of platform approval.
 - Add a channel watermark only when it represents your actual channel identity:
@@ -103,7 +103,15 @@ Provide your YouTube OAuth tokens in `.env`:
 CLIENT_ID=your_client_id
 CLIENT_SECRET=your_client_secret
 REFRESH_TOKEN=your_refresh_token
-PRIVACY_STATUS=unlisted
+PRIVACY_STATUS=public
+```
+
+Already-uploaded videos can be re-flipped without re-rendering. Trigger the
+workflow with `set_visibility` set to a comma-separated list of video IDs;
+that path skips the render pipeline entirely:
+
+```bash
+python set_video_visibility.py  # reads SET_VISIBILITY_IDS / SET_VISIBILITY_STATUS
 ```
 Run:
 ```bash

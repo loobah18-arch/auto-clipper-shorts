@@ -3,8 +3,8 @@ name: 🎬 Auto Movie Explanation Shorts (MovieGyan Style)
 on:
   schedule:
     # Twice daily. Each run publishes exactly one part of the active movie, then
-    # the state machine advances. Lands as 'unlisted' unless you change the
-    # privacy_status default below.
+    # the state machine advances. Lands as 'public' unless you change the
+    # privacy_status default below. Use set_visibility to change past uploads.
     - cron: '15 8,20 * * *'
   workflow_dispatch:
     inputs:
@@ -30,10 +30,14 @@ on:
         required: false
         default: false
         type: boolean
+      set_visibility:
+        description: 'Optional: comma-separated video IDs to change visibility (skips the normal pipeline)'
+        required: false
+        type: string
       privacy_status:
         description: 'YouTube privacy status for non-dry runs'
         required: false
-        default: 'unlisted'
+        default: 'public'
         type: choice
         options:
           - 'unlisted'
@@ -188,7 +192,20 @@ jobs:
           fi
           python movie_auto_catalog.py "${INPUT_LANG:-en}"
 
+      - name: 🔁 Update Visibility Of Existing Videos
+        if: inputs.set_visibility != '' && inputs.set_visibility != null
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          SET_VISIBILITY_IDS: ${{ inputs.set_visibility }}
+          SET_VISIBILITY_STATUS: ${{ inputs.privacy_status }}
+        run: |
+          set -euo pipefail
+          python set_video_visibility.py
+
       - name: 🚀 Run Auto-Clipper Pipeline
+        if: inputs.set_visibility == '' || inputs.set_visibility == null
         id: run_pipeline
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
@@ -201,7 +218,7 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
-          PRIVACY_STATUS: ${{ inputs.privacy_status || 'unlisted' }}
+          PRIVACY_STATUS: ${{ inputs.privacy_status || 'public' }}
           YT_DLP_POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           ALLOW_PRIVATE_MEDIA_SOURCES: ${{ secrets.ALLOW_PRIVATE_MEDIA_SOURCES || 'false' }}
           GDRIVE_FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
