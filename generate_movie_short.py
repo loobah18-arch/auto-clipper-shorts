@@ -50,6 +50,7 @@ from movie_video_engine import (
     get_audio_duration,
     download_movie_from_gdrive,
     resolve_gdrive_source,
+    resolve_part_window,
     slice_movie_timeline_scenes,
     download_movie_trailer,
     slice_trailer_dynamic_scenes,
@@ -390,16 +391,14 @@ def run_pipeline(
             log(f"📀 Sourcing raw movie from Google Drive (highest priority): {gdrive_source['file_name']}...")
             gdrive_ok = download_movie_from_gdrive(gdrive_source["file_id"], target_movie_path)
             if gdrive_ok and target_movie_path.exists():
-                timeline_start = str(
-                    gdrive_source.get("timeline_start")
-                    or movie_data.get("timeline_start")
-                    or "00:01:00"
-                )
-                timeline_end = str(
-                    gdrive_source.get("timeline_end")
-                    or movie_data.get("timeline_end")
-                    or "00:26:00"
-                )
+                timeline_start = str(gdrive_source.get("timeline_start") or "")
+                timeline_end = str(gdrive_source.get("timeline_end") or "")
+                if not (timeline_start and timeline_end):
+                    # Auto-generated entries carry fractional windows that only
+                    # become real timestamps once the file is on disk.
+                    timeline_start, timeline_end = resolve_part_window(
+                        movie_data, target_movie_path
+                    )
                 sliced_ok = slice_movie_timeline_scenes(
                     target_movie_path,
                     timeline_start,

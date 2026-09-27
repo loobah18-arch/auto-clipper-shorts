@@ -222,6 +222,42 @@ def get_audio_duration(audio_path: Path) -> float:
     return float(res.stdout.strip())
 
 
+def seconds_to_timestamp(seconds: float) -> str:
+    """Format a non-negative number of seconds as HH:MM:SS."""
+    total = max(0, int(round(seconds)))
+    hours, remainder = divmod(total, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def resolve_part_window(movie_data: dict, media_path: Path) -> tuple[str, str]:
+    """Resolve a part's timeline window to absolute HH:MM:SS.
+
+    Auto-generated catalog entries store window_start_frac/window_end_frac
+    because the true runtime is unknown until the file has been downloaded. Once
+    the file is on disk the fractions are resolved against its probed duration,
+    so a freshly ingested title slices correctly on its very first run.
+    """
+    start_frac = movie_data.get("window_start_frac")
+    end_frac = movie_data.get("window_end_frac")
+    if isinstance(start_frac, (int, float)) and isinstance(end_frac, (int, float)):
+        try:
+            total = get_audio_duration(media_path)
+        except Exception as error:  # noqa: BLE001 - fall back to catalog timeline
+            log(f"⚠️ Could not probe {media_path.name} ({error}); using catalog timeline.")
+        else:
+            if total > 0:
+                start = seconds_to_timestamp(total * float(start_frac))
+                end = seconds_to_timestamp(total * float(end_frac))
+                log(f"⏱️ Part window resolved from fractions: {start} -> {end} (runtime {total:.0f}s)")
+                return start, end
+
+    return (
+        str(movie_data.get("timeline_start") or "00:01:00"),
+        str(movie_data.get("timeline_end") or "00:26:00"),
+    )
+
+
 def parse_timestamp_to_seconds(ts: str) -> float:
     """Parses 'HH:MM:SS' or 'MM:SS' into float seconds."""
     if not ts:
@@ -290,6 +326,8 @@ def resolve_gdrive_source(movie_id: str, movie_data: dict | None = None) -> dict
 
     if not file_id:
         file_id = str(movie_data.get("gdrive_file_id", "")).strip()
+    if not file_name:
+        file_name = str(movie_data.get("gdrive_file_name", "")).strip()
 
     if not file_id:
         return None
