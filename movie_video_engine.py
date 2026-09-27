@@ -466,6 +466,11 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
         log("⚠️ No configured trailer URL; skipping unapproved trailer search.")
         return False
 
+    # Address of the bgutil PO Token provider started as a workflow service.
+    pot_base_url = os.environ.get("YT_DLP_POT_PROVIDER_URL", "").strip()
+    if not pot_base_url:
+        log("⚠️ YT_DLP_POT_PROVIDER_URL is unset; clients will run without PO Tokens.")
+
     # Check local clips directory first (allows manual clip curation without network dependency)
     clean_stem = re.sub(r"_\d{8}_\d{6}$", "", output_path.stem)
     for folder in ["raw_clips", "clips", "videos"]:
@@ -489,7 +494,21 @@ def download_movie_trailer(search_query: str, output_path: Path, trailer_url: st
         log(f"🔍 Sourcing movie footage ({tag}): '{target}'...")
 
         for client_name, fmt, extractor_args in TRAILER_CLIENT_CONFIGS:
-            client_args = ["--extractor-args", extractor_args]
+            # Point yt-dlp at the running PO Token provider. Without this
+            # extractor arg the installed plugin is never consulted, and every
+            # client hits the datacenter-IP bot check.
+            # extractor_args may be a single "IE_KEY:ARGS" string or a sequence of
+            # them. list() on a bare string would shred it into single characters.
+            all_args = (
+                [extractor_args]
+                if isinstance(extractor_args, str)
+                else list(extractor_args)
+            )
+            if pot_base_url:
+                all_args.insert(0, f"youtubepot-bgutilhttp:base_url={pot_base_url}")
+            client_args: list[str] = []
+            for extractor_arg in all_args:
+                client_args.extend(["--extractor-args", extractor_arg])
             # 1. Direct section download (fastest, extracts 45s core scenes)
             cmd_section = [
                 "yt-dlp",
