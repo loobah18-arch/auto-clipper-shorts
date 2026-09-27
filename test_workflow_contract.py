@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Static contract tests for the cloud workflow and safety defaults."""
 
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -29,11 +30,27 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIn("MOVIE_BGM_PATH", orchestrator)
         self.assertIn("ALLOW_PRIVATE_MEDIA_SOURCES", orchestrator)
 
-    def test_scheduled_auto_publish_is_disabled(self):
-        """The twice-daily cron must stay off until a manual dry run is reviewed."""
+    def test_schedule_runs_twice_daily(self):
+        """One part per run, twice a day, as requested."""
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
-        self.assertIn("# schedule:", workflow)
-        self.assertNotIn("\n  schedule:\n", workflow)
+        self.assertIn("\n  schedule:\n", workflow)
+        self.assertIn("- cron: '15 8,20 * * *'", workflow)
+
+    def test_scheduled_runs_still_land_unlisted_and_fail_closed(self):
+        """An active schedule must not mean automatic public publishing."""
+        workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
+        orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
+        quality = (WORKSPACE_DIR / "movie_quality.py").read_text(encoding="utf-8")
+
+        # Publishing defaults stay unlisted.
+        self.assertIn("default: 'unlisted'", workflow)
+        self.assertIn("inputs.privacy_status || 'unlisted'", workflow)
+        self.assertIn('os.environ.get("PRIVACY_STATUS") or "unlisted"', orchestrator)
+        # A footage-less render can never be published.
+        self.assertIn("PLACEHOLDER_SOURCE_TYPES", quality)
+        self.assertIn("validate_upload_source(", orchestrator)
+        # Series only advances on a confirmed upload.
+        self.assertIn("if status == RunStatus.UPLOADED.value", orchestrator)
 
     def test_default_privacy_status_is_unlisted(self):
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
@@ -77,20 +94,31 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIsNotNone(image_version, "service image must be version-pinned in the workflow")
         self.assertEqual(plugin_version, image_version)
 
-    def test_dead_pot_env_vars_are_not_exported(self):
-        """The bgutil plugin auto-discovers 127.0.0.1:4416; these env vars do nothing."""
+    def test_pot_provider_url_is_exported_to_the_pipeline(self):
+        """The plugin needs the provider address; the engine turns it into an extractor arg."""
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
-        self.assertNotIn("YT_DLP_POT_PROVIDER_URL", workflow)
-        self.assertNotIn("POT_PROVIDER_URL:", workflow)
+        engine = (WORKSPACE_DIR / "movie_video_engine.py").read_text(encoding="utf-8")
+        self.assertIn("YT_DLP_POT_PROVIDER_URL", workflow)
+        self.assertIn("YT_DLP_POT_PROVIDER_URL", engine)
+        self.assertIn("youtubepot-bgutilhttp:base_url=", engine)
 
     def test_real_gdrive_map_is_never_committed(self):
-        """The map holds private Drive IDs; only the .example may be tracked."""
+        """The map holds private Drive IDs, so it must be gitignored, not absent.
+
+        A local movie_gdrive_map.json is a legitimate working state; what must
+        never happen is it being tracked by git.
+        """
         gitignore = (WORKSPACE_DIR / ".gitignore").read_text(encoding="utf-8")
         self.assertIn("movie_gdrive_map.json", gitignore)
         self.assertTrue((WORKSPACE_DIR / "movie_gdrive_map.example.json").exists())
-        self.assertFalse(
-            (WORKSPACE_DIR / "movie_gdrive_map.json").exists(),
-            "a real movie_gdrive_map.json must not be present in the working tree",
+
+        tracked = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "movie_gdrive_map.json"],
+            cwd=WORKSPACE_DIR, capture_output=True, text=True,
+        )
+        self.assertNotEqual(
+            tracked.returncode, 0,
+            "movie_gdrive_map.json is gitignored but must never be git-tracked",
         )
 
     def test_catalog_still_carries_no_private_drive_ids(self):

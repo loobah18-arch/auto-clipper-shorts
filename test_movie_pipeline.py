@@ -458,17 +458,45 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertFalse(result)
         self.assertTrue(recorded, "yt-dlp should have been invoked")
         for cmd in recorded:
-            for flag, prefix in (("--extractor-args", "youtube:player_client="), ("-f", None)):
-                if flag in cmd:
-                    value = cmd[cmd.index(flag) + 1]
-                    if prefix:
-                        self.assertTrue(
-                            value.startswith(prefix),
-                            f"--extractor-args got {value!r}, expected {prefix}*",
-                        )
-                    else:
-                        self.assertNotIn("player_client", value, f"-f got {value!r}")
-                        self.assertTrue(value.startswith(("bv*", "b")), f"-f got {value!r}")
+            extractor_values = [
+                cmd[i + 1] for i, a in enumerate(cmd) if a == "--extractor-args"
+            ]
+            # A command must select exactly one player client...
+            clients = [v for v in extractor_values if v.startswith("youtube:player_client=")]
+            self.assertEqual(
+                len(clients), 1,
+                f"expected exactly one player_client arg, got {extractor_values}",
+            )
+            # ...and any PO Token provider arg must carry a base_url.
+            for value in extractor_values:
+                if value.startswith("youtubepot-"):
+                    self.assertIn("base_url=", value)
+            self.assertIn("-f", cmd)
+            fmt_value = cmd[cmd.index("-f") + 1]
+            self.assertNotIn("player_client", fmt_value, f"-f got {fmt_value!r}")
+            self.assertTrue(fmt_value.startswith(("bv*", "b")), f"-f got {fmt_value!r}")
+
+    def test_pot_provider_extractor_arg_is_emitted_per_client(self):
+        """Every client must be pointed at the PO Token provider, else it is unused."""
+        recorded: list[list[str]] = []
+
+        def fake_run(cmd, *args, **kwargs):
+            recorded.append(list(cmd))
+            return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="ERROR: bot check")
+
+        provider = "http://127.0.0.1:4416"
+        with unittest.mock.patch.dict(os.environ, {"YT_DLP_POT_PROVIDER_URL": provider}):
+            with tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp) / "trailer.mp4"
+                with unittest.mock.patch.object(movie_video_engine.subprocess, "run", side_effect=fake_run):
+                    download_movie_trailer("m", out, trailer_url="https://example.invalid/v")
+
+        self.assertTrue(recorded)
+        for cmd in recorded:
+            self.assertIn(
+                f"youtubepot-bgutilhttp:base_url={provider}", cmd,
+                "PO Token provider address missing from yt-dlp invocation",
+            )
 
 
 def _fake_run(payload: dict) -> dict:
