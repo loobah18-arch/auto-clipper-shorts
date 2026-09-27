@@ -263,9 +263,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           TARGET_BRANCH="${GITHUB_REF_NAME:-main}"
-          # --ignore-unmatch: the generated catalog is absent on runs that
-          # registered nothing, and a bare pathspec would abort the step.
-          git add --ignore-unmatch movie_history.json movie_catalog_auto.json
+          # The generated catalog is absent on runs that registered nothing, and
+          # a bare pathspec for a missing file aborts the step.
+          git add movie_history.json
+          if [ -f movie_catalog_auto.json ]; then
+            git add movie_catalog_auto.json
+          fi
           if git diff --cached --quiet; then
             echo "No movie state changes to commit"
             exit 0
