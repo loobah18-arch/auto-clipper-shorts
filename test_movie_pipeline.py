@@ -30,6 +30,7 @@ import movie_video_engine
 from movie_ai_script import load_catalog
 from movie_auto_catalog import (
     _curated_titles,
+    _has_real_scripts,
     _title_matches_curated,
     build_entry,
     detect_episode_number,
@@ -528,6 +529,30 @@ class TestMoviePipeline(unittest.TestCase):
             [(p["season"], p["episode_number"]) for p in entry["parts"]],
             [(1, 1), (1, 2), (2, 1), (2, 2)],
         )
+
+    def test_placeholder_scripts_are_flagged_and_refused(self):
+        """Auto-ingest must not register 55 episodes of identical filler."""
+        with unittest.mock.patch(
+            "movie_auto_catalog._generate_script",
+            return_value={"script": "generic filler", "script_source": "template"},
+        ):
+            entry = build_entry([("Some.Movie.2020.mkv", "FID", None)], "some_movie")
+        self.assertFalse(_has_real_scripts(entry), "template scripts must not count as real")
+
+        with unittest.mock.patch(
+            "movie_auto_catalog._generate_script",
+            return_value={"script": "real analysis", "script_source": "groq"},
+        ):
+            good = build_entry([("Some.Movie.2020.mkv", "FID", None)], "some_movie")
+        self.assertTrue(_has_real_scripts(good))
+
+    def test_ai_providers_cover_groq_openrouter_and_deepseek(self):
+        """Groq's retired model must not be the only option any more."""
+        source = (WORKSPACE_DIR / "movie_ai_script.py").read_text(encoding="utf-8")
+        self.assertIn("OPENROUTER_MODELS", source)
+        self.assertIn("openrouter", source)
+        self.assertIn("openai/gpt-oss-120b", source)
+        self.assertIn("script_source", source)
 
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
