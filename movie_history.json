@@ -153,6 +153,19 @@
       "status": "rendered",
       "content_hash": "6edb9a71e2ff42b9eee31e119a69913b2e1b754f4da8625bc86ff120304522b9",
       "source_type": "neutral_fallback"
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 1",
+      "part_number": 1,
+      "total_parts": 8,
+      "youtube_id": null,
+      "timestamp": "2026-09-27T08:26:59.344224+00:00",
+      "video_path": "movie_short_the_avengers_2012_20260927_082525.mp4",
+      "duration_sec": 50.66,
+      "status": "rendered",
+      "content_hash": "ae99256eb1cee4fd354b268db64bec5104f11be68e07b7510568ab2f65036f47",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
