@@ -64,72 +64,6 @@
       "status": "rendered"
     },
     {
-      "movie_id": "the_avengers_2012",
-      "title": "The Avengers (2012) - Part 1",
-      "part_number": 1,
-      "total_parts": 5,
-      "youtube_id": null,
-      "timestamp": "2026-09-21T10:10:01.124088+00:00",
-      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260921_100602.mp4",
-      "duration_sec": 49.08,
-      "status": "rendered"
-    },
-    {
-      "movie_id": "the_avengers_2012",
-      "title": "The Avengers (2012) - Part 1",
-      "part_number": 1,
-      "total_parts": 5,
-      "youtube_id": null,
-      "timestamp": "2026-09-21T10:14:57.108093+00:00",
-      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260921_101319.mp4",
-      "duration_sec": 49.08,
-      "status": "rendered"
-    },
-    {
-      "movie_id": "the_avengers_2012",
-      "title": "The Avengers (2012) - Part 1",
-      "part_number": 1,
-      "total_parts": 5,
-      "youtube_id": "WoeUX-KgEMI",
-      "timestamp": "2026-09-22T15:34:54.594277+00:00",
-      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260922_153306.mp4",
-      "duration_sec": 49.08,
-      "status": "uploaded"
-    },
-    {
-      "movie_id": "the_avengers_2012",
-      "title": "The Avengers (2012) - Part 1",
-      "part_number": 1,
-      "total_parts": 5,
-      "youtube_id": "hUswJGzrSD0",
-      "timestamp": "2026-09-22T15:50:20.862986+00:00",
-      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260922_154736.mp4",
-      "duration_sec": 84.12,
-      "status": "uploaded"
-    },
-    {
-      "movie_id": "the_avengers_2012",
-      "title": "The Avengers (2012) - Part 2 (Blocked/Removed)",
-      "part_number": 2,
-      "total_parts": 5,
-      "status": "failed",
-      "youtube_id": null,
-      "timestamp": "2026-09-23T08:53:40.512954+00:00",
-      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260923_085023.mp4",
-      "duration_sec": 96.62
-    },
-    {
-      "movie_id": "the_avengers_2012",
-      "title": "The Avengers (2012) - Part 1",
-      "part_number": 1,
-      "total_parts": 8,
-      "youtube_id": "kj4AsXOcxBY",
-      "timestamp": "2026-09-24T05:49:03.344030+00:00",
-      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260924_054715.mp4",
-      "duration_sec": 50.66,
-      "status": "uploaded"
-    },
-    {
       "movie_id": "the_platform_2019",
       "title": "The Platform (2019)",
       "part_number": null,
@@ -201,6 +135,87 @@
     "current_part": 1,
     "total_parts": 8,
     "completed": false,
-    "last_updated": "2026-09-24T05:49:03.344011+00:00"
-  }
+    "last_updated": "2026-09-27T06:27:11.643984+00:00"
+  },
+  "superseded_uploads": [
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 1",
+      "part_number": 1,
+      "total_parts": 5,
+      "youtube_id": null,
+      "timestamp": "2026-09-21T10:10:01.124088+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260921_100602.mp4",
+      "duration_sec": 49.08,
+      "status": "rendered",
+      "superseded_at": "2026-09-27T06:27:11.643984+00:00",
+      "superseded_reason": "Series reset to Part 1 on user request. This record is retained for audit only and no longer blocks re-rendering."
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 1",
+      "part_number": 1,
+      "total_parts": 5,
+      "youtube_id": null,
+      "timestamp": "2026-09-21T10:14:57.108093+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260921_101319.mp4",
+      "duration_sec": 49.08,
+      "status": "rendered",
+      "superseded_at": "2026-09-27T06:27:11.643984+00:00",
+      "superseded_reason": "Series reset to Part 1 on user request. This record is retained for audit only and no longer blocks re-rendering."
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 1",
+      "part_number": 1,
+      "total_parts": 5,
+      "youtube_id": "WoeUX-KgEMI",
+      "timestamp": "2026-09-22T15:34:54.594277+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260922_153306.mp4",
+      "duration_sec": 49.08,
+      "status": "uploaded",
+      "superseded_at": "2026-09-27T06:27:11.643984+00:00",
+      "superseded_reason": "Series reset to Part 1 on user request. This record is retained for audit only and no longer blocks re-rendering."
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 1",
+      "part_number": 1,
+      "total_parts": 5,
+      "youtube_id": "hUswJGzrSD0",
+      "timestamp": "2026-09-22T15:50:20.862986+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260922_154736.mp4",
+      "duration_sec": 84.12,
+      "status": "uploaded",
+      "superseded_at": "2026-09-27T06:27:11.643984+00:00",
+      "superseded_reason": "Series reset to Part 1 on user request. This record is retained for audit only and no longer blocks re-rendering."
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 2 (Blocked/Removed)",
+      "part_number": 2,
+      "total_parts": 5,
+      "status": "failed",
+      "youtube_id": null,
+      "timestamp": "2026-09-23T08:53:40.512954+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260923_085023.mp4",
+      "duration_sec": 96.62,
+      "superseded_at": "2026-09-27T06:27:11.643984+00:00",
+      "superseded_reason": "Series reset to Part 1 on user request. This record is retained for audit only and no longer blocks re-rendering."
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 1",
+      "part_number": 1,
+      "total_parts": 8,
+      "youtube_id": "kj4AsXOcxBY",
+      "timestamp": "2026-09-24T05:49:03.344030+00:00",
+      "video_path": "/home/runner/work/auto-clipper-shorts/auto-clipper-shorts/output/movie_short_the_avengers_2012_20260924_054715.mp4",
+      "duration_sec": 50.66,
+      "status": "uploaded",
+      "superseded_at": "2026-09-27T06:27:11.643984+00:00",
+      "superseded_reason": "Series reset to Part 1 on user request. This record is retained for audit only and no longer blocks re-rendering."
+    }
+  ],
+  "reset_note": "2026-09-26: Avengers series reset to Part 1 at user request. Prior Avengers records moved to superseded_uploads. Standalone entries left intact."
 }
