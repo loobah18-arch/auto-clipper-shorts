@@ -825,6 +825,38 @@ def slice_trailer_dynamic_scenes(
 DEFAULT_BGM_OFFSETS = [0.0, 35.0, 60.0, 95.0, 118.0]
 
 
+def get_bgm_offset_for_part(
+    part_number: int | None,
+    prior_part_durations: list[float] | None = None,
+    nominal_part_duration: float = 52.0,
+    track_duration: float | None = None,
+) -> float:
+    """Return the BGM start offset so part N resumes where part N-1 ended.
+
+    A recap split across several Shorts should sound like one continuous
+    soundtrack rather than five unrelated clips, so the offset is the summed
+    runtime of the earlier parts. When the track is shorter than that total the
+    offset wraps modulo its length, which is inaudible for a music bed and keeps
+    the render seamless.
+    """
+    if not part_number or part_number <= 0:
+        return 0.0
+
+    elapsed = 0.0
+    for duration in prior_part_durations or []:
+        if isinstance(duration, (int, float)) and duration > 0:
+            elapsed += float(duration)
+
+    if elapsed <= 0:
+        # No history yet (first part, or a fresh series): assume a nominal length
+        # so later parts still line up.
+        elapsed = (part_number - 1) * nominal_part_duration
+
+    if track_duration and track_duration > 0:
+        return round(elapsed % track_duration, 3)
+    return round(elapsed, 3)
+
+
 def get_default_bgm_offset(part_number: int = None, movie_title: str = "") -> float:
     """Returns a tailored start offset into the BGM for variety across parts and shorts."""
     if part_number is not None and part_number > 0:

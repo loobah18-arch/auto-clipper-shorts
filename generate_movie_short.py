@@ -48,6 +48,7 @@ from movie_video_engine import (
     create_word_timestamps_from_sentences,
     generate_moviegyan_subtitles,
     get_audio_duration,
+    get_bgm_offset_for_part,
     download_movie_from_gdrive,
     resolve_gdrive_source,
     resolve_part_window,
@@ -459,6 +460,33 @@ def run_pipeline(
 
     configured_bgm = os.environ.get("MOVIE_BGM_PATH", "").strip()
     bgm_file = Path(configured_bgm) if configured_bgm and Path(configured_bgm).exists() else None
+
+    # Continuous soundtrack: resume where the previous part's music ended.
+    bgm_start_offset = 0.0
+    if bgm_file is not None and part_number:
+        prior: list[float] = []
+        if isinstance(history.get("uploaded_movies"), list):
+            for entry in history["uploaded_movies"]:
+                if not isinstance(entry, dict) or entry.get("movie_id") != movie_id:
+                    continue
+                entry_part = entry.get("part_number")
+                if not isinstance(entry_part, int) or entry_part >= part_number:
+                    continue
+                value = entry.get("duration_sec")
+                if isinstance(value, (int, float)) and value > 0:
+                    prior.append(float(value))
+        track_duration = None
+        try:
+            track_duration = get_audio_duration(bgm_file)
+        except Exception as error:  # noqa: BLE001
+            log(f"⚠️ Could not probe BGM duration ({error}); using unwrapped offset.")
+        bgm_start_offset = get_bgm_offset_for_part(
+            part_number,
+            prior_part_durations=prior,
+            track_duration=track_duration,
+        )
+        log(f"🎵 BGM resumes at {bgm_start_offset:.1f}s for part {part_number} (continuous).")
+
     render_movie_explanation_short(
         sliced_video_path=sliced_video_path,
         narration_audio_path=audio_path,
@@ -470,6 +498,7 @@ def run_pipeline(
         watermark_text=watermark,
         part_number=part_number,
         bgm_volume=0.065,
+        bgm_start_offset=bgm_start_offset,
     )
     media_info = probe_media(final_short_path)
     duration = media_info.duration_sec
