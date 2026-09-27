@@ -231,15 +231,28 @@
       "status": "uploaded",
       "content_hash": "cca411f7966a6cd39ae1c8d6946f21b3fbc15780ce4e05d57b2bc566ded743c9",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 3",
+      "part_number": 3,
+      "total_parts": 8,
+      "youtube_id": "Mf71tQ_YQu8",
+      "timestamp": "2026-09-27T23:05:52.773860+00:00",
+      "video_path": "movie_short_the_avengers_2012_20260927_230400.mp4",
+      "duration_sec": 50.3,
+      "status": "uploaded",
+      "content_hash": "0d819f94a43e369671986ffba516908e26859fbc848dc1c9d5ff3d75a2f2448d",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "the_avengers_2012",
     "movie_title": "The Avengers (2012)",
-    "current_part": 2,
+    "current_part": 3,
     "total_parts": 8,
     "completed": false,
-    "last_updated": "2026-09-27T16:43:12.065686+00:00"
+    "last_updated": "2026-09-27T23:05:52.773904+00:00"
   },
   "superseded_uploads": [
     {
