@@ -464,6 +464,14 @@ def sync_auto_catalog(
                 f"Not registering '{entry['title']}': no AI script provider is available, "
                 "so every part would be placeholder narration. Fix the API keys and re-run."
             )
+            if existing is not None:
+                # Drop the unusable entry rather than leave filler in the catalog.
+                auto_catalog["movies"] = [
+                    m for m in auto_catalog["movies"] if m.get("id") != key
+                ]
+                known.discard(key)
+                log(f"Removed unusable '{key}' from the generated catalog.")
+                added += 1
             continue
         if existing is not None:
             auto_catalog["movies"] = [m for m in auto_catalog["movies"] if m.get("id") != key]
