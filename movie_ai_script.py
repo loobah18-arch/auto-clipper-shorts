@@ -16,6 +16,7 @@ from pathlib import Path
 
 WORKSPACE_DIR = Path(__file__).resolve().parent
 CATALOG_PATH = WORKSPACE_DIR / "movie_catalog.json"
+AUTO_CATALOG_PATH = WORKSPACE_DIR / "movie_catalog_auto.json"
 
 
 SYSTEM_PROMPT_EN = """You are an elite YouTube film critic and movie analyst, in the exact style of top channels like MovieGyan and Movie Insight.
@@ -60,15 +61,41 @@ Respond ONLY with a valid JSON object:
 """
 
 
+def _read_catalog_file(path: Path) -> list:
+    """Read one catalog file, returning an empty list on any problem."""
+    if not path.exists():
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f"[movie_ai_script] Failed to read {path.name}: {e}")
+        return []
+    movies = data.get("movies") if isinstance(data, dict) else None
+    return [m for m in movies if isinstance(m, dict)] if isinstance(movies, list) else []
+
+
 def load_catalog() -> dict:
-    """Loads curated movie catalog."""
-    if CATALOG_PATH.exists():
-        try:
-            with open(CATALOG_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"[movie_ai_script] Failed to load catalog: {e}")
-    return {"movies": []}
+    """Loads the merged catalog: hand-curated entries plus auto-generated ones.
+
+    Curated entries always win. Auto-generated entries (from a Google Drive
+    folder) are additive only, so a hand-tuned series such as The Avengers keeps
+    its curated parts and scripts and is never replaced by a generated one.
+    """
+    curated = _read_catalog_file(CATALOG_PATH)
+    generated = _read_catalog_file(AUTO_CATALOG_PATH)
+
+    merged: dict[str, dict] = {}
+    for movie in generated:
+        key = str(movie.get("id") or "")
+        if key:
+            merged[key] = movie
+    for movie in curated:          # curated is applied last, so it wins
+        key = str(movie.get("id") or "")
+        if key:
+            merged[key] = movie
+
+    return {"movies": list(merged.values())}
 
 
 def get_movie_from_catalog(movie_query: str = None) -> dict:
