@@ -83,6 +83,33 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertNotIn("YT_DLP_POT_PROVIDER_URL", workflow)
         self.assertNotIn("POT_PROVIDER_URL:", workflow)
 
+    def test_real_gdrive_map_is_never_committed(self):
+        """The map holds private Drive IDs; only the .example may be tracked."""
+        gitignore = (WORKSPACE_DIR / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("movie_gdrive_map.json", gitignore)
+        self.assertTrue((WORKSPACE_DIR / "movie_gdrive_map.example.json").exists())
+        self.assertFalse(
+            (WORKSPACE_DIR / "movie_gdrive_map.json").exists(),
+            "a real movie_gdrive_map.json must not be present in the working tree",
+        )
+
+    def test_catalog_still_carries_no_private_drive_ids(self):
+        catalog = (WORKSPACE_DIR / "movie_catalog.json").read_text(encoding="utf-8")
+        self.assertNotIn("gdrive_file_id", catalog)
+
+    def test_workflow_decodes_drive_map_before_caching(self):
+        """The map must exist on disk before hashFiles() can bust the cache."""
+        workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
+        self.assertIn("GDRIVE_MAP_B64", workflow)
+        map_at = workflow.index("GDRIVE_MAP_B64")
+        cache_at = workflow.index("hashFiles('movie_catalog.json', 'movie_gdrive_map.json')")
+        self.assertLess(map_at, cache_at, "map must be decoded before the cache key hashes it")
+
+    def test_drive_sourcing_stays_behind_an_explicit_gate(self):
+        orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
+        self.assertIn("ALLOW_PRIVATE_MEDIA_SOURCES", orchestrator)
+        self.assertIn("resolve_gdrive_source", orchestrator)
+
     def test_trailer_sourcing_tries_multiple_player_clients(self):
         """GitHub runner IPs are bot-gated by YouTube's default web client."""
         engine = (WORKSPACE_DIR / "movie_video_engine.py").read_text(encoding="utf-8")

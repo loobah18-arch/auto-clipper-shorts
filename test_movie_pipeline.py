@@ -36,12 +36,15 @@ from movie_quality import (
     validate_upload_source,
 )
 from movie_video_engine import (
+    GDRIVE_MAP_FILENAME,
     TRAILER_CLIENT_CONFIGS,
     create_word_timestamps_from_sentences,
     download_movie_trailer,
     generate_moviegyan_subtitles,
     find_system_font,
+    load_gdrive_map,
     parse_timestamp_to_seconds,
+    resolve_gdrive_source,
     OUTPUT_DIR,
     BGM_DIR,
     DEFAULT_BGM_OFFSETS,
@@ -271,6 +274,97 @@ class TestMoviePipeline(unittest.TestCase):
                 info = probe_media(media)
         self.assertAlmostEqual(info.duration_sec, 42.0, places=3)
         self.assertEqual((info.width, info.height), (1080, 1920))
+
+    def test_gdrive_resolver_precedence(self):
+        """env override > map file > catalog field; nothing configured -> None."""
+        def with_env(**kwargs):
+            saved = {k: os.environ.get(k) for k in kwargs}
+            for k, v in kwargs.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            return saved
+
+        try:
+            # 1. Nothing configured anywhere.
+            saved = with_env(GDRIVE_FILE_ID=None, GDRIVE_FILE_NAME=None)
+            with tempfile.TemporaryDirectory() as tmp:
+                with unittest.mock.patch.object(movie_video_engine, "WORKSPACE_DIR", Path(tmp)):
+                    self.assertIsNone(resolve_gdrive_source("the_avengers_2012", {}))
+
+            # 2. Catalog field is the last resort.
+            with_env(GDRIVE_FILE_ID=None, GDRIVE_FILE_NAME=None)
+            with tempfile.TemporaryDirectory() as tmp:
+                with unittest.mock.patch.object(movie_video_engine, "WORKSPACE_DIR", Path(tmp)):
+                    resolved = resolve_gdrive_source("m", {"gdrive_file_id": "CAT1"})
+            self.assertEqual(resolved["file_id"], "CAT1")
+
+            # 3. Map file beats the catalog field and supplies timeline + filename.
+            with_env(GDRIVE_FILE_ID=None, GDRIVE_FILE_NAME=None)
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                (root / GDRIVE_MAP_FILENAME).write_text(json.dumps({
+                    "movies": {"the_avengers_2012": {
+                        "file_id": "MAP1",
+                        "file_name": "avengers.mkv",
+                        "timeline_start": "00:05:00",
+                        "timeline_end": "00:31:00",
+                    }}
+                }), encoding="utf-8")
+                with unittest.mock.patch.object(movie_video_engine, "WORKSPACE_DIR", root):
+                    resolved = resolve_gdrive_source(
+                        "the_avengers_2012", {"gdrive_file_id": "CAT1"}
+                    )
+            self.assertEqual(resolved["file_id"], "MAP1")
+            self.assertEqual(resolved["file_name"], "avengers.mkv")
+            self.assertEqual(resolved["timeline_start"], "00:05:00")
+
+            # 4. Env override wins over everything.
+            with_env(GDRIVE_FILE_ID="ENV1", GDRIVE_FILE_NAME="env.mkv")
+            with tempfile.TemporaryDirectory() as tmp:
+                with unittest.mock.patch.object(movie_video_engine, "WORKSPACE_DIR", Path(tmp)):
+                    resolved = resolve_gdrive_source(
+                        "the_avengers_2012", {"gdrive_file_id": "CAT1"}
+                    )
+            self.assertEqual(resolved["file_id"], "ENV1")
+        finally:
+            for key in ("GDRIVE_FILE_ID", "GDRIVE_FILE_NAME"):
+                os.environ.pop(key, None)
+
+    def test_gdrive_map_tolerates_missing_and_malformed_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with unittest.mock.patch.object(movie_video_engine, "WORKSPACE_DIR", root):
+                self.assertEqual(load_gdrive_map(), {})
+                (root / GDRIVE_MAP_FILENAME).write_text("{not json", encoding="utf-8")
+                self.assertEqual(load_gdrive_map(), {})
+                (root / GDRIVE_MAP_FILENAME).write_text('["a list"]', encoding="utf-8")
+                self.assertEqual(load_gdrive_map(), {})
+
+    def test_gdrive_map_accepts_flat_shorthand(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / GDRIVE_MAP_FILENAME).write_text(
+                json.dumps({"the_platform_2019": "FLAT1"}), encoding="utf-8"
+            )
+            with unittest.mock.patch.object(movie_video_engine, "WORKSPACE_DIR", root):
+                resolved = resolve_gdrive_source("the_platform_2019", {})
+        self.assertEqual(resolved["file_id"], "FLAT1")
+        self.assertEqual(resolved["file_name"], "the_platform_2019.mkv")
+
+    def test_drive_is_attempted_before_trailer(self):
+        """Google Drive must be the highest automatic footage source."""
+        orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
+        drive_at = orchestrator.index('source_type = "private_media"')
+        trailer_at = orchestrator.index('source_type = "authorized_trailer"')
+        self.assertLess(
+            drive_at, trailer_at,
+            "Google Drive must be attempted before the trailer fallback",
+        )
+        # The Drive branch must not be chained behind --video-file with elif.
+        drive_block = orchestrator[drive_at - 200:drive_at]
+        self.assertNotIn("elif", drive_block.split("if upload_requested")[-1])
 
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
