@@ -1,11 +1,11 @@
 name: 🎬 Auto Movie Explanation Shorts (MovieGyan Style)
 
 on:
-  # Schedule stays disabled by default. Uncomment only after reviewing a
-  # successful manual run, and keep privacy_status=unlisted until you trust it.
-  # schedule:
-  #   # Runs twice daily at 08:15 and 20:15 UTC (off-peak minute prevents GitHub queue drops)
-  #   - cron: '15 8,20 * * *'
+  schedule:
+    # Twice daily. Each run publishes exactly one part of the active movie, then
+    # the state machine advances. Lands as 'unlisted' unless you change the
+    # privacy_status default below.
+    - cron: '15 8,20 * * *'
   workflow_dispatch:
     inputs:
       movie_name:
@@ -180,6 +180,7 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           PRIVACY_STATUS: ${{ inputs.privacy_status || 'unlisted' }}
+          YT_DLP_POT_PROVIDER_URL: 'http://127.0.0.1:4416'
           ALLOW_PRIVATE_MEDIA_SOURCES: ${{ secrets.ALLOW_PRIVATE_MEDIA_SOURCES || 'false' }}
           GDRIVE_FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
           GDRIVE_FILE_NAME: ${{ secrets.GDRIVE_FILE_NAME }}
