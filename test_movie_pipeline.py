@@ -34,6 +34,7 @@ from movie_auto_catalog import (
     build_entry,
     detect_episode_number,
     humanize,
+    parse_season_episode,
     plan_windows,
     series_stem,
     slugify,
@@ -480,6 +481,53 @@ class TestMoviePipeline(unittest.TestCase):
         curated_avengers = next(m for m in curated_movies if m["id"] == "the_avengers_2012")
         self.assertFalse(curated_avengers.get("auto_generated", False))
         self.assertEqual(len(curated_avengers.get("parts", [])), 8)
+
+    def test_copy_of_prefix_is_stripped(self):
+        """Google Drive marks duplicates with 'Copy of '; it must not leak."""
+        self.assertEqual(
+            humanize("Copy of Jujutsu Kaisen - S01E01 1080p.mkv"),
+            humanize("Jujutsu Kaisen - S01E01 1080p.mkv"),
+        )
+
+    def test_seasons_do_not_collide(self):
+        """S01E01, S02E01 and S03E01 are three distinct episodes."""
+        seasons = {
+            name: parse_season_episode(name)[0]
+            for name in (
+                "Copy of Jujutsu Kaisen S01E01 1080p.mkv",
+                "Copy of Jujutsu Kaisen-S02E01-720p.mkv",
+                "Copy of Jujutsu_Kaisen_S03E01_1080p_HEVC.mkv",
+            )
+        }
+        self.assertEqual(seasons, {
+            "Copy of Jujutsu Kaisen S01E01 1080p.mkv": 1,
+            "Copy of Jujutsu Kaisen-S02E01-720p.mkv": 2,
+            "Copy of Jujutsu_Kaisen_S03E01_1080p_HEVC.mkv": 3,
+        })
+
+    def test_watermark_after_episode_tag_does_not_split_the_group(self):
+        """'PIKAHD.COM' quality tags must not create separate series."""
+        names = [
+            "Copy of Jujutsu Kaisen - S01E01 1080p 10bit [HIN-ENG] x265.mkv",
+            "Copy of  Jujutsu Kaisen S01E02-1080p-[HINDI-ENGLISH]-PIKAHD.COM.mkv",
+            "Copy of Jujutsu Kaisen - S02E01-720p-[HIN-ENG-JAP]-PIKAHD.EU.mkv",
+        ]
+        keys = {slugify(series_stem(name)) for name in names}
+        self.assertEqual(len(keys), 1, f"expected one group, got {keys}")
+        self.assertEqual(keys.pop(), "jujutsu_kaisen")
+
+    def test_multi_season_series_orders_by_season_then_episode(self):
+        files = [
+            ("Jujutsu Kaisen S01E02.mkv", "F1", 2),
+            ("Jujutsu Kaisen S02E01.mkv", "F2", 1),
+            ("Jujutsu Kaisen S01E01.mkv", "F3", 1),
+            ("Jujutsu Kaisen S02E02.mkv", "F4", 2),
+        ]
+        entry = build_entry(files, "jujutsu_kaisen")
+        self.assertEqual(
+            [(p["season"], p["episode_number"]) for p in entry["parts"]],
+            [(1, 1), (1, 2), (2, 1), (2, 2)],
+        )
 
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
