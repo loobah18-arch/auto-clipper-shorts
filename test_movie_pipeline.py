@@ -27,6 +27,17 @@ from movie_pipeline_state import (
 )
 import movie_quality
 import movie_video_engine
+from movie_ai_script import load_catalog
+from movie_auto_catalog import (
+    _curated_titles,
+    _title_matches_curated,
+    build_entry,
+    detect_episode_number,
+    humanize,
+    plan_windows,
+    series_stem,
+    slugify,
+)
 from movie_quality import (
     MediaInfo,
     MediaValidationError,
@@ -45,6 +56,7 @@ from movie_video_engine import (
     load_gdrive_map,
     parse_timestamp_to_seconds,
     resolve_gdrive_source,
+    resolve_part_window,
     OUTPUT_DIR,
     BGM_DIR,
     DEFAULT_BGM_OFFSETS,
@@ -365,6 +377,109 @@ class TestMoviePipeline(unittest.TestCase):
         # The Drive branch must not be chained behind --video-file with elif.
         drive_block = orchestrator[drive_at - 200:drive_at]
         self.assertNotIn("elif", drive_block.split("if upload_requested")[-1])
+
+    def test_episode_detection_handles_common_release_names(self):
+        cases = {
+            "[SubsPlease] One Piece - 001 (1080p) [AB12].mkv": 1,
+            "One.Piece.EP105.1080p.mkv": 105,
+            "Naruto Shippuden S01E12.mkv": 12,
+            "Breaking.Bad.S02E05.720p.mkv": 5,
+            "The.Office.103.avi": 103,
+            # A 4-digit year is not an episode number.
+            "The.Avengers.2012.720p.BluRay.mkv": None,
+            "Interstellar.2014.1080p.mkv": None,
+            # A resolution is not an episode number.
+            "Some.Movie.720p.x264.mkv": None,
+        }
+        for filename, expected in cases.items():
+            self.assertEqual(
+                detect_episode_number(filename), expected,
+                f"{filename} -> expected {expected}",
+            )
+
+    def test_episode_files_group_despite_release_tags(self):
+        """Differently-tagged files of one series must share a group id."""
+        tagged = "[SubsPlease] One Piece - 001 (1080p) [AB12].mkv"
+        plain = "One.Piece.EP105.1080p.mkv"
+        self.assertEqual(slugify(series_stem(tagged)), slugify(series_stem(plain)))
+
+    def test_curated_titles_are_never_duplicated_by_auto_ingest(self):
+        """A curated movie must not get a second, auto-generated entry."""
+        curated = _curated_titles()
+        self.assertTrue(curated, "curated catalog should not be empty")
+        for filename in (
+            "The.Avengers.2012.720p.BluRay.HIN-ENG.x264.ESub-KatmovieHD.mkv",
+            "Thor.Ragnarok.2017.720p.BluRay.HIN-ENG.x264.mkv",
+            "Interstellar.2014.1080p.BluRay.x264.mkv",
+        ):
+            self.assertTrue(
+                _title_matches_curated(filename, curated),
+                f"{filename} should be recognised as already curated",
+            )
+        # Genuinely new titles must still be registrable.
+        for filename in (
+            "Dune.2021.2160p.WEB-DL.mkv",
+            "Dune.Part.Two.2024.1080p.mkv",
+            "Jujutsu.Kaisen.S01E01.1080p.mkv",
+        ):
+            self.assertFalse(
+                _title_matches_curated(filename, curated),
+                f"{filename} should NOT be treated as curated",
+            )
+
+    def test_plan_windows_cover_usable_span(self):
+        windows = plan_windows(6)
+        self.assertEqual(len(windows), 6)
+        self.assertEqual(windows[0][0], 0.04)
+        self.assertEqual(windows[-1][1], 0.96)
+        for (_, end), (next_start, _) in zip(windows, windows[1:]):
+            self.assertAlmostEqual(end, next_start, places=4)
+        self.assertEqual(plan_windows(1), [(0.04, 0.96)])
+
+    def test_generated_entry_partitions_a_movie_into_parts(self):
+        entry = build_entry(
+            [("Some.Movie.2020.1080p.mkv", "FILEID1", None)],
+            "some_movie_2020",
+        )
+        self.assertIsNotNone(entry)
+        self.assertEqual(len(entry["parts"]), 6)
+        for part in entry["parts"]:
+            self.assertIn("window_start_frac", part)
+            self.assertIn("window_end_frac", part)
+            self.assertEqual(part["gdrive_file_id"], "FILEID1")
+
+    def test_generated_entry_makes_one_part_per_episode(self):
+        files = [
+            ("Naruto Shippuden S01E01.mkv", "F1", 1),
+            ("Naruto Shippuden S01E02.mkv", "F2", 2),
+            ("Naruto Shippuden S01E03.mkv", "F3", 3),
+        ]
+        entry = build_entry(files, "naruto_shippuden")
+        self.assertEqual(len(entry["parts"]), 3)
+        self.assertEqual([p["episode_number"] for p in entry["parts"]], [1, 2, 3])
+        self.assertEqual([p["gdrive_file_id"] for p in entry["parts"]], ["F1", "F2", "F3"])
+        for part in entry["parts"]:
+            self.assertEqual((part["window_start_frac"], part["window_end_frac"]), (0.04, 0.96))
+
+    def test_fractional_windows_resolve_against_real_duration(self):
+        part = {"window_start_frac": 0.04, "window_end_frac": 0.5}
+        with unittest.mock.patch("movie_video_engine.get_audio_duration", return_value=7200.0):
+            start, end = resolve_part_window(part, Path("movie.mkv"))
+        self.assertEqual((start, end), ("00:04:48", "01:00:00"))
+
+        # Without fractions the catalog timeline is used unchanged.
+        curated = {"timeline_start": "00:05:00", "timeline_end": "00:20:00"}
+        with unittest.mock.patch("movie_video_engine.get_audio_duration", return_value=7200.0):
+            self.assertEqual(
+                resolve_part_window(curated, Path("movie.mkv")),
+                ("00:05:00", "00:20:00"),
+            )
+
+    def test_auto_catalog_merges_without_clobbering_curated(self):
+        curated_movies = load_catalog()["movies"]
+        curated_avengers = next(m for m in curated_movies if m["id"] == "the_avengers_2012")
+        self.assertFalse(curated_avengers.get("auto_generated", False))
+        self.assertEqual(len(curated_avengers.get("parts", [])), 8)
 
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
