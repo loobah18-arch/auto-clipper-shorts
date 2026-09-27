@@ -166,6 +166,28 @@ jobs:
           python test_movie_pipeline.py
           python test_workflow_contract.py
 
+      - name: 🗂️ Auto-Ingest Drive Catalog
+        env:
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          INPUT_LANG: ${{ inputs.lang }}
+        run: |
+          set -euo pipefail
+          # Registers any Drive file that is not already a catalog entry, so new
+          # movies/anime/series need no manual catalog editing. The generated
+          # file is committed below, so scripts are written once and reused.
+          if [ -z "$GDRIVE_FOLDER_ID" ]; then
+            echo "GDRIVE_FOLDER_ID secret is not set; skipping auto-ingest."
+            exit 0
+          fi
+          if [ ! -f movie_gdrive_map.json ]; then
+            echo "No Drive map present; skipping auto-ingest."
+            exit 0
+          fi
+          python movie_auto_catalog.py "${INPUT_LANG:-en}"
+
       - name: 🚀 Run Auto-Clipper Pipeline
         id: run_pipeline
         env:
@@ -241,7 +263,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           TARGET_BRANCH="${GITHUB_REF_NAME:-main}"
-          git add movie_history.json
+          git add movie_history.json movie_catalog_auto.json
           if git diff --cached --quiet; then
             echo "No movie state changes to commit"
             exit 0
