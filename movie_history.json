@@ -145,10 +145,10 @@
   "current_series": {
     "movie_id": "the_avengers_2012",
     "movie_title": "The Avengers (2012)",
-    "current_part": 1,
+    "current_part": 0,
     "total_parts": 8,
     "completed": false,
-    "last_updated": "2026-09-27T06:27:11.643984+00:00"
+    "last_updated": "2026-09-27T06:33:07.027553+00:00"
   },
   "superseded_uploads": [
     {
@@ -230,5 +230,5 @@
       "superseded_reason": "Series reset to Part 1 on user request. This record is retained for audit only and no longer blocks re-rendering."
     }
   ],
-  "reset_note": "2026-09-26: Avengers series reset to Part 1 at user request. Prior Avengers records moved to superseded_uploads. Standalone entries left intact."
+  "reset_note": "2026-09-27: Avengers series reset so the next run starts at Part 1. current_part is the last COMPLETED part (selection uses current_part + 1), so it must be 0 to begin at Part 1. Prior Avengers records are in superseded_uploads and no longer block re-rendering."
 }
