@@ -93,31 +93,66 @@ def detect_episode_number(filename: str) -> int | None:
     return None
 
 
-def _significant_tokens(filename: str) -> list[str]:
-    """Split a release filename into meaningful words.
+_SEASON_EPISODE = re.compile(r"[Ss](\d{1,2})[Ee](\d{1,3})(?!\d)")
 
-    Episode markers, quality/rip tags and audio-language tags are dropped, and
-    separators (spaces, dots, underscores, hyphens) all split, so
-    "HIN-ENG" and "WEB-DL" do not survive as single junk tokens.
-    """
-    stem = Path(filename).stem
-    # Drop release-group wrappers such as "[SubsPlease]" and "(1080p)" so that
-    # differently-tagged files of one series still group together.
-    stem = re.sub(r"[\[\(\{][^\]\)\}]*[\]\)\}]", " ", stem)
+_COPY_PREFIX = re.compile(r"^\s*copy\s+of\s+", re.I)
+
+# Watermark / tracker domains that survive splitting on dots.
+_WATERMARK = re.compile(r"^[a-z0-9]+$")
+
+
+def _strip_copy_prefix(filename: str) -> str:
+    """Drop the 'Copy of ' prefix Google Drive adds to duplicated files."""
+    return _COPY_PREFIX.sub("", Path(filename).name)
+
+
+def _significant_tokens(text: str) -> list[str]:
+    """Split text into meaningful words, dropping release/quality noise."""
+    stem = re.sub(r"[\[\(\{][^\]\)\}]*[\]\)\}]", " ", text)
     stem = re.sub(r"[\s._\-]+", " ", stem)
     for pattern in _EPISODE_PATTERNS:
         stem = pattern.sub(" ", stem)
     stem = _EPISODE_WORD.sub(" ", stem)
-    tokens = [
+    return [
         token for token in stem.split()
-        if token.lower() not in _NOISE_TOKENS and not re.fullmatch(r"\d{1,3}", token)
-    ]
-    return tokens or stem.split()
+        if token.lower() not in _NOISE_TOKENS
+        and not re.fullmatch(r"\d{1,3}", token)
+        and not (len(token) > 3 and token.isalpha() and token.isupper() and "PIKAHD" in token)
+    ] or stem.split()
+
+
+def parse_season_episode(filename: str) -> tuple[int | None, int | None, str]:
+    """Return (season, episode, series_prefix) for a release filename.
+
+    The series name is taken from the text BEFORE the episode marker, so quality
+    tags and watermarks that follow ("-720p (BDRip) PIKAHD.COM") cannot leak into
+    the group identity. This is what keeps S01/S02/S03 of one anime together.
+    """
+    name = _strip_copy_prefix(filename)
+    stem = Path(name).stem
+
+    season_match = _SEASON_EPISODE.search(stem)
+    if season_match:
+        prefix = stem[: season_match.start()]
+        return int(season_match.group(1)), int(season_match.group(2)), prefix
+
+    for pattern in _EPISODE_PATTERNS[1:]:
+        match = pattern.search(stem)
+        if match:
+            prefix = stem[: match.start()]
+            groups = [group for group in match.groups() if group]
+            if groups:
+                try:
+                    return None, int(groups[-1]), prefix
+                except ValueError:
+                    break
+    return None, None, stem
 
 
 def series_stem(filename: str) -> str:
-    """Filename reduced to its series identity; used to group episodes."""
-    return " ".join(_significant_tokens(filename)).strip()
+    """Series identity for grouping; ignores everything after the episode tag."""
+    _season, _episode, prefix = parse_season_episode(filename)
+    return " ".join(_significant_tokens(prefix)).strip()
 
 
 def slugify(value: str) -> str:
@@ -126,7 +161,8 @@ def slugify(value: str) -> str:
 
 def humanize(filename: str) -> str:
     """Turn a release filename into a readable title."""
-    return " ".join(_significant_tokens(filename)).strip().title()
+    _season, _episode, prefix = parse_season_episode(filename)
+    return " ".join(_significant_tokens(prefix)).strip().title()
 
 
 def plan_windows(part_count: int) -> list[tuple[float, float]]:
@@ -167,8 +203,10 @@ def enumerate_drive_folder(folder_id: str) -> list[tuple[str, str]]:
     results: list[tuple[str, str]] = []
     seen: set[str] = set()
     for entry in entries or []:
-        name = Path(str(getattr(entry, "path", "") or "")).name
+        raw_name = Path(str(getattr(entry, "path", "") or "")).name
         file_id = str(getattr(entry, "id", "") or "")
+        # 'Copy of ' duplicates collapse onto the original name.
+        name = _strip_copy_prefix(raw_name)
         if not name or not file_id or not is_video(name) or name in seen:
             continue
         seen.add(name)
@@ -232,17 +270,28 @@ def build_entry(
 
     parts: list[dict] = []
     if episodes:
-        # Episodic: one part per episode file, each covering the whole episode.
+        # Episodic: one part per episode file, ordered by season then episode.
+        season_of = {name: parse_season_episode(name)[0] for name, _fid, _ep in ordered}
+        ordered = sorted(
+            files,
+            key=lambda item: (
+                season_of.get(item[0]) or 0,
+                item[2] or 0,
+            ),
+        )
         for index, (filename, file_id, episode_number) in enumerate(ordered, start=1):
+            season = season_of.get(filename)
+            label = f"Season {season} Episode {episode_number}" if season else f"Episode {episode_number}"
             parts.append(
                 _build_part(
                     display_title,
-                    f"{display_title} - Episode {episode_number or index}",
+                    f"{display_title} - {label}",
                     index,
                     len(ordered),
                     filename,
                     file_id,
                     episode_number,
+                    season,
                     plan_windows(1)[0],
                     language,
                 )
@@ -260,6 +309,7 @@ def build_entry(
                     len(windows),
                     filename,
                     file_id,
+                    None,
                     None,
                     window,
                     language,
@@ -287,6 +337,7 @@ def _build_part(
     filename: str,
     file_id: str,
     episode_number: int | None,
+    season: int | None,
     window: tuple[float, float],
     language: str,
 ) -> dict:
@@ -303,6 +354,7 @@ def _build_part(
         "window_end_frac": window[1],
         "gdrive_file_id": file_id,
         "gdrive_file_name": filename,
+        "season": season,
         "episode_number": episode_number,
     }
 
