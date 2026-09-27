@@ -101,10 +101,22 @@ def select_next_movie(requested_movie: str = None, requested_part: int = None, l
             part = unuploaded[0] if unuploaded else parts[0]
         else:
             matched = [p for p in parts if p.get("part_number") == part_num]
-            part = matched[0] if matched else parts[0]
+            if not matched:
+                # Silently falling back to part 1 would re-publish an episode that
+                # may already be live. Fail loudly and let auto-ingest catch up.
+                raise EpisodeNotReadyError(
+                    f"Part {part_num} of '{movie.get('title')}' has no generated script yet "
+                    f"(only parts {[p.get('part_number') for p in parts]} are ready). "
+                    "Auto-ingest adds more each run; re-run after it completes."
+                )
+            part = matched[0]
 
         p_num = part.get("part_number", 1)
-        tot_parts = len(parts)
+        # Auto-ingested series are generated in batches, so len(parts) is only the
+        # ready count. parts_available is the true series length and must drive
+        # completion, or a long series would be marked finished after one batch.
+        available = movie.get("parts_available")
+        tot_parts = int(available) if isinstance(available, int) and available > 0 else len(parts)
         merged = dict(movie)
         merged.update({
             "part_number": p_num,
@@ -169,6 +181,14 @@ def select_next_movie(requested_movie: str = None, requested_part: int = None, l
 
 
 
+
+
+class EpisodeNotReadyError(RuntimeError):
+    """Raised when a requested episode exists on Drive but has no script yet."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
 
 
 class UploadFailedError(RuntimeError):

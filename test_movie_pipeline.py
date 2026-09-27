@@ -575,6 +575,41 @@ class TestMoviePipeline(unittest.TestCase):
     def test_per_run_cap_is_configurable(self):
         self.assertIn("AUTO_INGEST_MAX_PARTS_PER_RUN", (WORKSPACE_DIR / "movie_auto_catalog.py").read_text(encoding="utf-8"))
 
+    def test_auto_series_total_parts_reflects_full_length(self):
+        """A batched series must not be marked complete after the first batch."""
+        from generate_movie_short import EpisodeNotReadyError, select_next_movie
+        import generate_movie_short as orchestrator
+
+        entry = {
+            "id": "jujutsu_kaisen",
+            "title": "Jujutsu Kaisen",
+            "parts_available": 55,
+            "parts": [
+                {"part_number": i, "title": f"Episode {i}", "script": "x"}
+                for i in range(1, 7)
+            ],
+        }
+        history = {
+            "uploaded_movies": [],
+            "current_series": {
+                "movie_id": "jujutsu_kaisen", "movie_title": "Jujutsu Kaisen",
+                "current_part": 5, "total_parts": 55, "completed": False,
+            },
+        }
+        with unittest.mock.patch.object(orchestrator, "load_movie_history", return_value=history):
+            with unittest.mock.patch.object(orchestrator, "load_catalog", return_value={"movies": [entry]}):
+                # Part 6 exists, and the series length is 55 - not len(parts)=6.
+                selected = select_next_movie()
+        self.assertEqual(selected["part_number"], 6)
+        self.assertEqual(selected["total_parts"], 55)
+
+        # Asking for an ungenerated episode must fail loudly, not fall back to part 1.
+        history["current_series"]["current_part"] = 6
+        with unittest.mock.patch.object(orchestrator, "load_movie_history", return_value=history):
+            with unittest.mock.patch.object(orchestrator, "load_catalog", return_value={"movies": [entry]}):
+                with self.assertRaises(EpisodeNotReadyError):
+                    select_next_movie()
+
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
         with tempfile.TemporaryDirectory() as tmp:
