@@ -417,24 +417,19 @@ def _title_matches_curated(filename: str, curated: set[str]) -> bool:
 def _curated_titles() -> set[str]:
     """Normalised titles of hand-curated catalog entries.
 
-    Auto-ingest must never register a second copy of a movie that is already
-    curated, otherwise the same film would appear twice with different ids.
+    Reads movie_catalog.json ONLY, never the merged view: an auto-registered
+    title must not become "curated" and then block itself on later runs.
+    Auto-ingest dedupes its own entries by id, so this guard exists purely to
+    stop a second entry appearing for a hand-tuned movie.
     """
     try:
-        from movie_ai_script import load_catalog
+        from movie_ai_script import CATALOG_PATH, _read_catalog_file
     except Exception as error:  # noqa: BLE001
         log(f"Curated catalog unavailable: {error}")
         return set()
-    try:
-        catalog = load_catalog() or {}
-    except Exception as error:  # noqa: BLE001
-        log(f"Curated catalog unreadable: {error}")
-        return set()
 
     titles: set[str] = set()
-    for movie in catalog.get("movies", []):
-        if not isinstance(movie, dict):
-            continue
+    for movie in _read_catalog_file(CATALOG_PATH):
         for field in ("title", "id"):
             value = movie.get(field)
             if isinstance(value, str) and value.strip():
