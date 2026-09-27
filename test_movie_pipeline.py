@@ -171,9 +171,16 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertEqual(res["timeline_start"], "00:16:00")
         self.assertEqual(res["timeline_end"], "00:32:00")
 
-    def test_default_bgm_is_opt_in(self):
-        self.assertFalse((BGM_DIR / "malevolent_shrine_sukuna.mp3").exists())
-        self.assertEqual(get_default_bgm_offset(movie_title="Interstellar (2014)"), get_default_bgm_offset(movie_title="Interstellar (2014)"))
+    def test_bgm_track_is_configurable_and_present(self):
+        """BGM is enabled by default (operator choice) but still overridable."""
+        self.assertTrue(
+            (BGM_DIR / "malevolent_shrine_sukuna.mp3").exists(),
+            "the configured BGM track must exist in assets/bgm/",
+        )
+        orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
+        self.assertIn("MOVIE_BGM_PATH", orchestrator)
+        # Offset is chosen by the orchestrator for continuity, not hardcoded here.
+        self.assertIn("get_bgm_offset_for_part", orchestrator)
 
     def test_default_bgm_offset_distribution(self):
         offset1 = get_default_bgm_offset(part_number=1)
@@ -666,6 +673,37 @@ class TestMoviePipeline(unittest.TestCase):
                 _post_json("https://example.invalid", {"model": "t", "messages": []}, {}, 5)
         finally:
             urllib.request.urlopen = original
+
+    def test_bgm_continues_across_parts(self):
+        """Part N must resume where part N-1's music ended."""
+        from movie_video_engine import get_bgm_offset_for_part
+
+        # 8 parts of 51s against a 182.6s track.
+        track = 182.636
+        prior: list[float] = []
+        offsets = []
+        for _ in range(8):
+            offsets.append(get_bgm_offset_for_part(
+                len(prior) + 1, prior_part_durations=prior, track_duration=track
+            ))
+            prior.append(51.0)
+
+        self.assertEqual(offsets[0], 0.0, "first part starts at the beginning")
+        # Continuity: each offset equals the running total, wrapped to the track.
+        for index in range(1, 8):
+            expected = (51.0 * index) % track
+            self.assertAlmostEqual(offsets[index], round(expected, 3), places=2)
+        # Wrapping keeps every offset playable.
+        self.assertTrue(all(0.0 <= o < track for o in offsets))
+
+    def test_bgm_offset_without_history_uses_nominal_length(self):
+        from movie_video_engine import get_bgm_offset_for_part
+        self.assertEqual(get_bgm_offset_for_part(1, [], track_duration=182.6), 0.0)
+        self.assertAlmostEqual(
+            get_bgm_offset_for_part(3, [], track_duration=182.6), 104.0, places=2
+        )
+        # A single standalone video has no part number, so it starts at zero.
+        self.assertEqual(get_bgm_offset_for_part(None, [], track_duration=182.6), 0.0)
 
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
