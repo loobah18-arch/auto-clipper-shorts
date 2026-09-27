@@ -37,6 +37,11 @@ WINDOW_TAIL_SKIP = 0.96
 # A standalone movie file is chopped into this many parts by default.
 DEFAULT_MOVIE_PARTS = 6
 
+# How many parts may gain a script in a single run. Bulk backfill (an anime with
+# 50+ episodes) is done incrementally so one run cannot exhaust the job timeout
+# or trip provider rate limits; later runs continue where this one stopped.
+MAX_PARTS_PER_RUN = 6
+
 VIDEO_SUFFIXES = (".mkv", ".mp4", ".avi", ".mov", ".m4v", ".webm", ".ts")
 
 _EPISODE_PATTERNS = (
@@ -256,8 +261,15 @@ def build_entry(
     entry_id: str,
     language: str = "en",
     movie_parts: int = DEFAULT_MOVIE_PARTS,
+    max_parts: int | None = None,
+    skip: int = 0,
 ) -> dict | None:
-    """Build one catalog entry from (filename, file_id, episode) triples."""
+    """Build a catalog entry from (filename, file_id, episode) triples.
+
+    ``max_parts`` caps how many parts get a generated script in this call and
+    ``skip`` resumes a partially generated series, so a long show is filled in
+    over several runs instead of one enormous batch.
+    """
     if not files:
         return None
 
@@ -268,53 +280,50 @@ def build_entry(
     if episodes:
         display_title = _EPISODE_WORD.sub(" ", display_title).strip() or "Series"
 
-    parts: list[dict] = []
     if episodes:
-        # Episodic: one part per episode file, ordered by season then episode.
         season_of = {name: parse_season_episode(name)[0] for name, _fid, _ep in ordered}
         ordered = sorted(
             files,
-            key=lambda item: (
-                season_of.get(item[0]) or 0,
-                item[2] or 0,
-            ),
+            key=lambda item: (season_of.get(item[0]) or 0, item[2] or 0),
         )
-        for index, (filename, file_id, episode_number) in enumerate(ordered, start=1):
+        plan: list[tuple[str, str, int | None, int | None, str, tuple[float, float]]] = []
+        for filename, file_id, episode_number in ordered:
             season = season_of.get(filename)
-            label = f"Season {season} Episode {episode_number}" if season else f"Episode {episode_number}"
-            parts.append(
-                _build_part(
-                    display_title,
-                    f"{display_title} - {label}",
-                    index,
-                    len(ordered),
-                    filename,
-                    file_id,
-                    episode_number,
-                    season,
-                    plan_windows(1)[0],
-                    language,
-                )
+            label = (
+                f"Season {season} Episode {episode_number}"
+                if season else f"Episode {episode_number}"
             )
+            plan.append((
+                f"{display_title} - {label}", filename, file_id, episode_number,
+                season, plan_windows(1)[0],
+            ))
     else:
-        # A movie is one file chopped into several parts, so windows = parts.
         windows = plan_windows(movie_parts)
         filename, file_id, _ = ordered[0]
-        for index, window in enumerate(windows, start=1):
-            parts.append(
-                _build_part(
-                    display_title,
-                    f"{display_title} - Part {index}/{len(windows)}",
-                    index,
-                    len(windows),
-                    filename,
-                    file_id,
-                    None,
-                    None,
-                    window,
-                    language,
-                )
+        plan = [
+            (
+                f"{display_title} - Part {index}/{len(windows)}",
+                filename, file_id, None, None, window,
             )
+            for index, window in enumerate(windows, start=1)
+        ]
+
+    total_available = len(plan)
+    start = max(0, skip)
+    cap = max_parts if max_parts is not None else MAX_PARTS_PER_RUN
+    if cap > 0:
+        plan = plan[start:start + cap]
+    else:
+        plan = plan[start:]
+
+    parts = [
+        _build_part(
+            display_title, part_title, index, total_available,
+            filename, file_id, episode_number, season, window, language,
+        )
+        for index, (part_title, filename, file_id, episode_number, season, window)
+        in enumerate(plan, start=start + 1)
+    ]
 
     return {
         "id": entry_id,
@@ -322,11 +331,25 @@ def build_entry(
         "auto_generated": True,
         "source": "gdrive_folder",
         "badge": display_title[:28].upper(),
-        "hook": parts[0]["hook"],
-        "script": parts[0]["script"],
-        "tags": parts[0]["tags"],
+        "hook": parts[0]["hook"] if parts else "",
+        "script": parts[0]["script"] if parts else "",
+        "tags": parts[0]["tags"] if parts else ["movieexplained", "shorts"],
         "parts": parts,
+        "parts_available": total_available,
+        "parts_pending": max(0, total_available - (start + len(parts))),
     }
+
+
+def _max_parts_per_run() -> int:
+    """Per-run cap on how many parts may consume an AI call."""
+    raw = os.environ.get("AUTO_INGEST_MAX_PARTS_PER_RUN", "").strip()
+    if not raw:
+        return MAX_PARTS_PER_RUN
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        log(f"Ignoring invalid AUTO_INGEST_MAX_PARTS_PER_RUN={raw!r}")
+        return MAX_PARTS_PER_RUN
 
 
 def _allow_template_scripts() -> bool:
@@ -446,18 +469,27 @@ def sync_auto_catalog(
 
     added = 0
     curated = _curated_titles()
+    cap = _max_parts_per_run()
     for key, members in sorted(groups.items()):
         existing = next((m for m in auto_catalog["movies"] if m.get("id") == key), None)
         if existing is not None and _has_real_scripts(existing):
-            continue
-        if existing is not None:
+            pending = int(existing.get("parts_pending") or 0)
+            if pending <= 0:
+                continue
+            log(f"Continuing '{key}': {pending} part(s) still need scripts.")
+        elif existing is not None:
             log(f"Regenerating '{key}': previous scripts were placeholders.")
         sample = members[0][0]
         if _title_matches_curated(sample, curated):
             log(f"Skipping '{humanize(sample)}': already present in the curated catalog.")
             continue
-        entry = build_entry(members, key, language=language, movie_parts=movie_parts)
-        if not entry:
+
+        already = len(existing.get("parts", [])) if existing and _has_real_scripts(existing) else 0
+        entry = build_entry(
+            members, key, language=language, movie_parts=movie_parts,
+            max_parts=cap, skip=already,
+        )
+        if not entry or not entry["parts"]:
             continue
         if not _has_real_scripts(entry) and not _allow_template_scripts():
             log(
@@ -465,7 +497,6 @@ def sync_auto_catalog(
                 "so every part would be placeholder narration. Fix the API keys and re-run."
             )
             if existing is not None:
-                # Drop the unusable entry rather than leave filler in the catalog.
                 auto_catalog["movies"] = [
                     m for m in auto_catalog["movies"] if m.get("id") != key
                 ]
@@ -473,12 +504,28 @@ def sync_auto_catalog(
                 log(f"Removed unusable '{key}' from the generated catalog.")
                 added += 1
             continue
-        if existing is not None:
-            auto_catalog["movies"] = [m for m in auto_catalog["movies"] if m.get("id") != key]
-        auto_catalog["movies"].append(entry)
+
+        if existing is not None and _has_real_scripts(existing):
+            merged = dict(entry)
+            merged["parts"] = list(existing["parts"]) + list(entry["parts"])
+            for position, part in enumerate(merged["parts"], start=1):
+                part["part_number"] = position
+            auto_catalog["movies"] = [
+                merged if m.get("id") == key else m for m in auto_catalog["movies"]
+            ]
+            log(
+                f"Extended '{entry['title']}': {len(merged['parts'])} part(s) ready, "
+                f"{merged['parts_pending']} still pending."
+            )
+        else:
+            if existing is not None:
+                auto_catalog["movies"] = [
+                    m for m in auto_catalog["movies"] if m.get("id") != key
+                ]
+            auto_catalog["movies"].append(entry)
+            log(f"Registered '{entry['title']}' with {len(entry['parts'])} part(s).")
         known.add(key)
         added += 1
-        log(f"Registered '{entry['title']}' with {len(entry['parts'])} part(s).")
 
     if added:
         save_auto_catalog(auto_catalog)

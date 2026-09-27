@@ -554,6 +554,27 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertIn("openai/gpt-oss-120b", source)
         self.assertIn("script_source", source)
 
+    def test_long_series_is_generated_incrementally(self):
+        """A 10-episode series must not need 10 AI calls in one run."""
+        files = [(f"Anime S01E{i:02d}.mkv", f"F{i}", i) for i in range(1, 11)]
+        ready: list[dict] = []
+        with unittest.mock.patch(
+            "movie_auto_catalog._generate_script",
+            return_value={"script": "real", "script_source": "groq"},
+        ):
+            for _ in range(3):
+                entry = build_entry(files, "anime", max_parts=4, skip=len(ready))
+                self.assertIsNotNone(entry)
+                ready.extend(entry["parts"])
+                self.assertLessEqual(len(entry["parts"]), 4)
+
+        self.assertEqual([p["part_number"] for p in ready], list(range(1, 11)))
+        self.assertEqual(sorted(p["episode_number"] for p in ready), list(range(1, 11)))
+        self.assertEqual(ready[-1]["gdrive_file_id"], "F10")
+
+    def test_per_run_cap_is_configurable(self):
+        self.assertIn("AUTO_INGEST_MAX_PARTS_PER_RUN", (WORKSPACE_DIR / "movie_auto_catalog.py").read_text(encoding="utf-8"))
+
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
         with tempfile.TemporaryDirectory() as tmp:
