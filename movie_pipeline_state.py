@@ -171,6 +171,42 @@ def uploaded_part_numbers(history: dict[str, JsonValue], movie_id: str) -> set[i
     return parts
 
 
+def confirmed_part_durations(
+    history: dict[str, JsonValue],
+    movie_id: str,
+    before_part: int,
+) -> list[float]:
+    """Durations of confirmed prior uploads for a series, in part order.
+
+    Only entries with a real YouTube ID count. Failed and dry-run renders were
+    never published, so including them would desync anything cumulative that
+    depends on the published timeline (such as a continuous soundtrack).
+    """
+    entries = history.get("uploaded_movies", [])
+    if not isinstance(entries, list):
+        return []
+
+    by_part: dict[int, float] = {}
+    for entry in entries:
+        record = _as_dict(entry)
+        if record is None or not entry_is_uploaded(entry):
+            continue
+        if record.get("movie_id") != movie_id:
+            continue
+        part_number = record.get("part_number")
+        duration = record.get("duration_sec")
+        if (
+            isinstance(part_number, int)
+            and part_number < before_part
+            and isinstance(duration, (int, float))
+            and not isinstance(duration, bool)
+            and duration > 0
+        ):
+            by_part[part_number] = float(duration)
+
+    return [by_part[key] for key in sorted(by_part)]
+
+
 def uploaded_movie_ids(history: dict[str, JsonValue]) -> set[str]:
     """Return standalone movies with confirmed uploads."""
     entries = history.get("uploaded_movies", [])

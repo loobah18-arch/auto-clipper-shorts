@@ -705,6 +705,36 @@ class TestMoviePipeline(unittest.TestCase):
         # A single standalone video has no part number, so it starts at zero.
         self.assertEqual(get_bgm_offset_for_part(None, [], track_duration=182.6), 0.0)
 
+    def test_bgm_timeline_ignores_unconfirmed_renders(self):
+        """Failed/dry runs must not shift the soundtrack timeline."""
+        from movie_pipeline_state import confirmed_part_durations
+        from movie_video_engine import get_bgm_offset_for_part
+
+        history = {
+            "uploaded_movies": [
+                # The part that actually shipped.
+                {"movie_id": "m", "part_number": 1, "status": "uploaded",
+                 "youtube_id": "REAL1", "duration_sec": 50.66},
+                # Later re-renders of the same part that never published. These
+                # are recorded AFTER the real upload, so an implementation that
+                # ignores the confirmed check keeps the wrong duration.
+                {"movie_id": "m", "part_number": 1, "status": "rendered",
+                 "youtube_id": None, "duration_sec": 96.62},
+                {"movie_id": "m", "part_number": 1, "status": "failed",
+                 "youtube_id": None, "duration_sec": 12.0},
+            ]
+        }
+        prior = confirmed_part_durations(history, "m", 2)
+
+        # Only the confirmed upload counts, so the offset is 50.66 - not 96.62
+        # or 12.0, which is what an unfiltered scan would produce.
+        self.assertEqual(prior, [50.66])
+        self.assertAlmostEqual(
+            get_bgm_offset_for_part(2, prior, track_duration=182.636), 50.66, places=2
+        )
+        # A different series must not leak into this one's timeline.
+        self.assertEqual(confirmed_part_durations(history, "other", 2), [])
+
     def test_history_round_trip_preserves_audit_keys(self):
         """Unknown top-level keys must survive load/save, or audit trails are lost."""
         with tempfile.TemporaryDirectory() as tmp:

@@ -40,6 +40,8 @@ from movie_pipeline_state import (
     utc_now,
     uploaded_movie_ids,
     uploaded_part_numbers,
+    confirmed_part_durations,
+    entry_is_uploaded,
     write_manifest,
 )
 from movie_quality import MAX_SHORT_DURATION, MediaValidationError, probe_media, validate_upload_source
@@ -464,17 +466,9 @@ def run_pipeline(
     # Continuous soundtrack: resume where the previous part's music ended.
     bgm_start_offset = 0.0
     if bgm_file is not None and part_number:
-        prior: list[float] = []
-        if isinstance(history.get("uploaded_movies"), list):
-            for entry in history["uploaded_movies"]:
-                if not isinstance(entry, dict) or entry.get("movie_id") != movie_id:
-                    continue
-                entry_part = entry.get("part_number")
-                if not isinstance(entry_part, int) or entry_part >= part_number:
-                    continue
-                value = entry.get("duration_sec")
-                if isinstance(value, (int, float)) and value > 0:
-                    prior.append(float(value))
+        # Only confirmed uploads advance the soundtrack; failed or dry-run
+        # entries were never published and would desync the music timeline.
+        prior = confirmed_part_durations(history, movie_id, part_number)
         track_duration = None
         try:
             track_duration = get_audio_duration(bgm_file)
@@ -485,7 +479,10 @@ def run_pipeline(
             prior_part_durations=prior,
             track_duration=track_duration,
         )
-        log(f"🎵 BGM resumes at {bgm_start_offset:.1f}s for part {part_number} (continuous).")
+        log(
+            f"🎵 BGM resumes at {bgm_start_offset:.1f}s for part {part_number} "
+            f"(continuous across {len(prior)} confirmed part(s))."
+        )
 
     render_movie_explanation_short(
         sliced_video_path=sliced_video_path,
