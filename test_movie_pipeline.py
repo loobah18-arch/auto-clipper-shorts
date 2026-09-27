@@ -22,6 +22,7 @@ from movie_pipeline_state import (
     RunStatus,
     append_history_entry,
     load_history,
+    save_history,
     uploaded_part_numbers,
 )
 import movie_quality
@@ -270,6 +271,36 @@ class TestMoviePipeline(unittest.TestCase):
                 info = probe_media(media)
         self.assertAlmostEqual(info.duration_sec, 42.0, places=3)
         self.assertEqual((info.width, info.height), (1080, 1920))
+
+    def test_history_round_trip_preserves_audit_keys(self):
+        """Unknown top-level keys must survive load/save, or audit trails are lost."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "history.json"
+            original = {
+                "uploaded_movies": [],
+                "superseded_uploads": [{"movie_id": "x", "youtube_id": "abc123"}],
+                "reset_note": "series reset",
+            }
+            path.write_text(json.dumps(original), encoding="utf-8")
+            save_history(path, load_history(path))
+            reloaded = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(reloaded["superseded_uploads"], original["superseded_uploads"])
+        self.assertEqual(reloaded["reset_note"], "series reset")
+
+    def test_superseded_uploads_do_not_block_rerender(self):
+        """Records moved aside must not be counted as uploaded parts."""
+        history = {
+            "uploaded_movies": [],
+            "superseded_uploads": [
+                {
+                    "movie_id": "the_avengers_2012",
+                    "part_number": 1,
+                    "status": "uploaded",
+                    "youtube_id": "kj4AsXOcxBY",
+                }
+            ],
+        }
+        self.assertEqual(uploaded_part_numbers(history, "the_avengers_2012"), set())
 
     def test_upload_refuses_placeholder_render_by_default(self):
         """A Short with no licensed footage must not reach the channel."""
