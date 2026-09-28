@@ -244,15 +244,28 @@
       "status": "uploaded",
       "content_hash": "0d819f94a43e369671986ffba516908e26859fbc848dc1c9d5ff3d75a2f2448d",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 4",
+      "part_number": 4,
+      "total_parts": 8,
+      "youtube_id": "EDYWEaKoyJo",
+      "timestamp": "2026-09-28T16:48:30.001779+00:00",
+      "video_path": "movie_short_the_avengers_2012_20260928_164633.mp4",
+      "duration_sec": 53.97,
+      "status": "uploaded",
+      "content_hash": "8d9e53f48f0a5b54019d9515b4f66afb19bdc1f4f01becd2ed94fec201aee1b6",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "the_avengers_2012",
     "movie_title": "The Avengers (2012)",
-    "current_part": 3,
+    "current_part": 4,
     "total_parts": 8,
     "completed": false,
-    "last_updated": "2026-09-27T23:05:52.773904+00:00"
+    "last_updated": "2026-09-28T16:48:30.001838+00:00"
   },
   "superseded_uploads": [
     {
