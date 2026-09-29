@@ -6,8 +6,8 @@
       "auto_generated": true,
       "source": "gdrive_folder",
       "badge": "JUJUTSU KAISEN",
-      "hook": "What 99% of viewers completely missed in Jujutsu Kaisen S3E6",
-      "script": "What 99% of viewers missed in Jujutsu Kaisen S3E6 is the subtle power play hidden in every cursed technique. Notice how the director frames Gojo’s blindfold in tight close‑ups, turning his invincibility into a visual cage that mirrors Yuji’s internal conflict between humanity and monster. The episode’s psychological tension spikes when Megumi confronts his own fear of becoming the very curse he hunts, a theme reinforced by the recurring red‑blue lighting that splits the screen like a shattered psyche. The shocking twist—Sukuna’s sudden resurrection through a seemingly innocuous cursed object—actually reveals the series’ core moral: power without self‑awareness is a curse itself. This detail proves the show isn’t just about battles, but about identity. Drop your theory in the comments and subscribe for more deep movie breakdowns!",
+      "hook": "What 99% of viewers completely missed in Jujutsu Kaisen S3E12?",
+      "script": "What 99% of viewers missed in Jujutsu Kaisen S3E12 is the hidden battle of ego versus destiny. The episode opens with Gojo’s sealed fate, but notice how the director frames the cursed energy as a flickering neon pulse, symbolizing Gojo’s crumbling confidence. Every flashback to Yuji’s trauma isn’t filler; it’s a psychological timer that forces him to choose between humanity and the cursed world. The real genius is the subtle color shift from cool blues to blood‑red during the showdown, mirroring the characters’ internal bleed. And that shocking twist—Mahito’s sudden resurrection—reveals he’s not just a villain but a mirror of Yuji’s own self‑destruction. The ending isn’t closure, it’s a warning that the true curse lives inside us. Drop your theory in the comments and subscribe for more deep movie breakdowns!",
       "tags": [
         "movieanalysis",
         "moviereview",
@@ -1259,10 +1259,33 @@
           "gdrive_file_name": "Jujutsu_Kaisen_S03E11_1080p_HEVC-[HIN-ENG-JAP]-PIKAHD.EU.mkv",
           "season": 3,
           "episode_number": 11
+        },
+        {
+          "part_number": 55,
+          "title": "Jujutsu Kaisen - Season 3 Episode 12",
+          "badge": "CRITICAL ANALYSIS",
+          "hook": "What 99% of viewers completely missed in Jujutsu Kaisen S3E12?",
+          "script": "What 99% of viewers missed in Jujutsu Kaisen S3E12 is the hidden battle of ego versus destiny. The episode opens with Gojo’s sealed fate, but notice how the director frames the cursed energy as a flickering neon pulse, symbolizing Gojo’s crumbling confidence. Every flashback to Yuji’s trauma isn’t filler; it’s a psychological timer that forces him to choose between humanity and the cursed world. The real genius is the subtle color shift from cool blues to blood‑red during the showdown, mirroring the characters’ internal bleed. And that shocking twist—Mahito’s sudden resurrection—reveals he’s not just a villain but a mirror of Yuji’s own self‑destruction. The ending isn’t closure, it’s a warning that the true curse lives inside us. Drop your theory in the comments and subscribe for more deep movie breakdowns!",
+          "script_source": "groq",
+          "tags": [
+            "movieanalysis",
+            "moviereview",
+            "hiddenmeaning",
+            "endingexplained",
+            "plottwist",
+            "cinema",
+            "shorts"
+          ],
+          "window_start_frac": 0.04,
+          "window_end_frac": 0.96,
+          "gdrive_file_id": "1gszfY5PMwuzsp8nVbBV2eGzP3cFAJN0B",
+          "gdrive_file_name": "Jujutsu_Kaisen_S03E12_1080p_HEVC-[HIN-ENG-JAP]-PIKAHD.EU.mkv",
+          "season": 3,
+          "episode_number": 12
         }
       ],
       "parts_available": 55,
-      "parts_pending": 1
+      "parts_pending": 0
     }
   ]
 }

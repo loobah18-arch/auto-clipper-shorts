@@ -283,15 +283,28 @@
       "status": "uploaded",
       "content_hash": "fc2009445303b683a935655b10c171fba33814340e15558fe2ab791a8411886e",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "the_avengers_2012",
+      "title": "The Avengers (2012) - Part 7",
+      "part_number": 7,
+      "total_parts": 8,
+      "youtube_id": "t0130tHE3b0",
+      "timestamp": "2026-09-29T23:46:45.728152+00:00",
+      "video_path": "movie_short_the_avengers_2012_20260929_234450.mp4",
+      "duration_sec": 49.88,
+      "status": "uploaded",
+      "content_hash": "8be353b760aea56832757138bcc1c467b1383d19144c81e0888346e7ae20265a",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "the_avengers_2012",
     "movie_title": "The Avengers (2012)",
-    "current_part": 6,
+    "current_part": 7,
     "total_parts": 8,
     "completed": false,
-    "last_updated": "2026-09-29T14:54:36.841324+00:00"
+    "last_updated": "2026-09-29T23:46:45.728198+00:00"
   },
   "superseded_uploads": [
     {
