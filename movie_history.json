@@ -309,6 +309,19 @@
       "status": "uploaded",
       "content_hash": "baf8ef66681436b5b6065314a5bde0c5f955b96395e2b156a454e842cadf6443",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "jujutsu_kaisen",
+      "title": "Jujutsu Kaisen - Season 1 Episode 1",
+      "part_number": 1,
+      "total_parts": 55,
+      "youtube_id": null,
+      "timestamp": "2026-10-03T11:02:30.940801+00:00",
+      "video_path": "movie_short_jujutsu_kaisen_20261003_110110.mp4",
+      "duration_sec": 50.3,
+      "status": "rendered",
+      "content_hash": "058b25f996db8f9b4c58888aef7561edeae85e55b62bb129593d2d1add5f5387",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
