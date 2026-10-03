@@ -514,6 +514,21 @@ class TestMoviePipeline(unittest.TestCase):
             humanize("Copy of Jujutsu Kaisen - S01E01 1080p.mkv"),
             humanize("Jujutsu Kaisen - S01E01 1080p.mkv"),
         )
+        self.assertEqual(
+            humanize("Copy of Copy of Jujutsu Kaisen - S01E01 1080p.mkv"),
+            humanize("Jujutsu Kaisen - S01E01 1080p.mkv"),
+        )
+
+    def test_season_episode_with_delimiters(self):
+        """S01_E01, S04_E11_1, and S02.E03 must parse season and episode correctly."""
+        season, episode, prefix = parse_season_episode("Demon_Slayer_Kimetsu_no_Yaiba_480P_S01_E01.mp4")
+        self.assertEqual(season, 1)
+        self.assertEqual(episode, 1)
+        self.assertEqual(slugify(series_stem("Demon_Slayer_Kimetsu_no_Yaiba_480P_S01_E01.mp4")), "demon_slayer_kimetsu_no_yaiba")
+
+        season4, episode11, _ = parse_season_episode("Demon_Slayer_Kimetsu_no_Yaiba_480P_S04_E11_1.mp4")
+        self.assertEqual(season4, 4)
+        self.assertEqual(episode11, 11)
 
     def test_seasons_do_not_collide(self):
         """S01E01, S02E01 and S03E01 are three distinct episodes."""

@@ -214,11 +214,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 def get_audio_duration(audio_path: Path) -> float:
     cmd = [
         "ffprobe", "-v", "error",
-        "-show_entries", "format=duration",
+        "-show_entries", "format=duration:stream=duration",
         "-of", "default=noprint_wrappers=1:nokey=1",
         str(audio_path)
     ]
     res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    for line in res.stdout.splitlines():
+        clean = line.strip()
+        if clean and clean != "N/A":
+            try:
+                val = float(clean)
+                if val > 0:
+                    return val
+            except ValueError:
+                continue
     return float(res.stdout.strip())
 
 

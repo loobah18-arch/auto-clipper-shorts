@@ -45,7 +45,7 @@ MAX_PARTS_PER_RUN = 6
 VIDEO_SUFFIXES = (".mkv", ".mp4", ".avi", ".mov", ".m4v", ".webm", ".ts")
 
 _EPISODE_PATTERNS = (
-    re.compile(r"[Ss](\d{1,2})[Ee](\d{1,3})(?!\d)"),                          # S01E02
+    re.compile(r"[Ss](\d{1,2})[\s._-]*[Ee](\d{1,3})(?!\d)"),                          # S01E02 / S01_E02
     re.compile(r"(?:^|[^A-Za-z])[Ee][Pp]?[Ii]?[Ss]?[Oo]?[Dd]?(\d{1,3})(?!\d)"),  # EP01 / Ep105
     re.compile(r"(?:^|[\s._-])(\d{1,3})(?:v\d)?(?=[\s._-]|$)"),               # " 01 " / "_01."
 )
@@ -98,9 +98,9 @@ def detect_episode_number(filename: str) -> int | None:
     return None
 
 
-_SEASON_EPISODE = re.compile(r"[Ss](\d{1,2})[Ee](\d{1,3})(?!\d)")
+_SEASON_EPISODE = re.compile(r"[Ss](\d{1,2})[\s._-]*[Ee](\d{1,3})(?!\d)")
 
-_COPY_PREFIX = re.compile(r"^\s*copy\s+of\s+", re.I)
+_COPY_PREFIX = re.compile(r"^\s*(?:copy(?:\s*\(\d+\))?\s+of\s+)+", re.I)
 
 # Watermark / tracker domains that survive splitting on dots.
 _WATERMARK = re.compile(r"^[a-z0-9]+$")
