@@ -121,18 +121,24 @@ def select_next_movie(requested_movie: str = None, requested_part: int = None, l
         available = movie.get("parts_available")
         tot_parts = int(available) if isinstance(available, int) and available > 0 else len(parts)
         merged = dict(movie)
+        # Inherit all part-specific attributes (gdrive_file_id, gdrive_file_name,
+        # window_start_frac, window_end_frac, season, episode_number) so episodic
+        # and auto-cataloged titles resolve their media source and timeline correctly.
+        merged.update(part)
         merged.update({
             "part_number": p_num,
             "total_parts": tot_parts,
             "series_title": movie.get("title"),
             "title": part.get("title", f"{movie.get('title')} - Part {p_num}"),
             "badge": part.get("badge", f"{movie.get('badge', movie.get('title'))} • PART {p_num}"),
-            "timeline_start": part.get("timeline_start", "00:01:00"),
-            "timeline_end": part.get("timeline_end", "00:26:00"),
             "hook": part.get("hook", movie.get("hook", "")),
             "script": part.get("script", movie.get("script", "")),
-            "tags": list(set(part.get("tags", []) + movie.get("tags", [])))
+            "tags": list(set(part.get("tags", []) + movie.get("tags", []))),
         })
+        if "timeline_start" not in merged:
+            merged["timeline_start"] = "00:01:00"
+        if "timeline_end" not in merged:
+            merged["timeline_end"] = "00:26:00"
         log(f"🎬 Resolved episodic part: '{merged['title']}' (Part {p_num}/{tot_parts}) [{merged['timeline_start']} -> {merged['timeline_end']}]")
         return merged
 
@@ -410,7 +416,7 @@ def run_pipeline(
         gdrive_source = resolve_gdrive_source(movie_id, movie_data)
         if private_allowed and gdrive_source:
             source_type = "private_media"
-            target_movie_path = cache_dir / gdrive_source["file_name"]
+            target_movie_path = cache_dir / Path(gdrive_source["file_name"]).name
             log(f"📀 Sourcing raw movie from Google Drive (highest priority): {gdrive_source['file_name']}...")
             gdrive_ok = download_movie_from_gdrive(gdrive_source["file_id"], target_movie_path)
             if gdrive_ok and target_movie_path.exists():

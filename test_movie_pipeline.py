@@ -639,6 +639,42 @@ class TestMoviePipeline(unittest.TestCase):
                 with self.assertRaises(EpisodeNotReadyError):
                     select_next_movie()
 
+    def test_auto_series_part_inherits_gdrive_and_window_metadata(self):
+        """Auto-cataloged and episodic parts must carry their Drive and fractional window metadata."""
+        from generate_movie_short import select_next_movie
+        import generate_movie_short as orchestrator
+
+        entry = {
+            "id": "test_series",
+            "title": "Test Series",
+            "parts_available": 10,
+            "parts": [
+                {
+                    "part_number": 1,
+                    "title": "Episode 1",
+                    "script": "Narrative script",
+                    "gdrive_file_id": "DRIVE_ID_101",
+                    "gdrive_file_name": "Test.Series.S01E01.mp4",
+                    "window_start_frac": 0.04,
+                    "window_end_frac": 0.96,
+                }
+            ],
+        }
+        history = {"uploaded_movies": [], "current_series": None}
+        with unittest.mock.patch.object(orchestrator, "load_movie_history", return_value=history):
+            with unittest.mock.patch.object(orchestrator, "load_catalog", return_value={"movies": [entry]}):
+                selected = select_next_movie()
+
+        self.assertEqual(selected["gdrive_file_id"], "DRIVE_ID_101")
+        self.assertEqual(selected["gdrive_file_name"], "Test.Series.S01E01.mp4")
+        self.assertEqual(selected["window_start_frac"], 0.04)
+        self.assertEqual(selected["window_end_frac"], 0.96)
+
+        resolved = resolve_gdrive_source("test_series", selected)
+        self.assertIsNotNone(resolved)
+        self.assertEqual(resolved["file_id"], "DRIVE_ID_101")
+        self.assertEqual(resolved["file_name"], "Test.Series.S01E01.mp4")
+
     def test_openrouter_fallback_includes_free_tier_models(self):
         """A zero-credit account still needs a working fallback."""
         from movie_ai_script import OPENROUTER_MODELS

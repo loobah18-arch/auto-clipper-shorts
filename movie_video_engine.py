@@ -329,6 +329,14 @@ def resolve_gdrive_source(movie_id: str, movie_data: dict | None = None) -> dict
     if not file_name:
         file_name = str(movie_data.get("gdrive_file_name", "")).strip()
 
+    if not file_id and movie_data.get("parts"):
+        for part in movie_data["parts"]:
+            if isinstance(part, dict) and part.get("gdrive_file_id"):
+                file_id = str(part.get("gdrive_file_id", "")).strip()
+                if not file_name:
+                    file_name = str(part.get("gdrive_file_name", "")).strip()
+                break
+
     if not file_id:
         return None
 
