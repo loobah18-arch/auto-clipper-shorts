@@ -322,15 +322,28 @@
       "status": "uploaded",
       "content_hash": "058b25f996db8f9b4c58888aef7561edeae85e55b62bb129593d2d1add5f5387",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "jujutsu_kaisen",
+      "title": "Jujutsu Kaisen - Season 1 Episode 2",
+      "part_number": 2,
+      "total_parts": 55,
+      "youtube_id": "LuW5pcBFC0E",
+      "timestamp": "2026-10-03T23:07:32.253693+00:00",
+      "video_path": "movie_short_jujutsu_kaisen_20261003_230523.mp4",
+      "duration_sec": 49.26,
+      "status": "uploaded",
+      "content_hash": "696b9a1233d8121665100d2bae70ab113cca1031426153dbc5443c882bf06161",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "jujutsu_kaisen",
     "movie_title": "Jujutsu Kaisen",
-    "current_part": 1,
+    "current_part": 2,
     "total_parts": 55,
     "completed": false,
-    "last_updated": "2026-10-03T16:43:48.683540+00:00"
+    "last_updated": "2026-10-03T23:07:32.253739+00:00"
   },
   "superseded_uploads": [
     {
