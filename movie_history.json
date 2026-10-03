@@ -309,15 +309,28 @@
       "status": "uploaded",
       "content_hash": "baf8ef66681436b5b6065314a5bde0c5f955b96395e2b156a454e842cadf6443",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "jujutsu_kaisen",
+      "title": "Jujutsu Kaisen - Season 1 Episode 1",
+      "part_number": 1,
+      "total_parts": 55,
+      "youtube_id": "Le5GQDvIjDk",
+      "timestamp": "2026-10-03T16:43:48.683502+00:00",
+      "video_path": "movie_short_jujutsu_kaisen_20261003_164222.mp4",
+      "duration_sec": 50.3,
+      "status": "uploaded",
+      "content_hash": "058b25f996db8f9b4c58888aef7561edeae85e55b62bb129593d2d1add5f5387",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
-    "movie_id": "the_avengers_2012",
-    "movie_title": "The Avengers (2012)",
-    "current_part": 8,
-    "total_parts": 8,
-    "completed": true,
-    "last_updated": "2026-09-30T15:01:13.246337+00:00"
+    "movie_id": "jujutsu_kaisen",
+    "movie_title": "Jujutsu Kaisen",
+    "current_part": 1,
+    "total_parts": 55,
+    "completed": false,
+    "last_updated": "2026-10-03T16:43:48.683540+00:00"
   },
   "superseded_uploads": [
     {
