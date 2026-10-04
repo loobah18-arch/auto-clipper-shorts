@@ -335,15 +335,28 @@
       "status": "uploaded",
       "content_hash": "696b9a1233d8121665100d2bae70ab113cca1031426153dbc5443c882bf06161",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "avengers_age_of_ultron",
+      "title": "Avengers Age Of Ultron - Part 1/6",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": "chLDEhd9VOo",
+      "timestamp": "2026-10-04T01:35:16.596449+00:00",
+      "video_path": "movie_short_avengers_age_of_ultron_20261004_013255.mp4",
+      "duration_sec": 52.08,
+      "status": "uploaded",
+      "content_hash": "77d66882a1fff0a557367df7bb3ce1faeaf8de14cd7fb2ddb2de3744b0e76c93",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
-    "movie_id": "jujutsu_kaisen",
-    "movie_title": "Jujutsu Kaisen",
-    "current_part": 2,
-    "total_parts": 55,
+    "movie_id": "avengers_age_of_ultron",
+    "movie_title": "Avengers Age Of Ultron",
+    "current_part": 1,
+    "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-03T23:07:32.253739+00:00"
+    "last_updated": "2026-10-04T01:35:16.596505+00:00"
   },
   "superseded_uploads": [
     {
