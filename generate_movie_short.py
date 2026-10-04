@@ -353,7 +353,7 @@ def run_pipeline(
         log(f"🎙️ Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
 
     if not voice:
-        voice = "hi-IN-SwaraNeural" if lang == "hi" else "en-US-AvaNeural"
+        voice = "hi-IN-MadhurNeural" if lang == "hi" else "en-US-ChristopherNeural"
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     audio_path = OUTPUT_DIR / f"{movie_id}_narration_{timestamp}.mp3"

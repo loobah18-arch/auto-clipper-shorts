@@ -64,7 +64,7 @@ def find_system_font(language: str = "en") -> str:
     return "Noto Sans Devanagari" if language == "hi" else "DejaVu Sans"
 
 
-async def generate_speech_audio(script_text: str, output_audio_path: Path, voice: str = "en-US-AvaNeural", rate: str = "+3%") -> list:
+async def generate_speech_audio(script_text: str, output_audio_path: Path, voice: str = "en-US-ChristopherNeural", rate: str = "+4%") -> list:
     """Generate TTS audio and retain provider word boundaries when available."""
     if not edge_tts:
         raise RuntimeError("edge-tts is required for speech generation.")
@@ -434,12 +434,22 @@ def slice_movie_timeline_scenes(
     try:
         for idx, (s_time, c_dur) in enumerate(segments):
             seg_file = temp_dir / f"slice_{idx:03d}.mp4"
+            # Human editing style: dynamic punch-in zoom on hook and kinetic crop variety
+            if idx == 0:
+                # Scene 0 (The Hook): punch-in zoom for immediate visual drama
+                vf_scale = "scale=1360:765:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
+            elif idx % 4 == 1:
+                # Subtle kinetic punch-in cut
+                vf_scale = "scale=1320:742:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
+            else:
+                vf_scale = "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
+
             cmd_slice = [
                 "ffmpeg", "-y",
                 "-ss", f"{s_time:.2f}",
                 "-i", str(movie_path),
                 "-t", f"{c_dur:.2f}",
-                "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1",
+                "-vf", vf_scale,
                 "-c:v", "libx264",
                 "-preset", "ultrafast",
                 "-crf", "22",
@@ -913,7 +923,9 @@ def render_movie_explanation_short(
         duration = MAX_SHORT_DURATION
 
     clean_badge = re.sub(r"[^A-Za-z0-9\s\(\)\-\.\,\!\?]", "", badge_text or movie_title).strip().upper()[:28]
-    badge_display = f"MOVIE RECAP • {clean_badge}"
+    if "CRITICAL" in clean_badge or "ANALYSIS" in clean_badge:
+        clean_badge = re.sub(r"CRITICAL\s+ANALYSIS|CRITICAL\s+BREAKDOWN|ANALYSIS", "", clean_badge).strip() or movie_title.upper()[:24]
+    badge_display = f"🔴 {clean_badge}" if clean_badge else "🔴 MOVIE RECAP"
 
     font_path = find_system_font()
     if os.path.exists(font_path):
@@ -946,16 +958,17 @@ def render_movie_explanation_short(
     # 1. Fullscreen blurred background (boxblur 28:6, darkened)
     # 2. Foreground 16:9 movie box: color grading (+14% contrast, +18% saturation, gamma 0.96),
     #    cinematic vignette, high-pass unsharp (5:5:0.8) modifying frequency coefficients,
-    #    temporal film noise (7) preventing static hash matching
-    # 3. Gold frame border outlining the movie box
+    #    temporal film noise (6) preventing static hash matching
+    # 3. Clean subtle frosted-glass border outlining the movie box
     # 4. Top header badge pill and lower-third dynamic karaoke subtitles
     video_filters = (
         "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:6,eq=brightness=-0.14:contrast=1.06[bg];"
-        "[0:v]scale=1040:-2,eq=contrast=1.14:brightness=-0.03:saturation=1.18:gamma=0.96,vignette=PI/4.2,unsharp=5:5:0.8:5:5:0.4,noise=alls=7:allf=t[fg];"
+        "[0:v]scale=1040:-2,eq=contrast=1.14:brightness=-0.03:saturation=1.18:gamma=0.96,vignette=PI/4.2,unsharp=5:5:0.8:5:5:0.4,noise=alls=6:allf=t[fg];"
         "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 40[comp];"
-        f"[comp]drawbox=x=18:y=626:w=1044:h=589:color=gold@0.45:t=2,"
-        f"drawbox=x=40:y=120:w=1000:h=90:color=black@0.75:t=fill,"
-        f"drawtext=text='{badge_display}':fontsize=36:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=148"
+        f"[comp]drawbox=x=18:y=626:w=1044:h=589:color=white@0.18:t=2,"
+        f"drawbox=x=80:y=120:w=920:h=82:color=black@0.80:t=fill,"
+        f"drawbox=x=80:y=120:w=920:h=82:color=white@0.22:t=2,"
+        f"drawtext=text='{badge_display}':fontsize=34:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=145"
         f"{watermark_filter},"
         f"ass='{ass_esc}'[vfinal]"
     )
