@@ -1,4 +1,36 @@
 {
-  "last_updated": null,
-  "competitors": {}
+  "last_updated": "2026-10-04T01:51:00Z",
+  "monitored_channels": [
+    {
+      "handle": "@moviegyan69",
+      "url": "https://youtube.com/@moviegyan69",
+      "last_checked": "2026-10-04T01:51:00Z",
+      "recent_viral_formats": ["Rapid dialogue intro", "Ticking countdown problem"]
+    },
+    {
+      "handle": "@moviesinsighthindi",
+      "url": "https://youtube.com/@moviesinsighthindi",
+      "last_checked": "2026-10-04T01:51:00Z",
+      "recent_viral_formats": ["Sci-Fi premise escalation"]
+    },
+    {
+      "handle": "@recapkun",
+      "url": "https://youtube.com/@recapkun",
+      "last_checked": "2026-10-04T01:51:00Z",
+      "recent_viral_formats": ["Kinetic anime/action cuts"]
+    },
+    {
+      "handle": "@movierecapsofficial",
+      "url": "https://youtube.com/@movierecapsofficial",
+      "last_checked": "2026-10-04T01:51:00Z",
+      "recent_viral_formats": ["Clinical plot dissection"]
+    },
+    {
+      "handle": "Filmity",
+      "url": "https://www.youtube.com/watch?v=FBkn_vE8VDM",
+      "last_checked": "2026-10-04T01:51:00Z",
+      "recent_viral_formats": ["High emotional stakes", "Survival curiosity"]
+    }
+  ],
+  "history": []
 }

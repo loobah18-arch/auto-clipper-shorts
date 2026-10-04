@@ -1,4 +1,56 @@
 {
-  "last_updated": null,
-  "tracked_creators": {}
+  "last_updated": "2026-10-04T01:51:00Z",
+  "tracked_creators": {
+    "moviegyan69": {
+      "channel_name": "MovieGyan",
+      "url": "https://youtube.com/@moviegyan69",
+      "niche": "Hindi Movie Explanation & Recap Shorts/Videos",
+      "notes": "Fast-paced tension hooks, character dilemmas, cliffhangers"
+    },
+    "moviesinsighthindi": {
+      "channel_name": "Movies Insight Hindi",
+      "url": "https://youtube.com/@moviesinsighthindi",
+      "niche": "Hindi Sci-Fi & Survival Movie Recaps",
+      "notes": "Urgent storytelling, visual curiosity hooks"
+    },
+    "recapkun": {
+      "channel_name": "RecapKun",
+      "url": "https://youtube.com/@recapkun",
+      "niche": "Anime & Action Movie Recaps",
+      "notes": "Kinetic subtitles, intense sound effects, fast pacing"
+    },
+    "movierecapsofficial": {
+      "channel_name": "Movie Recaps Official",
+      "url": "https://youtube.com/@movierecapsofficial",
+      "niche": "English Movie Recaps & Explanations",
+      "notes": "Deadpan analytical narration, high watch-time structures"
+    },
+    "filmity": {
+      "channel_name": "Filmity",
+      "url": "https://www.youtube.com/watch?v=FBkn_vE8VDM",
+      "niche": "Hindi Thriller & Mystery Movie Recaps",
+      "notes": "Extremely high CTR titles: 200 Saal Se Zameen ke Niche Kaid hai Ye insaan!, Yeh Family Phasi Khunkhar Janwaron Ke Beech!"
+    }
+  },
+  "viral_reference_benchmarks": [
+    {
+      "url": "https://youtube.com/shorts/y6pM6BIJNoo",
+      "type": "Short",
+      "title": "This woman has one hand made of gold | Movie Recap",
+      "hook_formula": "Visual anomaly + high intrigue opening statement ('This woman has one hand made of gold')",
+      "pacing": "Immediate visual reveal in frame 0, rapid problem escalation"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=FBkn_vE8VDM",
+      "type": "Long-Form/Recap",
+      "title": "200 Saal Se Zameen ke Niche Kaid hai Ye insaan! | City of ember Movie Explained in Hindi",
+      "hook_formula": "Extreme timeframe / survival condition ('200 Saal Se Zameen ke Niche Kaid...')"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=S-pmaeM01BI",
+      "type": "Long-Form/Recap",
+      "title": "Yeh Family Phasi Khunkhar Janwaron Ke Beech! | jungle movie",
+      "hook_formula": "High-stakes imminent mortality situation ('Phasi Khunkhar Janwaron Ke Beech')"
+    }
+  ]
 }
