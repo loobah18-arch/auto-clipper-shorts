@@ -475,6 +475,9 @@ def sync_auto_catalog(
         elif existing is not None:
             log(f"Regenerating '{key}': previous scripts were placeholders.")
         sample = members[0][0]
+        if any(anime in key.lower() for anime in ("jujutsu", "jjk", "demon_slayer", "kimetsu")):
+            log(f"Skipping anime series '{key}': managed by Bhaloo Ji channel.")
+            continue
         if _title_matches_curated(sample, curated):
             log(f"Skipping '{humanize(sample)}': already present in the curated catalog.")
             continue
