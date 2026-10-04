@@ -348,15 +348,28 @@
       "status": "uploaded",
       "content_hash": "77d66882a1fff0a557367df7bb3ce1faeaf8de14cd7fb2ddb2de3744b0e76c93",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "avengers_age_of_ultron",
+      "title": "Avengers Age Of Ultron - Part 2/6",
+      "part_number": 2,
+      "total_parts": 6,
+      "youtube_id": "myJDtikk7Ks",
+      "timestamp": "2026-10-04T02:01:55.309061+00:00",
+      "video_path": "movie_short_avengers_age_of_ultron_20261004_015944.mp4",
+      "duration_sec": 53.16,
+      "status": "uploaded",
+      "content_hash": "d9f574e2339ec978385e751775ad5a038de54b3a5a817015e62971537aa5dce0",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "avengers_age_of_ultron",
     "movie_title": "Avengers Age Of Ultron",
-    "current_part": 1,
+    "current_part": 2,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-04T01:35:16.596505+00:00"
+    "last_updated": "2026-10-04T02:01:55.309117+00:00"
   },
   "superseded_uploads": [
     {
