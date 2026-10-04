@@ -1,0 +1,21 @@
+{
+  "brand_name": "Antigravity Creator",
+  "palette": {
+    "primary": "#0D1117",
+    "text_primary": "#F0F6FC",
+    "text_secondary": "#8B949E",
+    "accent": "#58A6FF",
+    "accent_secondary": "#3FB950"
+  },
+  "typography": {
+    "heading_font": "System Bold / Inter",
+    "body_font": "System Regular / Inter",
+    "banned_punctuation": ["em_dash (—)"]
+  },
+  "visual_dna": {
+    "camera_lens": "35mm prime, f/1.8 aperture, natural shallow depth of field",
+    "lighting": "Cinematic directional side-lighting, high contrast, clean negative space",
+    "grading": "Subtle film tone curve, deep obsidian shadows, realistic skin tones",
+    "negative_prompts": "cartoon, oversaturated, plastic skin, distorted hands, generic stock photo, corporate clip art, neon halos, oversmoothed textures"
+  }
+}
