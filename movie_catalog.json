@@ -2,7 +2,7 @@
   "channel_info": {
     "niche": "Movie Explanation Shorts (MovieGyan / Movie Insight Hindi Style)",
     "description": "High-retention 60-second movie explanations, plot breakdowns, and mind-bending twist reveals.",
-    "default_voice_en": "en-US-AnaNeural",
+    "default_voice_en": "en-US-AvaNeural",
     "default_voice_hi": "hi-IN-SwaraNeural",
     "default_tags": [
       "movieexplained",

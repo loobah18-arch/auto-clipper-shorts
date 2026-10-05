@@ -96,13 +96,92 @@ def find_system_font(language: str = "en") -> str:
     return "Noto Sans Devanagari" if language == "hi" else "DejaVu Sans"
 
 
-async def generate_speech_audio(script_text: str, output_audio_path: Path, voice: str = "en-US-AnaNeural", rate: str = "+4%") -> list:
+
+def humanize_speech_text(text: str) -> str:
+    """Pre-processes narration text to mimic natural human speech cadence and prosody.
+
+    Applies conversational contractions, dramatic em-dashes for breath pauses,
+    rhetorical cadence punctuation, and removes robotic markdown/brackets.
+    """
+    if not text:
+        return ""
+
+    t = text
+
+    # 1. Clean markdown artifacts, brackets, and hashtags
+    t = re.sub(r"\*\*([^*]+)\*\*", r"\1", t)
+    t = re.sub(r"\*([^*]+)\*", r"\1", t)
+    t = re.sub(r"\[[^\]]*\]", " ", t)
+    t = re.sub(r"\(Part\s*\d+[^)]*\)", " ", t, flags=re.IGNORECASE)
+    t = re.sub(r"#\w+", "", t)
+
+    # 2. Conversational contractions for natural spoken human cadence
+    contractions = [
+        (r"\b(they|They) are\b", r"\1're"),
+        (r"\b(you|You) are\b", r"\1're"),
+        (r"\b(we|We) are\b", r"\1're"),
+        (r"\b(it|It) is\b", r"\1's"),
+        (r"\b(that|That) is\b", r"\1's"),
+        (r"\b(what|What) is\b", r"\1's"),
+        (r"\b(there|There) is\b", r"\1's"),
+        (r"\b(he|He) is\b", r"\1's"),
+        (r"\b(she|She) is\b", r"\1's"),
+        (r"\b(who|Who) is\b", r"\1's"),
+        (r"\b(do|Do) not\b", r"\1n't"),
+        (r"\b(does|Does) not\b", r"\1n't"),
+        (r"\b(did|Did) not\b", r"\1n't"),
+        (r"\b(can|Can) not\b", r"\1't"),
+        (r"\b(cannot|Cannot)\b", lambda m: "Can't" if m.group(0)[0].isupper() else "can't"),
+        (r"\b(could|Could) not\b", r"\1n't"),
+        (r"\b(would|Would) not\b", r"\1n't"),
+        (r"\b(should|Should) not\b", r"\1n't"),
+        (r"\b(is|Is) not\b", r"\1n't"),
+        (r"\b(was|Was) not\b", r"\1n't"),
+        (r"\b(were|Were) not\b", r"\1n't"),
+        (r"\b(has|Has) not\b", r"\1n't"),
+        (r"\b(have|Have) not\b", r"\1n't"),
+        (r"\b(had|Had) not\b", r"\1n't"),
+        (r"\b(will|Will) not\b", lambda m: "Won't" if m.group(0)[0].isupper() else "won't"),
+    ]
+    for pattern, repl in contractions:
+        t = re.sub(pattern, repl, t)
+
+    # 3. Punctuation prosody for natural breath pauses and human inflections
+    # Semicolons into em-dashes
+    t = re.sub(r"\s*;\s*", " — ", t)
+
+    # Conversational transitions at sentence start: give them breath pauses
+    t = re.sub(r"(?<=\.\s)(Wait|Listen|Look)\s+(?![\—\-\,\:])", r"\1 — ", t)
+    t = re.sub(r"^(Wait|Listen|Look)\s+(?![\—\-\,\:])", r"\1 — ", t)
+    t = re.sub(r"\b(And get this)\s*[\:\—\,]?\s*", r"And get this — ", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(And guess what)\s*[\:\—\?\,]?\s*", r"And guess what? ", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(And then)\s*,\s*", r"And then? ", t, flags=re.IGNORECASE)
+
+    # Hindi conversational pauses
+    t = re.sub(r"\b(aur tab)\s*,\s*", r"aur tab — ", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(lekin ab)\s*,\s*", r"lekin ab — ", t, flags=re.IGNORECASE)
+
+    # Clean redundant punctuation and spaces
+    t = re.sub(r"\s*([,\.!\?])\s*", r"\1 ", t)
+    t = re.sub(r"\s*—\s*", r" — ", t)
+    t = re.sub(r"\s*\.{3,}\s*", r"... ", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+async def generate_speech_audio(
+    script_text: str,
+    output_audio_path: Path,
+    voice: str = "en-US-AvaNeural",
+    rate: str = "+0%",
+    pitch: str = "+0Hz",
+) -> list:
     """Generate TTS audio and retain provider word boundaries when available."""
     if not edge_tts:
         raise RuntimeError("edge-tts is required for speech generation.")
 
-    log(f"🎙️ Synthesizing voiceover with voice: '{voice}' (rate={rate})...")
-    communicate = edge_tts.Communicate(script_text, voice, rate=rate)
+    humanized_text = humanize_speech_text(script_text)
+    log(f"🎙️ Synthesizing humanized voiceover with voice: '{voice}' (rate={rate}, pitch={pitch})...")
+    communicate = edge_tts.Communicate(humanized_text, voice, rate=rate, pitch=pitch, boundary="WordBoundary")
     sentences = []
     word_boundaries = []
     audio_data = bytearray()
@@ -127,18 +206,27 @@ async def generate_speech_audio(script_text: str, output_audio_path: Path, voice
                 "end": start_s + dur_s,
             })
 
-    for sentence in sentences:
-        sentence_words = [
-            word for word in word_boundaries
-            if sentence["start"] <= word["start"] < sentence["end"] and word["word"]
-        ]
-        if sentence_words:
-            sentence["words"] = sentence_words
+    if word_boundaries:
+        # Exact millisecond word boundaries from neural acoustic model
+        sentences = [{
+            "text": humanized_text,
+            "start": word_boundaries[0]["start"],
+            "end": word_boundaries[-1]["end"],
+            "words": word_boundaries,
+        }]
+    elif sentences:
+        for sentence in sentences:
+            sentence_words = [
+                word for word in word_boundaries
+                if sentence["start"] <= word["start"] < sentence["end"] and word["word"]
+            ]
+            if sentence_words:
+                sentence["words"] = sentence_words
 
     with open(output_audio_path, "wb") as f:
         f.write(audio_data)
 
-    log(f"✅ Voiceover generated: {len(sentences)} sentence boundaries and {len(word_boundaries)} word boundaries recorded.")
+    log(f"✅ Voiceover generated: {len(sentences)} sentence structures and {len(word_boundaries)} word boundaries recorded.")
     return sentences
 
 

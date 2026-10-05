@@ -54,6 +54,8 @@ from movie_video_engine import (
     create_word_timestamps_from_sentences,
     download_movie_trailer,
     generate_moviegyan_subtitles,
+    generate_speech_audio,
+    humanize_speech_text,
     find_system_font,
     load_gdrive_map,
     parse_timestamp_to_seconds,
@@ -111,6 +113,45 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertEqual(words[0]["word"], "IN")
         self.assertAlmostEqual(words[0]["start"], 0.0, places=1)
         self.assertTrue(words[-1]["end"] <= 4.6)
+
+    def test_provider_word_timestamp_generation(self):
+        sentences = [
+            {
+                "text": "Wait look at that",
+                "start": 0.1,
+                "end": 1.2,
+                "words": [
+                    {"word": "Wait", "start": 0.1, "end": 0.5},
+                    {"word": "look", "start": 0.6, "end": 0.8},
+                    {"word": "at", "start": 0.82, "end": 0.95},
+                    {"word": "that", "start": 0.98, "end": 1.2},
+                ]
+            }
+        ]
+        words = create_word_timestamps_from_sentences(sentences)
+        self.assertEqual(len(words), 4)
+        self.assertEqual(words[0]["word"], "WAIT")
+        self.assertEqual(words[0]["start"], 0.1)
+        self.assertEqual(words[0]["end"], 0.5)
+        self.assertEqual(words[1]["word"], "LOOK")
+        self.assertEqual(words[1]["start"], 0.6)
+
+    def test_humanize_speech_text_contractions_and_pauses(self):
+        raw = "Bro, imagine you are running a base. They cannot stop him; he does not care. Wait did you see that? It is insane."
+        humanized = humanize_speech_text(raw)
+        self.assertIn("you're", humanized)
+        self.assertIn("can't", humanized)
+        self.assertIn("doesn't", humanized)
+        self.assertIn("It's", humanized)
+        self.assertIn("Wait —", humanized)
+        self.assertIn(" — ", humanized)
+
+    def test_generate_speech_audio_signature_and_defaults(self):
+        import inspect
+        sig = inspect.signature(generate_speech_audio)
+        self.assertEqual(sig.parameters["voice"].default, "en-US-AvaNeural")
+        self.assertEqual(sig.parameters["rate"].default, "+0%")
+        self.assertEqual(sig.parameters["pitch"].default, "+0Hz")
 
     def test_subtitle_ass_generation(self):
         words = [
