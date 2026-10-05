@@ -1,23 +1,19 @@
-# 🎬 Auto Movie Explanation Shorts (MovieGyan & Movie Insight Style)
+# 🎬 Auto Movie & Series Explanation Engine (MovieGyan & Movie Insight Style)
 
-An automated YouTube Shorts channel engine that produces high-retention 50-55 second **Movie Explanations, Plot Breakdowns, and Twist Reveals** in the signature style of viral channels like **MovieGyan** and **Movie Insight Hindi**.
+An automated YouTube channel engine for **@woosclips** producing high-retention, detailed **Movie Explanations, Series Recaps, and Twist Reveals** in the signature style of channels like **MovieGyan** and **Movie Insight Hindi**.
 
-Generates neural narration (`edge-tts`), dynamic word-level neon karaoke subtitles (`.ass`), uses explicitly configured authorized trailer or local media, slices fast 2.5–3.2s scene cuts, renders a 9:16 vertical split/blurred layout via FFmpeg, and uploads to YouTube with SEO metadata. Rendering and review artifacts are automated through GitHub Actions.
+Generates neural narration (`edge-tts`), dynamic word-level neon karaoke subtitles (`.ass`), uses authorized footage, mixes 100% royalty-free non-copyright BGM, renders 9:16 Shorts as well as complete stitched **Normal Long Videos** once all parts of a movie or webseries are completed. Automated via GitHub Actions.
 
 ---
 
-## 🌟 Visual Layout & Aesthetic (MovieGyan Style)
+## 🌟 Key Capabilities & Aesthetic
 
-- **9:16 Vertical Framing (1080x1920)**: Engineered specifically for YouTube Shorts, TikTok, and Reels.
-- **Blurred Mirror Background**: Sourced trailer footage dynamically scaled, cropped to 1080x1920, and blurred (`boxblur=25:5`) to eliminate black bars.
-- **Centered 16:9 Foreground Movie Clip**: Crisp movie scenes positioned at `(W-w)/2:(H-h)/2 - 40`.
-- **Rapid Scene Switches (Fair Use & High Retention)**: Automatically extracts 15–20 dynamic scene segments (every 2.5–3.2s) across the trailer to keep pacing relentless.
-- **Top Badge Pill**: Sleek dark header badge (`🎬 MOVIE EXPLAINED • {MOVIE TITLE}`).
-- **Dynamic Neon Karaoke Subtitles**:
-  - Active spoken word: Highlighted in **Bright Yellow** (`&H0000FFFF&`) with pop scale.
-  - Inactive words: Crisp white with heavy black outline for 100% legibility.
-  - Placed comfortably in the lower third above YouTube Shorts UI buttons.
-- **Audio Mix**: Deep cinematic narrator voiceover (0dB) with optional, explicitly configured BGM. No bundled copyrighted soundtrack is selected by default.
+- **Detailed Storytelling (1-Min Limit Removed)**: Unconstrained by 60s clips; scripts provide rich 200–350 word detailed scene breakdowns, character motivations, and suspense (up to 3 minutes per part for Shorts).
+- **100% Non-Copyright BGM**: Strictly uses royalty-free cinematic suspense/thriller tracks (`cinematic_suspense_thriller.mp3`), auto-rejecting copyrighted OSTs.
+- **Dual-Funnel Episodic + Normal Long Video**: Each part is published sequentially to keep audiences hooked, and once all parts of a movie/series are completed, the engine automatically stitches all parts together and uploads the complete compilation as a **Normal Long Video** (with chapters and custom landscape thumbnail)!
+- **9:16 Vertical Framing (1080x1920)**: Centered 16:9 foreground movie clip positioned over a dynamic blurred mirror background.
+- **Dynamic Neon Karaoke Subtitles**: Active spoken word pop in Bright Yellow (`&H0000FFFF&`) with black outline for high contrast.
+- **Top Badge Pill**: Sleek header badge (`🎬 MOVIE EXPLAINED • {TITLE}`).
 
 ---
 

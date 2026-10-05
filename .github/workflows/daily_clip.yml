@@ -107,6 +107,14 @@ jobs:
             ${{ runner.os }}-movie-cache-v2-
             ${{ runner.os }}-movie-cache-v1-
 
+      - name: 💾 Cache Generated Parts For Full Video Stitching
+        uses: actions/cache@v4
+        with:
+          path: output/parts_cache
+          key: ${{ runner.os }}-parts-cache-v1-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-parts-cache-v1-
+
       - name: 🦕 Set up Deno (JS runtime for yt-dlp)
         uses: denoland/setup-deno@v2
         with:
@@ -223,7 +231,7 @@ jobs:
           ALLOW_PRIVATE_MEDIA_SOURCES: ${{ secrets.ALLOW_PRIVATE_MEDIA_SOURCES || 'false' }}
           GDRIVE_FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
           GDRIVE_FILE_NAME: ${{ secrets.GDRIVE_FILE_NAME }}
-          MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH || 'assets/bgm/malevolent_shrine_sukuna.mp3' }}
+          MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH || 'assets/bgm/cinematic_suspense_thriller.mp3' }}
           ALLOW_TRAILER_SEARCH: 'false'
           ALLOW_EXTERNAL_ARTWORK: 'false'
           INPUT_MOVIE_NAME: ${{ inputs.movie_name }}
@@ -250,7 +258,7 @@ jobs:
           set -euo pipefail
           report="output/ffprobe_report.txt"
           : > "$report"
-          for video in output/movie_short_*.mp4; do
+          for video in output/movie_short_*.mp4 output/*_full_*.mp4; do
             [ -e "$video" ] || continue
             {
               echo "FILE: $video"
@@ -265,6 +273,7 @@ jobs:
           name: movie-explanation-short
           path: |
             output/movie_short_*.mp4
+            output/*_full_*.mp4
             output/thumb_*.jpg
             output/*_subtitles_*.ass
             output/render_manifest_*.json

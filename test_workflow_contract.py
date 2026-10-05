@@ -26,7 +26,10 @@ class TestWorkflowContract(unittest.TestCase):
 
     def test_default_pipeline_does_not_select_copyrighted_bgm(self):
         orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
+        workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
         self.assertNotIn("malevolent_shrine_sukuna.mp3", orchestrator)
+        self.assertNotIn("malevolent_shrine_sukuna.mp3", workflow)
+        self.assertIn("cinematic_suspense_thriller.mp3", workflow)
         self.assertIn("MOVIE_BGM_PATH", orchestrator)
         self.assertIn("ALLOW_PRIVATE_MEDIA_SOURCES", orchestrator)
 

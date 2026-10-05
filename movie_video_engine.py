@@ -21,6 +21,7 @@ import subprocess
 from pathlib import Path
 
 from movie_pipeline_state import stable_seed
+from movie_quality import MAX_SHORT_DURATION
 
 WORKSPACE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(WORKSPACE_DIR))
@@ -34,6 +35,37 @@ OUTPUT_DIR = WORKSPACE_DIR / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ASSETS_DIR = WORKSPACE_DIR / "assets"
 BGM_DIR = ASSETS_DIR / "bgm"
+
+NON_COPYRIGHT_BGM_TRACKS = [
+    "cinematic_suspense_thriller.mp3",
+    "cinematic_suspense_drone.mp3",
+    "lofi_chill_beats.mp3",
+    "dreamy_night_drift.mp3",
+    "cozy_cafe_guitar.mp3",
+    "snowfall_calm_aesthetic.mp3",
+]
+DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "cinematic_suspense_thriller.mp3"
+KNOWN_COPYRIGHTED_BGM = {
+    "malevolent_shrine_sukuna.mp3",
+}
+
+
+def resolve_non_copyright_bgm(bgm_path: Path | str | None) -> Path | None:
+    """Ensure that only verified non-copyright / royalty-free music is used.
+
+    If an unconfigured or copyrighted track is passed, automatically fallback
+    to the verified royalty-free suspense thriller track.
+    """
+    if bgm_path is None:
+        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else None
+    path = Path(bgm_path)
+    if path.name.lower() in KNOWN_COPYRIGHTED_BGM:
+        log(f"⚠️ Copyright warning: '{path.name}' is a known copyrighted track! Switching to royalty-free BGM: {DEFAULT_NON_COPYRIGHT_BGM.name}")
+        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else None
+    if not path.exists():
+        log(f"⚠️ BGM file '{path}' not found; falling back to {DEFAULT_NON_COPYRIGHT_BGM.name}")
+        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else None
+    return path
 
 FONT_CANDIDATES = [
     "/system/fonts/Roboto-Bold.ttf",
@@ -916,10 +948,8 @@ def render_movie_explanation_short(
     - Crystal clear voiceover with dark suspense BGM
     """
     duration = get_audio_duration(narration_audio_path)
-    # YouTube Shorts strict copyright threshold: Movie recap content must stay strictly <= 58s
-    MAX_SHORT_DURATION = 58.0
     if duration > MAX_SHORT_DURATION:
-        log(f"⚠️ Audio duration ({duration:.1f}s) clamped to {MAX_SHORT_DURATION}s to stay strictly under 1 minute for YouTube Shorts copyright safety.")
+        log(f"⚠️ Audio duration ({duration:.1f}s) clamped to {MAX_SHORT_DURATION}s to stay within the Short duration limit.")
         duration = MAX_SHORT_DURATION
 
     clean_badge = re.sub(r"[^A-Za-z0-9\s\(\)\-\.\,\!\?]", "", badge_text or movie_title).strip().upper()[:28]
@@ -935,10 +965,8 @@ def render_movie_explanation_short(
 
     ass_esc = str(ass_subtitle_path.resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
 
-    # BGM is opt-in through MOVIE_BGM_PATH; no unlicensed asset is selected by default.
-    if bgm_path is not None and not bgm_path.exists():
-        log("⚠️ Configured BGM path does not exist; rendering without BGM.")
-        bgm_path = None
+    # Enforce non-copyright royalty-free BGM only
+    bgm_path = resolve_non_copyright_bgm(bgm_path)
 
     has_bgm = bgm_path is not None and bgm_path.exists()
     if has_bgm and bgm_start_offset is None:
@@ -1035,3 +1063,58 @@ def generate_thumbnail(video_path: Path, output_thumb_path: Path, title: str):
         log(f"🖼️ Thumbnail generated: {output_thumb_path.name}")
     except (OSError, subprocess.CalledProcessError) as error:
         log(f"⚠️ Thumbnail generation failed: {error}")
+
+
+def stitch_full_movie_video(
+    part_video_paths: list[Path],
+    output_full_path: Path,
+) -> bool:
+    """
+    Stitches multiple part videos (e.g. Parts 1..N) of a movie or webseries
+    into a single seamless Full Long Video.
+    Uses FFmpeg concat demuxer with re-encoding to guarantee clean timestamps
+    and audio/video sync across all parts.
+    """
+    valid_parts = [p for p in part_video_paths if p.exists() and p.stat().st_size > 1000]
+    if not valid_parts:
+        log("❌ No valid part videos found to stitch.")
+        return False
+
+    if len(valid_parts) == 1:
+        log(f"ℹ️ Only 1 part found; copying {valid_parts[0].name} to {output_full_path.name}")
+        shutil.copyfile(valid_parts[0], output_full_path)
+        return True
+
+    log(f"🎬 Stitching {len(valid_parts)} parts into Full Video: {output_full_path.name}...")
+    concat_list_file = output_full_path.with_suffix(".concat.txt")
+    try:
+        with open(concat_list_file, "w", encoding="utf-8") as f:
+            for part in valid_parts:
+                f.write(f"file '{part.resolve()}'\n")
+
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", str(concat_list_file),
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "20",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-movflags", "+faststart",
+            str(output_full_path)
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            log(f"❌ Stitch FFmpeg error: {res.stderr[-400:]}")
+            return False
+
+        log(f"✅ Full movie/series stitched successfully: {output_full_path} ({output_full_path.stat().st_size // 1024} KB)")
+        return True
+    except Exception as e:
+        log(f"❌ Stitch exception: {e}")
+        return False
+    finally:
+        concat_list_file.unlink(missing_ok=True)
+

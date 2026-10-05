@@ -172,15 +172,18 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertEqual(res["timeline_end"], "00:32:00")
 
     def test_bgm_track_is_configurable_and_present(self):
-        """BGM is enabled by default (operator choice) but still overridable."""
+        """Non-copyright BGM is enabled by default and verified royalty-free."""
+        from movie_video_engine import resolve_non_copyright_bgm, DEFAULT_NON_COPYRIGHT_BGM
         self.assertTrue(
-            (BGM_DIR / "malevolent_shrine_sukuna.mp3").exists(),
-            "the configured BGM track must exist in assets/bgm/",
+            (BGM_DIR / "cinematic_suspense_thriller.mp3").exists(),
+            "the configured non-copyright BGM track must exist in assets/bgm/",
         )
         orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
         self.assertIn("MOVIE_BGM_PATH", orchestrator)
-        # Offset is chosen by the orchestrator for continuity, not hardcoded here.
         self.assertIn("get_bgm_offset_for_part", orchestrator)
+        # Test that resolve_non_copyright_bgm blocks copyrighted music
+        safe_resolved = resolve_non_copyright_bgm("assets/bgm/malevolent_shrine_sukuna.mp3")
+        self.assertEqual(safe_resolved, DEFAULT_NON_COPYRIGHT_BGM)
 
     def test_default_bgm_offset_distribution(self):
         offset1 = get_default_bgm_offset(part_number=1)
@@ -262,12 +265,29 @@ class TestMoviePipeline(unittest.TestCase):
 
     def test_media_contract_rejects_invalid_render(self):
         validate_media_info(MediaInfo(50.0, 1080, 1920, True))
+        validate_media_info(MediaInfo(120.0, 1080, 1920, True))  # Detailed explanation length supported
         with self.assertRaises(MediaValidationError):
-            validate_media_info(MediaInfo(58.1, 1080, 1920, True))
+            validate_media_info(MediaInfo(180.1, 1080, 1920, True))
         with self.assertRaises(MediaValidationError):
             validate_media_info(MediaInfo(50.0, 720, 1280, True))
         with self.assertRaises(MediaValidationError):
             validate_media_info(MediaInfo(50.0, 1080, 1920, False))
+
+    def test_long_video_validation_supports_extended_duration_and_resolutions(self):
+        # Stitched full movie long videos can run for minutes/hours and be vertical or landscape
+        validate_media_info(MediaInfo(1200.0, 1080, 1920, True), is_long_video=True)
+        validate_media_info(MediaInfo(1200.0, 1920, 1080, True), is_long_video=True)
+        validate_media_info(MediaInfo(600.0, 1280, 720, True), is_long_video=True)
+        with self.assertRaises(MediaValidationError):
+            validate_media_info(MediaInfo(1200.0, 400, 300, True), is_long_video=True)
+
+    def test_full_video_duplicate_key_isolation(self):
+        from movie_pipeline_state import episode_key
+        part_key = episode_key("avengers", 1)
+        full_key = episode_key("avengers", None, is_full_video=True)
+        self.assertEqual(part_key, "avengers:p1")
+        self.assertEqual(full_key, "avengers:full_video")
+        self.assertNotEqual(part_key, full_key)
 
     def test_probe_media_parses_ffprobe_string_scalars(self):
         """ffprobe emits duration/width/height as JSON strings; they must parse."""

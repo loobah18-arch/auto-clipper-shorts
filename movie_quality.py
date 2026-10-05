@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import os
 import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-MAX_SHORT_DURATION = 58.0
+MAX_SHORT_DURATION = float(os.environ.get("MAX_SHORT_DURATION", "180.0"))
 EXPECTED_WIDTH = 1080
 EXPECTED_HEIGHT = 1920
 
@@ -79,24 +80,41 @@ def _integer(value: str | int | float | bool | None, field: str) -> int:
 def validate_media_info(
     info: MediaInfo,
     max_duration: float = MAX_SHORT_DURATION,
+    is_long_video: bool = False,
 ) -> None:
     """Validate already-probed media without invoking external tools."""
     if info.duration_sec <= 0:
         raise MediaValidationError("Rendered media duration must be positive")
-    if info.duration_sec > max_duration + 0.05:
+    effective_max = 14400.0 if is_long_video else max_duration
+    if info.duration_sec > effective_max + 0.05:
         raise MediaValidationError(
-            f"Rendered media is {info.duration_sec:.2f}s; maximum is {max_duration:.2f}s"
+            f"Rendered media is {info.duration_sec:.2f}s; maximum is {effective_max:.2f}s"
         )
-    if info.width != EXPECTED_WIDTH or info.height != EXPECTED_HEIGHT:
-        raise MediaValidationError(
-            f"Rendered media must be {EXPECTED_WIDTH}x{EXPECTED_HEIGHT}, "
-            f"got {info.width}x{info.height}"
+    if is_long_video:
+        valid_dimensions = (
+            (info.width == EXPECTED_WIDTH and info.height == EXPECTED_HEIGHT) or
+            (info.width == 1920 and info.height == 1080) or
+            (info.width == 1280 and info.height == 720)
         )
+        if not valid_dimensions:
+            raise MediaValidationError(
+                f"Rendered long video has unsupported dimensions: {info.width}x{info.height}"
+            )
+    else:
+        if info.width != EXPECTED_WIDTH or info.height != EXPECTED_HEIGHT:
+            raise MediaValidationError(
+                f"Rendered media must be {EXPECTED_WIDTH}x{EXPECTED_HEIGHT}, "
+                f"got {info.width}x{info.height}"
+            )
     if not info.has_audio:
         raise MediaValidationError("Rendered media must contain an audio stream")
 
 
-def probe_media(path: Path) -> MediaInfo:
+def probe_media(
+    path: Path,
+    max_duration: float = MAX_SHORT_DURATION,
+    is_long_video: bool = False,
+) -> MediaInfo:
     """Probe a rendered file and return normalized media metadata."""
     command = [
         "ffprobe",
@@ -151,5 +169,5 @@ def probe_media(path: Path) -> MediaInfo:
         height=_integer(video_stream.get("height"), "video height"),
         has_audio=has_audio,
     )
-    validate_media_info(info)
+    validate_media_info(info, max_duration=max_duration, is_long_video=is_long_video)
     return info

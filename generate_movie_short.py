@@ -60,6 +60,8 @@ from movie_video_engine import (
     create_cinematic_movie_visual_fallback,
     render_movie_explanation_short,
     generate_thumbnail,
+    resolve_non_copyright_bgm,
+    stitch_full_movie_video,
     log,
     OUTPUT_DIR,
 )
@@ -208,8 +210,14 @@ class UploadFailedError(RuntimeError):
         super().__init__(f"YouTube upload did not return a video ID for {title}")
 
 
-def upload_movie_to_youtube(video_path: Path, thumb_path: Path, movie_data: dict, dry_run: bool = False) -> str | None:
-    """Uploads the movie explanation short to YouTube."""
+def upload_movie_to_youtube(
+    video_path: Path,
+    thumb_path: Path,
+    movie_data: dict,
+    dry_run: bool = False,
+    is_short: bool = True,
+) -> str | None:
+    """Uploads the movie explanation short or normal long video to YouTube."""
     if dry_run:
         log("ℹ️ Dry-run mode enabled: Skipping YouTube upload.")
         return None
@@ -229,23 +237,37 @@ def upload_movie_to_youtube(video_path: Path, thumb_path: Path, movie_data: dict
     title_clean = movie_data.get("title", "Movie Explained")
     part_num = movie_data.get("part_number")
     tot_parts = movie_data.get("total_parts")
+    series_display = movie_data.get("series_title", title_clean)
+    year_str = f" ({movie_data.get('year')})" if movie_data.get("year") and str(movie_data.get("year")) not in title_clean else ""
 
-    if part_num:
+    if not is_short:
+        youtube_title = f"{series_display}{year_str} Full Movie Explained | Complete Story Recap"[:100]
+        next_teaser = "👉 Comment which movie or web series you want explained next!"
+        tags = list(dict.fromkeys(movie_data.get("tags", []) + [
+            "movieexplained", "movierecap", "fullmovieexplained", "moviegyan", "movieinsighthindi", "endingexplained", "plottwist", "cinema", "storyrecap"
+        ]))[:15]
+        video_kind = "FULL MOVIE EXPLANATION & COMPLETE RECAP"
+        hashtags = "#movieexplained #movierecap #fullmovieexplained #moviegyan #movieinsighthindi #endingexplained #plottwist #cinema #hollywood"
+    elif part_num:
         youtube_title = f"{title_clean} Ending Explained 😱 #Shorts #MovieExplained"[:100]
         next_teaser = f"👉 Part {part_num + 1} coming next! Like & Subscribe so you don't miss it!" if (tot_parts and part_num < tot_parts) else "👉 Comment which movie you want explained next!"
+        tags = list(dict.fromkeys(movie_data.get("tags", []) + [
+            "shorts", "movieexplained", "movierecap", "moviegyan", "movieinsighthindi", "plottwist", "cinema"
+        ]))[:15]
+        video_kind = "MOVIE EXPLANATION & EPISODIC RECAP"
+        hashtags = "#shorts #movieexplained #movierecap #moviegyan #movieinsighthindi #endingexplained #plottwist #cinema #hollywood"
     else:
-        year_str = f" ({movie_data.get('year')})" if movie_data.get("year") and str(movie_data.get("year")) not in title_clean else ""
-        youtube_title = f"{title_clean}{year_str} Ending Explained in 60s 😱 #Shorts #MovieExplained"[:100]
+        youtube_title = f"{title_clean}{year_str} Ending Explained 😱 #Shorts #MovieExplained"[:100]
         next_teaser = "👉 Comment which movie you want explained next!"
+        tags = list(dict.fromkeys(movie_data.get("tags", []) + [
+            "shorts", "movieexplained", "movierecap", "moviegyan", "movieinsighthindi", "plottwist", "cinema"
+        ]))[:15]
+        video_kind = "MOVIE EXPLANATION & STORY RECAP"
+        hashtags = "#shorts #movieexplained #movierecap #moviegyan #movieinsighthindi #endingexplained #plottwist #cinema #hollywood"
 
-    tags = list(dict.fromkeys(movie_data.get("tags", []) + [
-        "shorts", "movieexplained", "movierecap", "moviegyan", "movieinsighthindi", "plottwist", "cinema"
-    ]))[:15]
-
-    series_display = movie_data.get("series_title", title_clean)
     description = f"""{youtube_title}
 
-🎬 MOVIE EXPLANATION & EPISODIC RECAP
+🎬 {video_kind}
 Film: {series_display}
 Genre: {movie_data.get('genre', 'Action / Sci-Fi / Thriller')}
 
@@ -258,10 +280,11 @@ Narration and commentary are original to this channel. Visuals are sourced only 
 
 🔔 Subscribe to the channel for daily mind-blowing movie explanations, plot twists, and episodic recaps!
 
-#shorts #movieexplained #movierecap #moviegyan #movieinsighthindi #endingexplained #plottwist #cinema #hollywood
+{hashtags}
 """
 
-    log(f"🚀 Uploading Short to YouTube: '{youtube_title}'...")
+    upload_type_str = "Normal Video (16:9 / Full)" if not is_short else "Short (9:16)"
+    log(f"🚀 Uploading {upload_type_str} to YouTube channel @woosclips: '{youtube_title}'...")
     try:
         creds = Credentials(
             None,
@@ -295,7 +318,8 @@ Narration and commentary are original to this channel. Visuals are sourced only 
                 log(f"Upload progress: {int(status.progress() * 100)}%")
 
         vid_id = resp.get("id")
-        log(f"🎉 Successfully uploaded Short! URL: https://youtube.com/shorts/{vid_id}")
+        live_url = f"https://youtube.com/watch?v={vid_id}" if not is_short else f"https://youtube.com/shorts/{vid_id}"
+        log(f"🎉 Successfully uploaded {upload_type_str}! URL: {live_url}")
 
         # Set thumbnail if available
         if thumb_path and thumb_path.exists():
@@ -467,7 +491,7 @@ def run_pipeline(
         )
 
     configured_bgm = os.environ.get("MOVIE_BGM_PATH", "").strip()
-    bgm_file = Path(configured_bgm) if configured_bgm and Path(configured_bgm).exists() else None
+    bgm_file = resolve_non_copyright_bgm(configured_bgm if configured_bgm else None)
 
     # Continuous soundtrack: resume where the previous part's music ended.
     bgm_start_offset = 0.0
@@ -486,7 +510,7 @@ def run_pipeline(
             track_duration=track_duration,
         )
         log(
-            f"🎵 BGM resumes at {bgm_start_offset:.1f}s for part {part_number} "
+            f"🎵 Non-copyright BGM ({bgm_file.name}) resumes at {bgm_start_offset:.1f}s for part {part_number} "
             f"(continuous across {len(prior)} confirmed part(s))."
         )
 
@@ -509,7 +533,7 @@ def run_pipeline(
 
     youtube_id = None
     if upload_requested:
-        youtube_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data)
+        youtube_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=True)
     status = RunStatus.UPLOADED.value if youtube_id else (
         RunStatus.RENDERED.value if not upload_requested else RunStatus.FAILED.value
     )
@@ -559,6 +583,25 @@ def run_pipeline(
         )
     save_movie_history(HISTORY_FILE, history)
 
+    # Cache part video so that once all parts are finished, they can be stitched into a full long video
+    parts_cache_dir = OUTPUT_DIR / "parts_cache" / movie_id
+    parts_cache_dir.mkdir(parents=True, exist_ok=True)
+    if part_number is not None:
+        cached_part_path = parts_cache_dir / f"part_{part_number}.mp4"
+        shutil.copyfile(final_short_path, cached_part_path)
+        log(f"💾 Cached Part {part_number} video for full series stitching: {cached_part_path.name}")
+
+    # After all parts of a movie or web series have been explained, stitch and upload as a normal long video!
+    if part_number is not None and total_parts is not None and part_number >= total_parts:
+        log(f"🎉 Series '{movie_data.get('series_title', title)}' has reached its final part ({part_number}/{total_parts})!")
+        stitch_and_upload_full_series(
+            movie_id=movie_id,
+            movie_data=movie_data,
+            history=history,
+            upload_requested=upload_requested,
+            dry_run=dry_run,
+        )
+
     for temporary_path in (audio_path, raw_trailer_path, sliced_video_path):
         temporary_path.unlink(missing_ok=True)
 
@@ -571,6 +614,82 @@ def run_pipeline(
     if status == RunStatus.FAILED.value:
         raise UploadFailedError(title)
     return final_short_path
+
+
+def stitch_and_upload_full_series(
+    movie_id: str,
+    movie_data: dict,
+    history: dict,
+    upload_requested: bool = False,
+    dry_run: bool = False,
+) -> Path | None:
+    """Stitch all completed parts of a movie or webseries into a normal long video and upload it."""
+    parts_cache_dir = OUTPUT_DIR / "parts_cache" / movie_id
+    total_parts = movie_data.get("total_parts", 1)
+    series_title = movie_data.get("series_title", movie_data.get("title", "Movie Explained"))
+
+    available_parts = []
+    for p_i in range(1, total_parts + 1):
+        p_path = parts_cache_dir / f"part_{p_i}.mp4"
+        if p_path.exists():
+            available_parts.append(p_path)
+
+    if len(available_parts) < total_parts:
+        log(f"⚠️ Cannot stitch full video yet: Found {len(available_parts)}/{total_parts} parts in {parts_cache_dir}.")
+        return None
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    full_video_path = OUTPUT_DIR / f"{movie_id}_full_explained_{timestamp}.mp4"
+    full_thumb_path = OUTPUT_DIR / f"thumb_{movie_id}_full_{timestamp}.jpg"
+
+    log(f"🎬 Stitching all {total_parts} parts into Full Long Video: {full_video_path.name}...")
+    stitch_ok = stitch_full_movie_video(available_parts, full_video_path)
+    if not stitch_ok or not full_video_path.exists():
+        log("❌ Stitching full video failed.")
+        return None
+
+    generate_thumbnail(full_video_path, full_thumb_path, f"{series_title} Full Movie Explained")
+    media_info = probe_media(full_video_path, is_long_video=True)
+
+    full_movie_data = dict(movie_data)
+    full_movie_data["title"] = f"{series_title} Full Movie Explained | Complete Story Recap"
+    full_movie_data["part_number"] = None
+    full_movie_data["is_full_video"] = True
+
+    full_youtube_id = None
+    if upload_requested:
+        log(f"🚀 Uploading Normal Long Video to YouTube channel @woosclips: '{full_movie_data['title']}'...")
+        full_youtube_id = upload_movie_to_youtube(
+            full_video_path,
+            full_thumb_path,
+            full_movie_data,
+            dry_run=dry_run,
+            is_short=False,
+        )
+
+    full_status = RunStatus.UPLOADED.value if full_youtube_id else (
+        RunStatus.RENDERED.value if not upload_requested else RunStatus.FAILED.value
+    )
+    full_entry: dict[str, JsonValue] = {
+        "movie_id": movie_id,
+        "title": full_movie_data["title"],
+        "part_number": None,
+        "total_parts": total_parts,
+        "is_full_video": True,
+        "youtube_id": full_youtube_id,
+        "timestamp": utc_now(),
+        "video_path": full_video_path.name,
+        "duration_sec": round(media_info.duration_sec, 2),
+        "status": full_status,
+        "content_hash": sha256_file(full_video_path),
+        "source_type": "stitched_series",
+    }
+    append_history_entry(history, full_entry)
+    save_movie_history(HISTORY_FILE, history)
+    log(f"🌟 Full Normal Long Video completed successfully: {full_video_path.name} ({media_info.duration_sec:.1f}s)")
+    if full_youtube_id:
+        log(f"🔗 YouTube Normal Video URL: https://youtube.com/watch?v={full_youtube_id}")
+    return full_video_path
 
 
 def main():
@@ -586,6 +705,7 @@ def main():
     parser.add_argument("--video-file", type=str, default=None, help="Path to local high-res movie or scene pack MP4/MKV")
     parser.add_argument("--audio-file", type=str, default=None, help="Path to custom human-recorded voiceover MP3/WAV")
     parser.add_argument("--watermark", type=str, default=None, help="Channel watermark text (e.g. '@CinemaInsights')")
+    parser.add_argument("--stitch-series", type=str, default=None, help="Movie ID to stitch all cached parts into a Full Long Video")
     args = parser.parse_args()
 
     if args.list:
@@ -610,6 +730,22 @@ def main():
         for h in hist.get("uploaded_movies", [])[-5:]:
             p_str = f" [Part {h.get('part_number')}]" if h.get("part_number") else ""
             print(f"  • {h.get('title')}{p_str} -> {h.get('youtube_id')} ({h.get('timestamp')})")
+        return
+
+    if args.stitch_series:
+        cat_match = get_movie_from_catalog(args.stitch_series)
+        hist = load_movie_history(HISTORY_FILE)
+        if not cat_match:
+            log(f"❌ Movie '{args.stitch_series}' not found in catalog.")
+            return
+        m_id = str(cat_match.get("id", args.stitch_series))
+        stitch_and_upload_full_series(
+            movie_id=m_id,
+            movie_data=cat_match,
+            history=hist,
+            upload_requested=args.upload,
+            dry_run=args.dry_run,
+        )
         return
 
     run_pipeline(

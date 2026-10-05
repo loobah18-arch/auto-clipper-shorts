@@ -63,8 +63,10 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def episode_key(movie_id: str, part_number: int | None) -> str:
+def episode_key(movie_id: str, part_number: int | None, is_full_video: bool = False) -> str:
     """Build the stable identity used for duplicate protection."""
+    if is_full_video:
+        return f"{movie_id}:full_video"
     return f"{movie_id}:p{part_number}" if part_number is not None else f"{movie_id}:standalone"
 
 
@@ -230,12 +232,13 @@ def append_history_entry(history: dict[str, JsonValue], entry: dict[str, JsonVal
 
     movie_id = entry.get("movie_id")
     part_number = entry.get("part_number")
+    is_full_video = bool(entry.get("is_full_video", False))
     if not isinstance(movie_id, str) or not movie_id:
         raise HistoryError("History entry requires movie_id")
     if part_number is not None and not isinstance(part_number, int):
         raise HistoryError("History entry part_number must be an integer or null")
 
-    key = episode_key(movie_id, part_number)
+    key = episode_key(movie_id, part_number, is_full_video=is_full_video)
     if not entry_is_uploaded(entry):
         history["uploaded_movies"] = [*entries_value, dict(entry)]
         return
@@ -247,6 +250,7 @@ def append_history_entry(history: dict[str, JsonValue], entry: dict[str, JsonVal
         existing_key = episode_key(
             str(existing_record.get("movie_id", "")),
             existing_record.get("part_number") if isinstance(existing_record.get("part_number"), int) else None,
+            is_full_video=bool(existing_record.get("is_full_video", False)),
         )
         if existing_key == key:
             raise DuplicateEpisodeError(key)
