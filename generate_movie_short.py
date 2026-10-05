@@ -377,7 +377,7 @@ def run_pipeline(
         log(f"🎙️ Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
 
     if not voice:
-        voice = "hi-IN-MadhurNeural" if lang == "hi" else "en-US-ChristopherNeural"
+        voice = os.environ.get("DEFAULT_VOICE") or ("hi-IN-SwaraNeural" if lang == "hi" else "en-US-AnaNeural")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     audio_path = OUTPUT_DIR / f"{movie_id}_narration_{timestamp}.mp3"
@@ -696,7 +696,7 @@ def main():
     parser = argparse.ArgumentParser(description="Movie Explanation YouTube Shorts Automation Pipeline")
     parser.add_argument("--movie", type=str, default=None, help="Name of movie to explain (e.g. 'The Avengers (2012)')")
     parser.add_argument("--part", type=int, default=None, help="Part number of multi-part movie series (e.g. 1, 2, 3)")
-    parser.add_argument("--voice", type=str, default=None, help="Edge-TTS voice (default: en-US-ChristopherNeural)")
+    parser.add_argument("--voice", type=str, default=None, help="Edge-TTS voice (default: en-US-AnaNeural cute female)")
     parser.add_argument("--lang", type=str, choices=["en", "hi"], default="en", help="Language: 'en' or 'hi'")
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument("--dry-run", action="store_true", help="Render in the cloud without uploading to YouTube")

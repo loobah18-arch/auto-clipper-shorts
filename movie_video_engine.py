@@ -96,7 +96,7 @@ def find_system_font(language: str = "en") -> str:
     return "Noto Sans Devanagari" if language == "hi" else "DejaVu Sans"
 
 
-async def generate_speech_audio(script_text: str, output_audio_path: Path, voice: str = "en-US-ChristopherNeural", rate: str = "+4%") -> list:
+async def generate_speech_audio(script_text: str, output_audio_path: Path, voice: str = "en-US-AnaNeural", rate: str = "+4%") -> list:
     """Generate TTS audio and retain provider word boundaries when available."""
     if not edge_tts:
         raise RuntimeError("edge-tts is required for speech generation.")

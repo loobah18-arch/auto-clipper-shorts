@@ -22,8 +22,9 @@ on:
         default: 'en'
         type: string
       voice:
-        description: 'Neural voice override (e.g. en-US-ChristopherNeural or hi-IN-MadhurNeural)'
+        description: 'Neural voice override (default: en-US-AnaNeural cute female, or en-US-AvaNeural, hi-IN-SwaraNeural)'
         required: false
+        default: 'en-US-AnaNeural'
         type: string
       dry_run:
         description: 'Run pipeline without uploading to YouTube'
