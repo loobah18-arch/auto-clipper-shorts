@@ -567,7 +567,7 @@ def run_pipeline(
         bgm_path=bgm_file,
         watermark_text=watermark,
         part_number=part_number,
-        bgm_volume=0.065,
+        bgm_volume=0.28,
         bgm_start_offset=bgm_start_offset,
     )
     media_info = probe_media(final_short_path)

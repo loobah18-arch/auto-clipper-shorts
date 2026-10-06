@@ -1146,7 +1146,7 @@ def render_movie_explanation_short(
     watermark_text: str = None,
     part_number: int = None,
     bgm_start_offset: float = None,
-    bgm_volume: float = 0.065
+    bgm_volume: float = 0.28
 ) -> Path:
     """
     Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
@@ -1216,12 +1216,11 @@ def render_movie_explanation_short(
         cmd.extend(["-stream_loop", "-1", "-i", str(bgm_path)])
         # Viral Recapper audio mix (Movrecap style):
         # 1. Voice kept crisp and prominent (1.05x volume)
-        # 2. BGM clearly audible (volume=0.20-0.25) with iconic melody intact, gently rolled off above 6500Hz
+        # 2. BGM clearly audible (volume=0.25-0.30) with iconic melody intact, gently rolled off above 7500Hz
         # 3. amix duration=first, normalize=0 preserves full dynamic range without burying the music
-        effective_bgm_vol = bgm_volume if bgm_volume != 0.065 else 0.22
         audio_filters = (
             f"[1:a]volume=1.05[voice];"
-            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=1.0,volume={effective_bgm_vol:.3f},lowpass=f=6500[bgm];"
+            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=1.0,volume={bgm_volume:.3f},lowpass=f=7500[bgm];"
             f"[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[afinal]"
         )
         filter_complex = f"{video_filters};{audio_filters}"
