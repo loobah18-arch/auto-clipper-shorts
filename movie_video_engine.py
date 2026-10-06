@@ -37,6 +37,7 @@ ASSETS_DIR = WORKSPACE_DIR / "assets"
 BGM_DIR = ASSETS_DIR / "bgm"
 
 NON_COPYRIGHT_BGM_TRACKS = [
+    "feeling_blue.mp3",
     "mitski_washing_machine_heart.mp3",
     "cinematic_suspense_thriller.mp3",
     "cinematic_suspense_drone.mp3",
@@ -45,7 +46,7 @@ NON_COPYRIGHT_BGM_TRACKS = [
     "cozy_cafe_guitar.mp3",
     "snowfall_calm_aesthetic.mp3",
 ]
-DEFAULT_RECAPPERS_BGM = BGM_DIR / "mitski_washing_machine_heart.mp3"
+DEFAULT_RECAPPERS_BGM = BGM_DIR / "feeling_blue.mp3"
 DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "cinematic_suspense_thriller.mp3"
 KNOWN_COPYRIGHTED_BGM = {
     "malevolent_shrine_sukuna.mp3",

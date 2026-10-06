@@ -227,7 +227,7 @@ class TestMoviePipeline(unittest.TestCase):
         resolved = resolve_non_copyright_bgm(None)
         self.assertIsNotNone(resolved)
         self.assertTrue(resolved.exists())
-        self.assertIn(resolved.name, ["mitski_washing_machine_heart.mp3", "cinematic_suspense_thriller.mp3"])
+        self.assertIn(resolved.name, ["feeling_blue.mp3", "mitski_washing_machine_heart.mp3", "cinematic_suspense_thriller.mp3"])
 
     def test_subtitle_ass_generation(self):
         words = [
