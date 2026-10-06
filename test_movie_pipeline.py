@@ -64,8 +64,13 @@ from movie_video_engine import (
     OUTPUT_DIR,
     BGM_DIR,
     DEFAULT_BGM_OFFSETS,
-    get_default_bgm_offset
+    get_default_bgm_offset,
+    resolve_non_copyright_bgm,
+    detect_character_gender,
+    resolve_character_voice,
 )
+from movie_ai_script import is_stale_critic_analysis_script
+
 
 
 class TestMoviePipeline(unittest.TestCase):
@@ -152,6 +157,30 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertEqual(sig.parameters["voice"].default, "en-US-AvaNeural")
         self.assertEqual(sig.parameters["rate"].default, "+0%")
         self.assertEqual(sig.parameters["pitch"].default, "+0Hz")
+
+    def test_is_stale_critic_analysis_script(self):
+        critic_script = "What 99% of viewers missed in Avengers Endgame is the quiet grief. Notice how Russo's camera lingers, turning the quantum realm into a visual metaphor."
+        self.assertTrue(is_stale_critic_analysis_script(critic_script))
+
+        story_recap_script = "Bro — imagine waking up to find a rogue AI just hacked Earth's deadliest weapons. Tony Stark tries to stop it, but Ultron escapes into the internet!"
+        self.assertFalse(is_stale_critic_analysis_script(story_recap_script))
+
+    def test_detect_character_gender_and_resolve_voice(self):
+        female_script = "Hope Annabelle is a former gymnast who lost everything. She is broke and sleeping in her dad's basement until a letter changes her life."
+        self.assertEqual(detect_character_gender(female_script), "female")
+        self.assertEqual(resolve_character_voice("female", language="en"), "en-US-AvaNeural")
+        self.assertEqual(resolve_character_voice("female", language="hi"), "hi-IN-SwaraNeural")
+
+        male_script = "Tony Stark and Steve Rogers assemble the team to hunt down Thanos. He wields the infinity gauntlet with unstoppable force."
+        self.assertEqual(detect_character_gender(male_script), "male")
+        self.assertEqual(resolve_character_voice("male", language="en"), "en-US-GuyNeural")
+        self.assertEqual(resolve_character_voice("male", language="hi"), "hi-IN-MadhurNeural")
+
+    def test_resolve_non_copyright_bgm_mitski(self):
+        resolved = resolve_non_copyright_bgm(None)
+        self.assertIsNotNone(resolved)
+        self.assertTrue(resolved.exists())
+        self.assertIn(resolved.name, ["mitski_washing_machine_heart.mp3", "cinematic_suspense_thriller.mp3"])
 
     def test_subtitle_ass_generation(self):
         words = [

@@ -37,6 +37,7 @@ ASSETS_DIR = WORKSPACE_DIR / "assets"
 BGM_DIR = ASSETS_DIR / "bgm"
 
 NON_COPYRIGHT_BGM_TRACKS = [
+    "mitski_washing_machine_heart.mp3",
     "cinematic_suspense_thriller.mp3",
     "cinematic_suspense_drone.mp3",
     "lofi_chill_beats.mp3",
@@ -44,6 +45,7 @@ NON_COPYRIGHT_BGM_TRACKS = [
     "cozy_cafe_guitar.mp3",
     "snowfall_calm_aesthetic.mp3",
 ]
+DEFAULT_RECAPPERS_BGM = BGM_DIR / "mitski_washing_machine_heart.mp3"
 DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "cinematic_suspense_thriller.mp3"
 KNOWN_COPYRIGHTED_BGM = {
     "malevolent_shrine_sukuna.mp3",
@@ -51,13 +53,14 @@ KNOWN_COPYRIGHTED_BGM = {
 
 
 def resolve_non_copyright_bgm(bgm_path: Path | str | None) -> Path | None:
-    """Ensure that only verified non-copyright / royalty-free music is used.
+    """Ensure that verified viral recapper music is used.
 
-    If an unconfigured or copyrighted track is passed, automatically fallback
-    to the verified royalty-free suspense thriller track.
+    Defaults to Mitski Washing Machine Heart (from viral Movrecap shorts)
+    or the verified royalty-free suspense thriller track.
     """
     if bgm_path is None:
-        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else None
+        default_track = DEFAULT_RECAPPERS_BGM if DEFAULT_RECAPPERS_BGM.exists() else DEFAULT_NON_COPYRIGHT_BGM
+        return default_track if default_track.exists() else None
     path = Path(bgm_path)
     if path.name.lower() in KNOWN_COPYRIGHTED_BGM:
         log(f"⚠️ Copyright warning: '{path.name}' is a known copyrighted track! Switching to royalty-free BGM: {DEFAULT_NON_COPYRIGHT_BGM.name}")
@@ -66,6 +69,53 @@ def resolve_non_copyright_bgm(bgm_path: Path | str | None) -> Path | None:
         log(f"⚠️ BGM file '{path}' not found; falling back to {DEFAULT_NON_COPYRIGHT_BGM.name}")
         return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else None
     return path
+
+
+
+def detect_character_gender(script_text: str = "", movie_data: dict = None) -> str:
+    """Detect whether the protagonist / main character is male or female.
+
+    Priority:
+    1. Explicit 'character_gender' in movie_data ('male' or 'female')
+    2. Character name recognition
+    3. Pronoun frequency in script_text
+    Defaults to 'male' if ambiguous.
+    """
+    if movie_data:
+        explicit = movie_data.get("character_gender") or movie_data.get("gender")
+        if explicit and str(explicit).lower() in ("male", "female"):
+            return str(explicit).lower()
+
+        title_lower = str(movie_data.get("title", "")).lower()
+        if any(w in title_lower for w in ["the bronze", "black widow", "barbie", "fall", "mulan", "captain marvel", "wonder woman"]):
+            return "female"
+
+    if not script_text:
+        return "male"
+
+    text_lower = script_text.lower()
+
+    # Female indicators
+    female_indicators = [" she ", " her ", " hers ", " woman ", " girl ", " mother ", " sister ", " daughter ", " actress ", " heroine "]
+    female_score = sum(text_lower.count(w) for w in female_indicators)
+    if any(k in text_lower for k in ["hope annabelle", "black widow", "natasha", "wanda", "katniss", "maggie", "gemma", "becky", "hunter"]):
+        female_score += 4
+
+    # Male indicators
+    male_indicators = [" he ", " him ", " his ", " man ", " boy ", " father ", " brother ", " son ", " actor ", " hero ", " guy "]
+    male_score = sum(text_lower.count(w) for w in male_indicators)
+    if any(k in text_lower for k in ["tony stark", "steve rogers", "iron man", "captain america", "thor", "hulk", "loki", "bruce banner", "thanos", "peter parker", "spiderman", "paul atreides", "joker", "ted kaczynski"]):
+        male_score += 4
+
+    return "female" if female_score > male_score else "male"
+
+
+def resolve_character_voice(gender: str, language: str = "en") -> str:
+    """Return the ideal natural human neural voice based on character gender and language."""
+    if language == "hi":
+        return "hi-IN-SwaraNeural" if gender == "female" else "hi-IN-MadhurNeural"
+    return "en-US-AvaNeural" if gender == "female" else "en-US-GuyNeural"
+
 
 FONT_CANDIDATES = [
     "/system/fonts/Roboto-Bold.ttf",

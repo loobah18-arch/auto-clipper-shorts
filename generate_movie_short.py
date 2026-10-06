@@ -24,7 +24,12 @@ from pathlib import Path
 WORKSPACE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(WORKSPACE_DIR))
 
-from movie_ai_script import generate_movie_script_ai, load_catalog, get_movie_from_catalog
+from movie_ai_script import (
+    generate_movie_script_ai,
+    load_catalog,
+    get_movie_from_catalog,
+    is_stale_critic_analysis_script,
+)
 from movie_pipeline_state import (
     DuplicateEpisodeError,
     JsonValue,
@@ -61,10 +66,13 @@ from movie_video_engine import (
     render_movie_explanation_short,
     generate_thumbnail,
     resolve_non_copyright_bgm,
+    detect_character_gender,
+    resolve_character_voice,
     stitch_full_movie_video,
     log,
     OUTPUT_DIR,
 )
+
 
 HISTORY_FILE = WORKSPACE_DIR / "movie_history.json"
 
@@ -361,6 +369,29 @@ def run_pipeline(
     search_query = str(movie_data.get("search_query", f"{title} official trailer"))
     part_number = movie_data.get("part_number") if isinstance(movie_data.get("part_number"), int) else None
     total_parts = movie_data.get("total_parts") if isinstance(movie_data.get("total_parts"), int) else None
+    # Clean any leftover film-critic badges from older catalog entries
+    if "CRITICAL" in badge_text.upper() or "ANALYSIS" in badge_text.upper():
+        badge_text = f"{title.upper()[:14]} • P{part_number}" if part_number else "MOVIE RECAP"
+
+    # Enforce pure story recap: if script is missing or is an academic film critique, generate a real recap via AI
+    if not script_text or is_stale_critic_analysis_script(script_text):
+        if is_stale_critic_analysis_script(script_text):
+            log(f"⚠️ Stale film-critic analysis script detected for '{title}'. Discarding and generating pure story recap via AI...")
+        else:
+            log(f"🎙️ No pre-baked script for '{title}'. Generating pure story recap via AI...")
+
+        ai_data = generate_movie_script_ai(
+            movie_name=title,
+            part=part_number,
+            total_parts=total_parts,
+            language=lang,
+        )
+        script_text = str(ai_data.get("script", ""))
+        if ai_data.get("hook"):
+            movie_data["hook"] = ai_data["hook"]
+        if ai_data.get("badge") and ("CRITICAL" in badge_text.upper() or "ANALYSIS" in badge_text.upper()):
+            badge_text = str(ai_data["badge"])
+
     script_hash = hashlib.sha256(script_text.encode("utf-8")).hexdigest()
     render_seed = stable_seed(movie_id, str(part_number or "standalone"), script_hash)
     upload_requested = force_upload or not dry_run
@@ -374,10 +405,13 @@ def run_pipeline(
 
     log(f"📖 Movie: {title}")
     if script_text:
-        log(f"🎙️ Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
+        log(f"🎙️ Story Recap Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
 
+    # Character-aware voice selection: male or female voice matching protagonist
+    character_gender = detect_character_gender(script_text, movie_data)
     if not voice:
-        voice = os.environ.get("DEFAULT_VOICE") or ("hi-IN-SwaraNeural" if lang == "hi" else "en-US-AvaNeural")
+        voice = os.environ.get("DEFAULT_VOICE") or resolve_character_voice(character_gender, language=lang)
+    log(f"🎭 Character gender: '{character_gender.upper()}' ➔ Selected neural voice: '{voice}'")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     audio_path = OUTPUT_DIR / f"{movie_id}_narration_{timestamp}.mp3"

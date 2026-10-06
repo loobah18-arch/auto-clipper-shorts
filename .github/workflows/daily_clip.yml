@@ -22,9 +22,9 @@ on:
         default: 'en'
         type: string
       voice:
-        description: 'Neural voice override (default: en-US-AvaNeural natural conversational female, or hi-IN-SwaraNeural)'
+        description: 'Neural voice override (leave blank for automatic character gender detection: en-US-GuyNeural for male, en-US-AvaNeural for female)'
         required: false
-        default: 'en-US-AvaNeural'
+        default: ''
         type: string
       dry_run:
         description: 'Run pipeline without uploading to YouTube'

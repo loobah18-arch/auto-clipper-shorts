@@ -20,41 +20,40 @@ CATALOG_PATH = WORKSPACE_DIR / "movie_catalog.json"
 AUTO_CATALOG_PATH = WORKSPACE_DIR / "movie_catalog_auto.json"
 
 
-SYSTEM_PROMPT_EN = """You are an elite YouTube movie storyteller and recap narrator, in the exact viral style of MovieGyan, Filmity, and Movie Recaps.
+SYSTEM_PROMPT_EN = """You are an elite YouTube movie storyteller and recap narrator, in the exact viral style of Movrecap, Movie Recaps, Filmity, and Mystery Recaps.
 Your goal is to narrate an intense, fast-paced, highly detailed MOVIE EXPLANATION & STORY RECAP (200-350 words of immersive storytelling).
 
-CORE STORYTELLING & HUMAN VOICE RULES:
-1. MIMIC REAL HUMAN SPOKEN CADENCE: Write strictly for the spoken ear, NOT for silent reading. You must sound like a real, passionate human friend excitedly telling someone the craziest movie plot they have ever heard.
-2. SPOKEN CONTRACTIONS & BREATHING: Always use natural conversational contractions ('they're', 'can't', 'didn't', 'he's', 'it's', 'won't', 'what's'). Keep sentences punchy (8-18 words per breath). NEVER write dense 40-word run-on sentences with multiple commas that sound like a robotic teleprompter.
-3. DRAMATIC BREATH PAUSES & PROSODY: Heavily utilize em-dashes (' — ') and ellipses ('...') to give the voice natural breathing room, tension buildup, and dramatic pauses (e.g., 'Wait — look at that...', 'And then? Total silence.', 'Tony thought he was building a shield — but he created a nightmare.').
-4. CONVERSATIONAL CONNECTORS: Use natural spoken transitions and rhetorical questions ('And get this —', 'Believe it or not,', 'Guess what happens next?', 'Nobody saw this coming.', 'Before they could even react,').
-5. Tell the STORY and the PLOT with extreme urgency, suspense, emotional depth, and human drama. Dive into character motives, plot mechanics, and unexpected turns. NEVER give academic film analysis, director critiques, or symbolism lectures.
-6. Ban ALL corporate/academic critic phrases: NEVER say 'Notice how the director...', 'The real genius here is...', 'This psychological detail proves...', 'symbolizing fractured humanity', or 'critical analysis'.
-7. Hook (0-5s): Open with a high-stakes, human, conversational hook that stops the scroll immediately (e.g., 'Wait — imagine waking up to find a rogue AI just hacked Earth's deadliest weapons...', 'This man was trapped 200 feet underground for 20 years — until today...', 'Nobody believed him, but what he found in this bunker changed everything...').
-8. High-Tension Cliffhanger / Climax: End with an intense, unresolvable cliffhanger or mind-blowing conclusion driving viewers to the next part or full movie recap: 'Wait until you see how they survive this in Part 2! Drop a like and follow so you don't miss the showdown!'
+CORE STORYTELLING & HUMAN RECAP RULES:
+1. PURE STORY & PLOT RECAP: You are a story recapper, NOT a film critic. Recount what actually happens to the characters and the plot chronologically on screen. Dive into character motives, plot mechanics, conflicts, and twists.
+2. STRICT BAN ON FILM CRITIC PHRASES: NEVER mention directors, camera angles, lighting, cinematography, or film analysis. NEVER say 'Notice how the director...', 'The real genius here is...', 'This psychological detail proves...', 'turning the scene into a visual metaphor', 'fractured psyche', 'critical analysis', or 'study of inevitability'.
+3. MIMIC REAL HUMAN SPOKEN CADENCE: Write strictly for the spoken ear, NOT for silent reading. You must sound like a real, passionate human friend excitedly telling someone the craziest movie plot they have ever heard.
+4. SPOKEN CONTRACTIONS & BREATHING: Always use natural conversational contractions ('they're', 'can't', 'didn't', 'he's', 'it's', 'won't', 'what's'). Keep sentences punchy (8-18 words per breath). NEVER write dense 40-word run-on sentences with multiple commas that sound like a robotic teleprompter.
+5. DRAMATIC BREATH PAUSES & PROSODY: Heavily utilize em-dashes (' — ') and ellipses ('...') to give the voice natural breathing room, tension buildup, and dramatic pauses (e.g., 'Wait — look at that...', 'And then? Total silence.', 'Tony thought he was building a shield — but he created a nightmare.').
+6. CONVERSATIONAL CONNECTORS: Use natural spoken transitions and rhetorical questions ('And get this —', 'Believe it or not,', 'Guess what happens next?', 'Nobody saw this coming.', 'Before they could even react,').
+7. Hook (0-5s): Open with a high-stakes, human, conversational hook introducing the character's impossible situation (e.g., 'Wait — imagine waking up to find a rogue AI just hacked Earth's deadliest weapons...', 'This girl lost everything after an Olympic injury — until a shocking will forced her back into the gym...', 'Tony Stark lost everything when Thanos snapped his fingers — until a tiny quantum signal changes everything...').
+8. High-Tension Cliffhanger / Climax: End with an intense, unresolvable cliffhanger driving viewers to the next part or full movie recap: 'Wait until you see what happens next! Drop a like and follow so you don't miss Part 2!'
 9. Word count: Aim between 200 and 350 words to provide a complete, deeply engaging explanation.
 
 Respond ONLY with a valid JSON object matching this schema:
 {
   "title": "Movie Title (Year)",
-  "badge": "MOVIE RECAP (MAX 25 CHARS)",
+  "badge": "MOVIE RECAP",
   "hook": "High-tension opening story hook",
   "script": "The complete spoken narrative script (200-350 words)",
-  "tags": ["movieexplained", "movierecap", "moviegyan", "filmity", "plottwist", "cinema"]
+  "tags": ["movierecap", "movieexplained", "endingexplained", "storyexplained", "plottwist", "cinema"]
 }
 """
 
-SYSTEM_PROMPT_HI = """You are an elite YouTube movie storyteller and recap creator in conversational, energetic Hindi / Hinglish, in the exact viral style of MovieGyan and Movies Insight Hindi.
+SYSTEM_PROMPT_HI = """You are an elite YouTube movie storyteller and recap creator in conversational, energetic Hindi / Hinglish, in the exact viral style of Movrecap, MovieGyan and Movies Insight Hindi.
 Your goal is to narrate a thrilling, detailed MOVIE EXPLANATION & STORY RECAP (200-320 words).
 
 RULES:
-1. REAL HUMAN CONVERSATIONAL HINDI: Bilkul natural aur bolne wale andaaz mein likho, jaise ek sachha dost kahani suna raha ho. 'Bhai — socho agar...', 'Aur tab? Ek zabardast twist...', 'Lekin aage jo hua, kisi ne socha bhi nahi tha.'
+1. PURE STORYTELLING: Bilkul natural aur bolne wale andaaz mein kahani sunaao. Kirdaaron ke saath kya hota hai, unka sangharsh aur plot ke twists ko vistaar se samjhao. Koi boring film analysis, camera techniques ya director ka naam mat lo.
 2. NATURAL PAUSES & CADENCE: Em-dashes (' — ') aur ellipses ('...') ka use karo taaki aawaaz mein natural breath pauses aur suspense aaye ('Wait — dekho yahan kya hota hai...', 'Aur fir? Sannata.').
-3. PURE STORYTELLING: Kahani aur plot ko detailed aur thrilling andaaz mein narrate karo. Kirdaaron ke motives, suspense aur twists ko vistaar se samjhao. Koi boring film analysis ya director techniques mat samjhao.
-4. Hook: Shuruat aisi ho ki viewer scroll na kar sake (e.g., '200 saal se zameen ke niche kaid hai ye insaan — lekin aaj...', 'Ek aisi AI jo bante hi poori insaaniyat ko khatam karna chahti hai...').
-5. Detailed Story Beats: Har scene ke mod aur suspense ko theek se explain karo taaki viewer kahani mein poori tarah doob jaye.
-6. Cliffhanger / Ending: Ending par zabardast suspense chhodo taaki viewer agla part ya full video dekhe: 'Ab kya ye bach payenge? Dekhiye agle part mein! Like aur subscribe zaroor karna!'
-7. Word count: 200-320 words detailed explanation.
+3. Hook: Shuruat aisi ho ki viewer scroll na kar sake (e.g., 'Is ladki ne sab kuch kho diya tha — lekin ek ajeeb vasiyat ne sab badal diya...', '200 saal se zameen ke niche kaid hai ye insaan — lekin aaj...').
+4. Detailed Story Beats: Har scene ke mod aur suspense ko theek se explain karo taaki viewer kahani mein poori tarah doob jaye.
+5. Cliffhanger / Ending: Ending par zabardast suspense chhodo taaki viewer agla part ya full video dekhe: 'Ab kya ye bach payenge? Dekhiye agle part mein! Like aur subscribe zaroor karna!'
+6. Word count: 200-320 words detailed explanation.
 
 Respond ONLY with a valid JSON object:
 {
@@ -62,9 +61,37 @@ Respond ONLY with a valid JSON object:
   "badge": "MOVIE RECAP • HINDI",
   "hook": "Suspenseful Hindi opening hook",
   "script": "The complete spoken Hindi script (200-320 words)",
-  "tags": ["movieexplainedinhindi", "movieinsighthindi", "moviegyan", "filmity", "plottwist"]
+  "tags": ["movierecap", "movieexplainedinhindi", "movieinsighthindi", "storyexplained", "plottwist"]
 }
 """
+
+CRITIC_ANALYSIS_MARKERS = [
+    "what 99% of viewers",
+    "notice how",
+    "camera lingers",
+    "visual metaphor",
+    "fractured psyche",
+    "the real genius",
+    "critical analysis",
+    "symbolizing fractured",
+    "psychological tension",
+    "echoing frankenstein",
+    "cautionary tale about playing god",
+    "deep movie breakdowns",
+    "drop your theory in the comments",
+    "subtle color shift",
+    "framing mirrors",
+    "study of inevitability",
+]
+
+
+def is_stale_critic_analysis_script(script: str) -> bool:
+    """Detect if a script is an academic film critique / analysis essay rather than a pure story recap."""
+    if not script:
+        return False
+    s = script.lower()
+    return any(marker in s for marker in CRITIC_ANALYSIS_MARKERS)
+
 
 
 def _read_catalog_file(path: Path) -> list:
@@ -251,9 +278,14 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
         raise ModelReplyError(str(error), raw=content) from error
 
 
-def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
+def generate_movie_script_ai(
+    movie_name: str,
+    part: int | None = None,
+    total_parts: int | None = None,
+    language: str = "en",
+) -> dict:
     """
-    Generates a fresh MovieGyan-style movie explanation script using Groq /
+    Generates a fresh Movrecap-style movie recap script using Groq /
     OpenRouter / DeepSeek, falling back to a generic template only if every
     provider fails.
 
@@ -266,7 +298,23 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
     api_key_openrouter = os.environ.get("OPENROUTER_API_KEY")
 
     sys_prompt = SYSTEM_PROMPT_HI if language == "hi" else SYSTEM_PROMPT_EN
-    user_prompt = f"Narrate an intense, fast-paced movie explanation recap Short for '{movie_name}'. Tell the story with thrilling momentum, high character stakes, and end with an urgent cliffhanger for the next part."
+    if part is not None:
+        part_str = f"Part {part}{f' of {total_parts}' if total_parts else ''}"
+        user_prompt = (
+            f"Narrate an intense, fast-paced MOVIE RECAP for '{movie_name}' ({part_str}). "
+            "Tell what happens to the characters and the plot chronologically on screen. "
+            "Focus purely on character dilemmas, actions, and conflict. "
+            "NEVER mention camera angles, directors, metaphors, or film analysis. "
+            "End with an urgent cliffhanger driving viewers to the next part."
+        )
+    else:
+        user_prompt = (
+            f"Narrate an intense, fast-paced MOVIE RECAP for '{movie_name}'. "
+            "Tell what happens to the characters and the plot chronologically on screen. "
+            "Focus purely on character dilemmas, actions, and conflict. "
+            "NEVER mention camera angles, directors, metaphors, or film analysis. "
+            "End with a thrilling climax or cliffhanger."
+        )
 
     def finish(result: dict, source: str) -> dict:
         result["search_query"] = f"{result.get('title', movie_name)} official trailer"
@@ -377,25 +425,25 @@ def generate_movie_script_ai(movie_name: str, language: str = "en") -> dict:
             print(f"[movie_ai_script] DeepSeek script generation failed: {e}")
 
     catalog_match = get_movie_from_catalog(movie_name)
-    if catalog_match:
+    if catalog_match and catalog_match.get("script") and not is_stale_critic_analysis_script(catalog_match.get("script", "")):
         found = dict(catalog_match)
         found["script_source"] = "catalog"
         return found
 
-    # Generic template. Flagged so callers can refuse to publish filler.
+    # Generic story recap template. Flagged so callers can refuse to publish filler.
     return {
         "title": f"{movie_name.title()}",
-        "badge": f"{movie_name.upper()[:22]}",
+        "badge": "MOVIE RECAP",
         "search_query": f"{movie_name} official trailer",
-        "hook": f"What really happened in {movie_name}?",
+        "hook": f"What happens in {movie_name}?",
         "script": (
-            f"{movie_name} is one of cinema's most intense psychological thrillers. "
-            f"The protagonist is placed into an impossible dilemma where every choice comes with a devastating price. "
-            f"As the mystery unravels, allies turn into suspects and the boundary between perception and reality completely shatters. "
-            f"When the final sequence arrives, the truth is revealed in a devastating twist that changes how you view every previous scene. "
-            f"Drop a like and subscribe for more mind-blowing movie explanations!"
+            f"In {movie_name}, everything changes in an instant. "
+            f"The main character faces an impossible choice when their entire world is turned upside down. "
+            f"As enemies close in and secrets unravel, they must fight against overwhelming odds just to survive. "
+            f"Every single step pushes them closer to an edge where one wrong move could cost everything. "
+            f"Drop a like and follow for the shocking conclusion!"
         ),
-        "tags": ["movieexplained", "movierecap", "moviegyan", "plottwist", "cinema", "shorts"],
+        "tags": ["movierecap", "movieexplained", "endingexplained", "plottwist", "cinema", "shorts"],
         "script_source": "template",
     }
 
