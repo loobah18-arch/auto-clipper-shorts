@@ -68,6 +68,7 @@ from movie_video_engine import (
     resolve_non_copyright_bgm,
     detect_character_gender,
     resolve_character_voice,
+    is_indian_movie,
 )
 from movie_ai_script import is_stale_critic_analysis_script
 
@@ -175,6 +176,52 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertEqual(detect_character_gender(male_script), "male")
         self.assertEqual(resolve_character_voice("male", language="en"), "en-US-GuyNeural")
         self.assertEqual(resolve_character_voice("male", language="hi"), "hi-IN-MadhurNeural")
+
+    def test_is_indian_movie_detection(self):
+        # Known Indian titles
+        self.assertTrue(is_indian_movie(title="RRR (2022)"))
+        self.assertTrue(is_indian_movie(title="KGF Chapter 2"))
+        self.assertTrue(is_indian_movie(title="Pushpa: The Rise"))
+        self.assertTrue(is_indian_movie(title="Stree 2"))
+        self.assertTrue(is_indian_movie(title="Tumbbad (2018)"))
+        self.assertTrue(is_indian_movie(title="Mirzapur Season 3"))
+        self.assertTrue(is_indian_movie(title="Dangal"))
+        self.assertTrue(is_indian_movie(title="Baahubali: The Beginning"))
+        self.assertTrue(is_indian_movie(title="Jawan"))
+        self.assertTrue(is_indian_movie(title="Panchayat Season 2"))
+
+        # Explicit metadata
+        self.assertTrue(is_indian_movie(movie_data={"language": "hindi", "title": "Random Movie"}))
+        self.assertTrue(is_indian_movie(movie_data={"country": "India", "title": "Random Movie"}))
+        self.assertTrue(is_indian_movie(movie_data={"genre": "Bollywood Thriller", "title": "Random"}))
+        self.assertTrue(is_indian_movie(movie_data={"tags": ["bollywood", "action"], "title": "Random"}))
+
+        # Devanagari script detection
+        self.assertTrue(is_indian_movie(title="दंगल"))
+        self.assertTrue(is_indian_movie(script_text="यह एक रहस्यमयी कहानी है"))
+
+        # Non-Indian titles
+        self.assertFalse(is_indian_movie(title="The Avengers (2012)"))
+        self.assertFalse(is_indian_movie(title="Dune Part Two"))
+        self.assertFalse(is_indian_movie(title="The Bronze (2015)"))
+        self.assertFalse(is_indian_movie(title="Interstellar (2014)"))
+
+    def test_indian_movie_auto_hindi_voice_routing(self):
+        from generate_movie_short import select_next_movie
+        # Indian movie automatically resolves to Hindi voice
+        male_indian = {"title": "KGF Chapter 2", "script": "Rocky bhai arrives in KGF with immense power and he rules the empire."}
+        gender = detect_character_gender(male_indian["script"], male_indian)
+        self.assertEqual(gender, "male")
+        self.assertTrue(is_indian_movie(movie_data=male_indian))
+        voice = resolve_character_voice(gender, language="hi")
+        self.assertEqual(voice, "hi-IN-MadhurNeural")
+
+        female_indian = {"title": "Stree 2", "script": "She roams the village at night in a red saree and her whispers echo in the dark."}
+        gender = detect_character_gender(female_indian["script"], female_indian)
+        self.assertEqual(gender, "female")
+        self.assertTrue(is_indian_movie(movie_data=female_indian))
+        voice = resolve_character_voice(gender, language="hi")
+        self.assertEqual(voice, "hi-IN-SwaraNeural")
 
     def test_resolve_non_copyright_bgm_mitski(self):
         resolved = resolve_non_copyright_bgm(None)

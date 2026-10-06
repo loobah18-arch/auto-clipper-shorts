@@ -68,6 +68,7 @@ from movie_video_engine import (
     resolve_non_copyright_bgm,
     detect_character_gender,
     resolve_character_voice,
+    is_indian_movie,
     stitch_full_movie_video,
     log,
     OUTPUT_DIR,
@@ -158,6 +159,9 @@ def select_next_movie(requested_movie: str = None, requested_part: int = None, l
         cat_match = get_movie_from_catalog(requested_movie)
         if cat_match:
             return resolve_part(cat_match, requested_part)
+        if lang == "en" and is_indian_movie(movie_data=cat_match, title=requested_movie):
+            lang = "hi"
+            log(f"🇮🇳 Indian movie requested ('{requested_movie}') ➔ Defaulted language to Hindi ('{lang}')")
         ai_movie = generate_movie_script_ai(requested_movie, language=lang)
         if requested_part:
             ai_movie["part_number"] = requested_part
@@ -372,6 +376,11 @@ def run_pipeline(
     # Clean any leftover film-critic badges from older catalog entries
     if "CRITICAL" in badge_text.upper() or "ANALYSIS" in badge_text.upper():
         badge_text = f"{title.upper()[:14]} • P{part_number}" if part_number else "MOVIE RECAP"
+
+    # Auto-detect Indian movie: automatically switch language to Hindi ('hi') if movie/series is Indian
+    if lang == "en" and is_indian_movie(movie_data=movie_data, title=title, script_text=script_text):
+        lang = "hi"
+        log(f"🇮🇳 Indian movie detected ('{title}') ➔ Automatically activated Hindi narration ('{lang}') & MovieGyan style!")
 
     # Enforce pure story recap: if script is missing or is an academic film critique, generate a real recap via AI
     if not script_text or is_stale_critic_analysis_script(script_text):

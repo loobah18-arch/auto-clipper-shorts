@@ -117,6 +117,78 @@ def resolve_character_voice(gender: str, language: str = "en") -> str:
     return "en-US-AvaNeural" if gender == "female" else "en-US-GuyNeural"
 
 
+INDIAN_MOVIE_KEYWORDS = [
+    # Prominent Indian franchises & titles
+    "rrr", "kgf", "pushpa", "baahubali", "bahubali", "dangal", "sholay", "jawan", "pathaan",
+    "animal", "stree", "kantara", "tumbbad", "drishyam", "gangs of wasseypur", "wasseypur",
+    "brahmastra", "salaar", "kalki", "leo", "vikram", "jailer", "singham", "bajrangi bhaijaan",
+    "pk", "3 idiots", "lagaan", "dilwale dulhania le jayenge", "ddlj", "kabhi khushi kabhie gham",
+    "andhadhun", "article 15", "badhaai ho", "queen", "padmaavat", "bajirao mastani",
+    "kabir singh", "war", "tiger", "chhaava", "bhool bhulaiyaa", "munna bhai", "herapheri",
+    "hera pheri", "golmaal", "dhoom", "don", "om shanti om", "taare zameen par",
+    "swades", "chak de india", "gully boy", "super 30", "chhappak", "sardar udham",
+    "drishyam 2", "kantara", "stree 2", "bhediya", "munjya",
+    # Indian web series
+    "mirzapur", "sacred games", "panchayat", "farzi", "asur", "the family man", "family man",
+    "scam 1992", "delhi crime", "kota factory", "gullak", "special ops", "paatal lok",
+    "aspirants", "taaza khabar", "breathe", "aranyak", "criminal justice", "rocket boys"
+]
+
+
+def is_indian_movie(movie_data: dict | None = None, title: str = "", script_text: str = "") -> bool:
+    """Detect whether a movie or series is Indian (Bollywood, Tollywood, Kollywood, web series).
+
+    Checks:
+    1. Explicit language in movie_data ('hi', 'hindi', 'hinglish', 'te', 'ta', 'mr', 'kn', 'ml')
+    2. Explicit country / region / industry ('india', 'bollywood', 'tollywood', 'kollywood')
+    3. Devanagari Unicode characters ([\u0900-\u097F]) in title or script
+    4. Known Indian keywords, franchise titles, or series in title or movie_data
+    """
+    if movie_data:
+        lang = str(movie_data.get("language") or movie_data.get("lang") or "").lower()
+        if lang in ("hi", "hindi", "hinglish", "te", "ta", "mr", "kn", "ml", "bengali", "punjabi"):
+            return True
+
+        country = str(movie_data.get("country") or movie_data.get("origin") or "").lower()
+        if country in ("india", "in", "bharat"):
+            return True
+
+        industry = str(movie_data.get("industry") or movie_data.get("cinema") or "").lower()
+        if any(ind in industry for ind in ("bollywood", "tollywood", "kollywood", "mollywood", "sandalwood", "pollywood")):
+            return True
+
+        tags = movie_data.get("tags", [])
+        if isinstance(tags, list):
+            tags_lower = [str(t).lower() for t in tags]
+            if any(t in ("bollywood", "tollywood", "kollywood", "hindi", "indianmovie", "indiancinema", "hindicinema") for t in tags_lower):
+                return True
+
+        if not title:
+            title = str(movie_data.get("title", ""))
+
+    title_lower = title.lower()
+    script_lower = script_text.lower() if script_text else ""
+
+    # Check for Devanagari script in title or script
+    if re.search(r"[\u0900-\u097F]", title) or (script_text and re.search(r"[\u0900-\u097F]", script_text)):
+        return True
+
+    # Check for prominent Indian movie names and series keywords
+    for keyword in INDIAN_MOVIE_KEYWORDS:
+        # Match whole word / title boundaries
+        pattern = rf"(^|[^\w]){re.escape(keyword)}([^\w]|$)"
+        if re.search(pattern, title_lower):
+            return True
+
+    # Also check tags or genres if movie_data provided
+    if movie_data:
+        genre = str(movie_data.get("genre", "")).lower()
+        if any(w in genre for w in ("bollywood", "hindi cinema", "indian")):
+            return True
+
+    return False
+
+
 FONT_CANDIDATES = [
     "/system/fonts/Roboto-Bold.ttf",
     "/system/fonts/DroidSans-Bold.ttf",
