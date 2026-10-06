@@ -1214,13 +1214,14 @@ def render_movie_explanation_short(
     cmd = ["ffmpeg", "-y", "-i", str(sliced_video_path), "-i", str(narration_audio_path)]
     if has_bgm:
         cmd.extend(["-stream_loop", "-1", "-i", str(bgm_path)])
-        # Subdued dark BGM mix:
-        # 1. Speech boosted to 1.15x for crystal-clear narration
-        # 2. BGM trimmed to thematic movement offset, smooth 1.5s fade-in, lowpass filtered (3200Hz) to prevent vocal clashes, and kept low (0.065)
-        # 3. normalize=0 ensures voice volume is not cut in half, alimiter protects against clipping
+        # Viral Recapper audio mix (Movrecap style):
+        # 1. Voice kept crisp and prominent (1.05x volume)
+        # 2. BGM clearly audible (volume=0.20-0.25) with iconic melody intact, gently rolled off above 6500Hz
+        # 3. amix duration=first, normalize=0 preserves full dynamic range without burying the music
+        effective_bgm_vol = bgm_volume if bgm_volume != 0.065 else 0.22
         audio_filters = (
-            f"[1:a]volume=1.15[voice];"
-            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=1.5,volume={bgm_volume:.3f},lowpass=f=3200[bgm];"
+            f"[1:a]volume=1.05[voice];"
+            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=1.0,volume={effective_bgm_vol:.3f},lowpass=f=6500[bgm];"
             f"[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[afinal]"
         )
         filter_complex = f"{video_filters};{audio_filters}"

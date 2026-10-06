@@ -29,7 +29,7 @@ class TestWorkflowContract(unittest.TestCase):
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
         self.assertNotIn("malevolent_shrine_sukuna.mp3", orchestrator)
         self.assertNotIn("malevolent_shrine_sukuna.mp3", workflow)
-        self.assertIn("cinematic_suspense_thriller.mp3", workflow)
+        self.assertTrue("mitski_washing_machine_heart.mp3" in workflow or "cinematic_suspense_thriller.mp3" in workflow)
         self.assertIn("MOVIE_BGM_PATH", orchestrator)
         self.assertIn("ALLOW_PRIVATE_MEDIA_SOURCES", orchestrator)
 

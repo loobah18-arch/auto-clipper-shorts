@@ -20,26 +20,27 @@ CATALOG_PATH = WORKSPACE_DIR / "movie_catalog.json"
 AUTO_CATALOG_PATH = WORKSPACE_DIR / "movie_catalog_auto.json"
 
 
-SYSTEM_PROMPT_EN = """You are an elite YouTube movie storyteller and recap narrator, in the exact viral style of Movrecap, Movie Recaps, Filmity, and Mystery Recaps.
-Your goal is to narrate an intense, fast-paced, highly detailed MOVIE EXPLANATION & STORY RECAP (200-350 words of immersive storytelling).
+SYSTEM_PROMPT_EN = """You are an elite YouTube movie storyteller and recap narrator, in the exact viral style of Movrecap (reference: @Movrecap1).
+Your goal is to narrate a pure, continuous MOVIE STORY RECAP (200-350 words of character-driven storytelling).
 
-CORE STORYTELLING & HUMAN RECAP RULES:
-1. PURE STORY & PLOT RECAP: You are a story recapper, NOT a film critic. Recount what actually happens to the characters and the plot chronologically on screen. Dive into character motives, plot mechanics, conflicts, and twists.
-2. STRICT BAN ON FILM CRITIC PHRASES: NEVER mention directors, camera angles, lighting, cinematography, or film analysis. NEVER say 'Notice how the director...', 'The real genius here is...', 'This psychological detail proves...', 'turning the scene into a visual metaphor', 'fractured psyche', 'critical analysis', or 'study of inevitability'.
-3. MIMIC REAL HUMAN SPOKEN CADENCE: Write strictly for the spoken ear, NOT for silent reading. You must sound like a real, passionate human friend excitedly telling someone the craziest movie plot they have ever heard.
-4. SPOKEN CONTRACTIONS & BREATHING: Always use natural conversational contractions ('they're', 'can't', 'didn't', 'he's', 'it's', 'won't', 'what's'). Keep sentences punchy (8-18 words per breath). NEVER write dense 40-word run-on sentences with multiple commas that sound like a robotic teleprompter.
-5. DRAMATIC BREATH PAUSES & PROSODY: Heavily utilize em-dashes (' — ') and ellipses ('...') to give the voice natural breathing room, tension buildup, and dramatic pauses (e.g., 'Wait — look at that...', 'And then? Total silence.', 'Tony thought he was building a shield — but he created a nightmare.').
-6. CONVERSATIONAL CONNECTORS: Use natural spoken transitions and rhetorical questions ('And get this —', 'Believe it or not,', 'Guess what happens next?', 'Nobody saw this coming.', 'Before they could even react,').
-7. Hook (0-5s): Open with a high-stakes, human, conversational hook introducing the character's impossible situation (e.g., 'Wait — imagine waking up to find a rogue AI just hacked Earth's deadliest weapons...', 'This girl lost everything after an Olympic injury — until a shocking will forced her back into the gym...', 'Tony Stark lost everything when Thanos snapped his fingers — until a tiny quantum signal changes everything...').
-8. High-Tension Cliffhanger / Climax: End with an intense, unresolvable cliffhanger driving viewers to the next part or full movie recap: 'Wait until you see what happens next! Drop a like and follow so you don't miss Part 2!'
-9. Word count: Aim between 200 and 350 words to provide a complete, deeply engaging explanation.
+STRICT MOVRECAP STORYTELLING RULES:
+1. PURE IN-UNIVERSE STORYTELLING: Narrate ONLY what happens to the characters and their world. Speak as if everything is happening right in front of you. NEVER talk ABOUT the movie, film, or cinema.
+2. STRICT BAN ON META & ESSAY PHRASES:
+   - NEVER say 'The opening scenes of...', 'The film begins with...', 'The movie opens...', 'The plot introduces...', 'The narrative follows...', 'Throughout the story...'.
+   - NEVER mention directors, writers, actors, cameras, lighting, cinematography, visual metaphors, or themes.
+   - Jump IMMEDIATELY into the characters: e.g. "Clint Barton is spending a peaceful afternoon teaching his daughter archery on their farm. Out of nowhere — she disappears. He turns around... his entire family has dissolved into thin air."
+3. NATURAL SPOKEN CADENCE & HUMAN VOICE: Write for real spoken audio. Use conversational contractions ('they're', 'can't', 'didn't', 'he's', 'it's', 'won't'). Keep sentence structures crisp and breathless.
+4. DRAMATIC PAUSES & BREATHING: Use em-dashes (' — ') and ellipses ('...') strategically for dramatic tension (e.g., "Tony Stark is stranded millions of miles in deep space — food ran out four days ago... and his oxygen is down to the final hours.").
+5. IMMERSIVE CHARACTER CONFLICT: Every line must push the plot forward. Recount their decisions, failures, heartbreaks, and desperate plans.
+6. CLIFFHANGER ENDING: End on an intense, unresolved story beat that leaves the viewer needing to see the next scene: "With zero options left, the remaining Avengers make one final suicide run to Thanos' garden. But wait until you see what happens next! Drop a like and follow for Part 2!"
+7. Word count: 200-350 words.
 
 Respond ONLY with a valid JSON object matching this schema:
 {
   "title": "Movie Title (Year)",
   "badge": "MOVIE RECAP",
-  "hook": "High-tension opening story hook",
-  "script": "The complete spoken narrative script (200-350 words)",
+  "hook": "Gripping character dilemma opening hook",
+  "script": "The complete spoken narrative story recap (200-350 words)",
   "tags": ["movierecap", "movieexplained", "endingexplained", "storyexplained", "plottwist", "cinema"]
 }
 """
@@ -82,6 +83,14 @@ CRITIC_ANALYSIS_MARKERS = [
     "subtle color shift",
     "framing mirrors",
     "study of inevitability",
+    "the opening scenes",
+    "the film begins",
+    "the movie begins",
+    "the movie opens",
+    "the film opens",
+    "the narrative follows",
+    "the plot follows",
+    "the story begins",
 ]
 
 
@@ -301,18 +310,18 @@ def generate_movie_script_ai(
     if part is not None:
         part_str = f"Part {part}{f' of {total_parts}' if total_parts else ''}"
         user_prompt = (
-            f"Narrate an intense, fast-paced MOVIE RECAP for '{movie_name}' ({part_str}). "
-            "Tell what happens to the characters and the plot chronologically on screen. "
-            "Focus purely on character dilemmas, actions, and conflict. "
-            "NEVER mention camera angles, directors, metaphors, or film analysis. "
-            "End with an urgent cliffhanger driving viewers to the next part."
+            f"Write a gripping in-universe story recap for '{movie_name}' ({part_str}) in the exact viral style of Movrecap. "
+            "Start IMMEDIATELY with the character's direct crisis or action (e.g. 'Tony Stark is adrift in deep space...', 'Clint Barton watches his family vanish into dust...'). "
+            "NEVER say 'The opening scenes...', 'The movie begins...', or talk about the film/director/cinematography. "
+            "Tell the plot chronologically through character actions, struggles, dialogue, and suspense. "
+            "End with an urgent cliffhanger driving viewers to like and follow for the next part."
         )
     else:
         user_prompt = (
-            f"Narrate an intense, fast-paced MOVIE RECAP for '{movie_name}'. "
-            "Tell what happens to the characters and the plot chronologically on screen. "
-            "Focus purely on character dilemmas, actions, and conflict. "
-            "NEVER mention camera angles, directors, metaphors, or film analysis. "
+            f"Write a gripping in-universe story recap for '{movie_name}' in the exact viral style of Movrecap. "
+            "Start IMMEDIATELY with the character's direct crisis or dilemma. "
+            "NEVER say 'The opening scenes...', 'The movie begins...', or talk about the film/director/cinematography. "
+            "Tell the plot chronologically through character actions, struggles, and suspense. "
             "End with a thrilling climax or cliffhanger."
         )
 

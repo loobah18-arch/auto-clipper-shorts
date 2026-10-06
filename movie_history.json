@@ -413,28 +413,15 @@
       "status": "uploaded",
       "content_hash": "54b8551b81e2937e6d66c47b8ce1c12e5b41b885643054916e796286a14465c9",
       "source_type": "private_media"
-    },
-    {
-      "movie_id": "avengers_endgame",
-      "title": "Avengers Endgame - Part 1/6",
-      "part_number": 1,
-      "total_parts": 6,
-      "youtube_id": "Ia28c_1SRzE",
-      "timestamp": "2026-10-06T04:43:05.927146+00:00",
-      "video_path": "movie_short_avengers_endgame_20261006_044029.mp4",
-      "duration_sec": 111.9,
-      "status": "uploaded",
-      "content_hash": "e750833e016fa3ed500fc4878050717f7b9a809014eea203cd0d3f72807ceed3",
-      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "avengers_endgame",
     "movie_title": "Avengers Endgame",
-    "current_part": 1,
+    "current_part": 0,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-06T04:43:05.927189+00:00"
+    "last_updated": "2026-10-06T09:16:00.000000+00:00"
   },
   "superseded_uploads": [
     {
@@ -544,6 +531,21 @@
       "source_type": "private_media",
       "superseded_at": "2026-10-06T04:20:54.011882+00:00",
       "superseded_reason": "Reset to Part 1 with pure story recap style and character-aware voice per user request."
+    },
+    {
+      "movie_id": "avengers_endgame",
+      "title": "Avengers Endgame - Part 1/6",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": "Ia28c_1SRzE",
+      "timestamp": "2026-10-06T04:43:05.927146+00:00",
+      "video_path": "movie_short_avengers_endgame_20261006_044029.mp4",
+      "duration_sec": 111.9,
+      "status": "uploaded",
+      "content_hash": "e750833e016fa3ed500fc4878050717f7b9a809014eea203cd0d3f72807ceed3",
+      "source_type": "private_media",
+      "superseded_at": "2026-10-06T09:16:00.000000+00:00",
+      "superseded_reason": "Reset to Part 1 with Mitski Washing Machine Heart BGM and strict Movrecap character-driven narration."
     }
   ],
   "reset_note": "2026-09-27: Avengers series reset so the next run starts at Part 1. current_part is the last COMPLETED part (selection uses current_part + 1), so it must be 0 to begin at Part 1. Prior Avengers records are in superseded_uploads and no longer block re-rendering."
