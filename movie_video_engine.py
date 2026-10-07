@@ -111,11 +111,12 @@ def detect_character_gender(script_text: str = "", movie_data: dict = None) -> s
     return "female" if female_score > male_score else "male"
 
 
-def resolve_character_voice(gender: str, language: str = "en") -> str:
-    """Return the ideal natural human neural voice based on character gender and language."""
+def resolve_character_voice(gender: str = "female", language: str = "en") -> str:
+    """Return the ideal natural human neural voice. Default is cute teenage girl (en-US-AnaNeural)."""
     if language == "hi":
         return "hi-IN-SwaraNeural" if gender == "female" else "hi-IN-MadhurNeural"
-    return "en-US-AvaNeural" if gender == "female" else "en-US-GuyNeural"
+    # Cute teenage girl voice requested by user as primary channel identity
+    return "en-US-AnaNeural"
 
 
 INDIAN_MOVIE_KEYWORDS = [
@@ -294,7 +295,7 @@ def humanize_speech_text(text: str) -> str:
 async def generate_speech_audio(
     script_text: str,
     output_audio_path: Path,
-    voice: str = "en-US-AvaNeural",
+    voice: str = "en-US-AnaNeural",
     rate: str = "+0%",
     pitch: str = "+0Hz",
 ) -> list:
@@ -1147,7 +1148,7 @@ def render_movie_explanation_short(
     watermark_text: str = None,
     part_number: int = None,
     bgm_start_offset: float = None,
-    bgm_volume: float = 0.28
+    bgm_volume: float = 0.40,
 ) -> Path:
     """
     Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
@@ -1220,8 +1221,8 @@ def render_movie_explanation_short(
         # 2. BGM clearly audible (volume=0.25-0.30) with iconic melody intact, gently rolled off above 7500Hz
         # 3. amix duration=first, normalize=0 preserves full dynamic range without burying the music
         audio_filters = (
-            f"[1:a]volume=1.05[voice];"
-            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=1.0,volume={bgm_volume:.3f},lowpass=f=7500[bgm];"
+            f"[1:a]volume=1.0[voice];"
+            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=0.8,volume={bgm_volume:.3f}[bgm];"
             f"[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[afinal]"
         )
         filter_complex = f"{video_filters};{audio_filters}"

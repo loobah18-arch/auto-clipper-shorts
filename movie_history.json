@@ -413,28 +413,15 @@
       "status": "uploaded",
       "content_hash": "54b8551b81e2937e6d66c47b8ce1c12e5b41b885643054916e796286a14465c9",
       "source_type": "private_media"
-    },
-    {
-      "movie_id": "avengers_endgame",
-      "title": "Avengers Endgame - Part 1/6",
-      "part_number": 1,
-      "total_parts": 6,
-      "youtube_id": "C76mstJRjSg",
-      "timestamp": "2026-10-07T05:43:47.797812+00:00",
-      "video_path": "movie_short_avengers_endgame_20261007_054103.mp4",
-      "duration_sec": 97.1,
-      "status": "uploaded",
-      "content_hash": "dbeadb1ba5c1e1778a4bb2f471f8621d5d5a4982303b5bef8208beb597e71295",
-      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "avengers_endgame",
     "movie_title": "Avengers Endgame",
-    "current_part": 1,
+    "current_part": 0,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-07T05:43:47.797882+00:00"
+    "last_updated": "2026-10-07T08:00:00.000000+00:00"
   },
   "superseded_uploads": [
     {
@@ -634,6 +621,21 @@
       "source_type": "private_media",
       "superseded_at": "2026-10-07T05:37:00.000000+00:00",
       "superseded_reason": "Blocked by Content ID on Feeling Blue BGM track. Replaced with guaranteed royalty-free cinematic suspense BGM."
+    },
+    {
+      "movie_id": "avengers_endgame",
+      "title": "Avengers Endgame - Part 1/6",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": "C76mstJRjSg",
+      "timestamp": "2026-10-07T05:43:47.797812+00:00",
+      "video_path": "movie_short_avengers_endgame_20261007_054103.mp4",
+      "duration_sec": 97.1,
+      "status": "uploaded",
+      "content_hash": "dbeadb1ba5c1e1778a4bb2f471f8621d5d5a4982303b5bef8208beb597e71295",
+      "source_type": "private_media",
+      "superseded_at": "2026-10-07T08:00:00.000000+00:00",
+      "superseded_reason": "Reset to Part 1: BGM was inaudible due to low source master level; Guy voice replaced with cute teenage girl (en-US-AnaNeural); explanation tone made conversational and human."
     }
   ],
   "reset_note": "2026-09-27: Avengers series reset so the next run starts at Part 1. current_part is the last COMPLETED part (selection uses current_part + 1), so it must be 0 to begin at Part 1. Prior Avengers records are in superseded_uploads and no longer block re-rendering."
