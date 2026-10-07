@@ -413,41 +413,15 @@
       "status": "uploaded",
       "content_hash": "54b8551b81e2937e6d66c47b8ce1c12e5b41b885643054916e796286a14465c9",
       "source_type": "private_media"
-    },
-    {
-      "movie_id": "avengers_endgame",
-      "title": "Avengers Endgame - Part 1/6",
-      "part_number": 1,
-      "total_parts": 6,
-      "youtube_id": "aD2fZaNUoIs",
-      "timestamp": "2026-10-06T15:44:42.614827+00:00",
-      "video_path": "movie_short_avengers_endgame_20261006_154216.mp4",
-      "duration_sec": 106.82,
-      "status": "uploaded",
-      "content_hash": "bffb2175d97ebd6561b5086f15db0a1638b7fea4b159674c534f4d543660807c",
-      "source_type": "private_media"
-    },
-    {
-      "movie_id": "avengers_endgame",
-      "title": "Avengers Endgame - Part 2/6",
-      "part_number": 2,
-      "total_parts": 6,
-      "youtube_id": "iqvuxSzKykk",
-      "timestamp": "2026-10-06T23:53:49.188643+00:00",
-      "video_path": "movie_short_avengers_endgame_20261006_235006.mp4",
-      "duration_sec": 104.31,
-      "status": "uploaded",
-      "content_hash": "b7a924b4df107b936f74f9ac17f8e31fd458e2a556eb92a08fdebdb3cca93feb",
-      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "avengers_endgame",
     "movie_title": "Avengers Endgame",
-    "current_part": 2,
+    "current_part": 0,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-06T23:53:49.188704+00:00"
+    "last_updated": "2026-10-07T05:37:00.000000+00:00"
   },
   "superseded_uploads": [
     {
@@ -617,6 +591,36 @@
       "source_type": "private_media",
       "superseded_at": "2026-10-06T15:38:00.000000+00:00",
       "superseded_reason": "Reset to Part 1: BGM audio had vocal narration bleed from source rip. Replaced with pure clean instrumental."
+    },
+    {
+      "movie_id": "avengers_endgame",
+      "title": "Avengers Endgame - Part 1/6",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": "aD2fZaNUoIs",
+      "timestamp": "2026-10-06T15:44:42.614827+00:00",
+      "video_path": "movie_short_avengers_endgame_20261006_154216.mp4",
+      "duration_sec": 106.82,
+      "status": "uploaded",
+      "content_hash": "bffb2175d97ebd6561b5086f15db0a1638b7fea4b159674c534f4d543660807c",
+      "source_type": "private_media",
+      "superseded_at": "2026-10-07T05:37:00.000000+00:00",
+      "superseded_reason": "Blocked by Content ID on commercial BGM track. Replaced with guaranteed royalty-free cinematic suspense BGM."
+    },
+    {
+      "movie_id": "avengers_endgame",
+      "title": "Avengers Endgame - Part 2/6",
+      "part_number": 2,
+      "total_parts": 6,
+      "youtube_id": "iqvuxSzKykk",
+      "timestamp": "2026-10-06T23:53:49.188643+00:00",
+      "video_path": "movie_short_avengers_endgame_20261006_235006.mp4",
+      "duration_sec": 104.31,
+      "status": "uploaded",
+      "content_hash": "b7a924b4df107b936f74f9ac17f8e31fd458e2a556eb92a08fdebdb3cca93feb",
+      "source_type": "private_media",
+      "superseded_at": "2026-10-07T05:37:00.000000+00:00",
+      "superseded_reason": "Blocked by Content ID on Feeling Blue BGM track. Replaced with guaranteed royalty-free cinematic suspense BGM."
     }
   ],
   "reset_note": "2026-09-27: Avengers series reset so the next run starts at Part 1. current_part is the last COMPLETED part (selection uses current_part + 1), so it must be 0 to begin at Part 1. Prior Avengers records are in superseded_uploads and no longer block re-rendering."
