@@ -112,11 +112,10 @@ def detect_character_gender(script_text: str = "", movie_data: dict = None) -> s
 
 
 def resolve_character_voice(gender: str = "female", language: str = "en") -> str:
-    """Return the ideal natural human neural voice. Default is cute teenage girl (en-US-AnaNeural)."""
+    """Return the ideal natural human neural voice. Matches Movies Insight Hindi & cute teenage storytelling."""
     if language == "hi":
         return "hi-IN-SwaraNeural" if gender == "female" else "hi-IN-MadhurNeural"
-    # Cute teenage girl voice requested by user as primary channel identity
-    return "en-US-AnaNeural"
+    return "en-US-EmmaNeural"
 
 
 INDIAN_MOVIE_KEYWORDS = [
@@ -295,9 +294,9 @@ def humanize_speech_text(text: str) -> str:
 async def generate_speech_audio(
     script_text: str,
     output_audio_path: Path,
-    voice: str = "en-US-AnaNeural",
-    rate: str = "+0%",
-    pitch: str = "+0Hz",
+    voice: str = "en-US-EmmaNeural",
+    rate: str = "+2%",
+    pitch: str = "+2Hz",
 ) -> list:
     """Generate TTS audio and retain provider word boundaries when available."""
     if not edge_tts:
