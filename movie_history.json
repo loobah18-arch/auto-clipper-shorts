@@ -465,15 +465,28 @@
       "status": "uploaded",
       "content_hash": "3d81fb015c3c895b2ff207855ac36ad1bcf0f42ddb7a4df1e723df74867d5a72",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "avengers_endgame",
+      "title": "Avengers Endgame - Part 5/6",
+      "part_number": 5,
+      "total_parts": 6,
+      "youtube_id": "GFCgWlTf8tI",
+      "timestamp": "2026-10-08T15:41:45.712428+00:00",
+      "video_path": "movie_short_avengers_endgame_20261008_153835.mp4",
+      "duration_sec": 80.79,
+      "status": "uploaded",
+      "content_hash": "f51f37d5b668f546c7198fac1d125bb94de9421b7d5deb10b24eebe41ee15766",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "avengers_endgame",
     "movie_title": "Avengers Endgame",
-    "current_part": 4,
+    "current_part": 5,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-08T07:22:14.748987+00:00"
+    "last_updated": "2026-10-08T15:41:45.712493+00:00"
   },
   "superseded_uploads": [
     {
