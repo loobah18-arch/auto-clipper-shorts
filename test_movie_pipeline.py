@@ -155,9 +155,9 @@ class TestMoviePipeline(unittest.TestCase):
     def test_generate_speech_audio_signature_and_defaults(self):
         import inspect
         sig = inspect.signature(generate_speech_audio)
-        self.assertEqual(sig.parameters["voice"].default, "en-US-EmmaNeural")
-        self.assertEqual(sig.parameters["rate"].default, "+2%")
-        self.assertEqual(sig.parameters["pitch"].default, "+2Hz")
+        self.assertEqual(sig.parameters["voice"].default, "en-US-AvaNeural")
+        self.assertEqual(sig.parameters["rate"].default, "+0%")
+        self.assertEqual(sig.parameters["pitch"].default, "+0Hz")
 
     def test_is_stale_critic_analysis_script(self):
         critic_script = "What 99% of viewers missed in Avengers Endgame is the quiet grief. Notice how Russo's camera lingers, turning the quantum realm into a visual metaphor."
@@ -169,12 +169,12 @@ class TestMoviePipeline(unittest.TestCase):
     def test_detect_character_gender_and_resolve_voice(self):
         female_script = "Hope Annabelle is a former gymnast who lost everything. She is broke and sleeping in her dad's basement until a letter changes her life."
         self.assertEqual(detect_character_gender(female_script), "female")
-        self.assertEqual(resolve_character_voice("female", language="en"), "en-US-EmmaNeural")
+        self.assertEqual(resolve_character_voice("female", language="en"), "en-US-AvaNeural")
         self.assertEqual(resolve_character_voice("female", language="hi"), "hi-IN-SwaraNeural")
 
         male_script = "Tony Stark and Steve Rogers assemble the team to hunt down Thanos. He wields the infinity gauntlet with unstoppable force."
         self.assertEqual(detect_character_gender(male_script), "male")
-        self.assertEqual(resolve_character_voice("male", language="en"), "en-US-EmmaNeural")
+        self.assertEqual(resolve_character_voice("male", language="en"), "en-US-AvaNeural")
         self.assertEqual(resolve_character_voice("male", language="hi"), "hi-IN-MadhurNeural")
 
     def test_is_indian_movie_detection(self):
@@ -227,7 +227,7 @@ class TestMoviePipeline(unittest.TestCase):
         resolved = resolve_non_copyright_bgm(None)
         self.assertIsNotNone(resolved)
         self.assertTrue(resolved.exists())
-        self.assertIn(resolved.name, ["cinematic_suspense_thriller.mp3", "cinematic_suspense_drone.mp3"])
+        self.assertIn(resolved.name, ["hot_heat_topher_mohr.mp3", "cinematic_suspense_thriller.mp3", "cinematic_suspense_drone.mp3"])
 
     def test_subtitle_ass_generation(self):
         words = [
@@ -292,7 +292,7 @@ class TestMoviePipeline(unittest.TestCase):
         """Non-copyright BGM is enabled by default and verified royalty-free."""
         from movie_video_engine import resolve_non_copyright_bgm, DEFAULT_NON_COPYRIGHT_BGM
         self.assertTrue(
-            (BGM_DIR / "cinematic_suspense_thriller.mp3").exists(),
+            (BGM_DIR / "hot_heat_topher_mohr.mp3").exists(),
             "the configured non-copyright BGM track must exist in assets/bgm/",
         )
         orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")

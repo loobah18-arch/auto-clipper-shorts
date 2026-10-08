@@ -232,7 +232,7 @@ jobs:
           ALLOW_PRIVATE_MEDIA_SOURCES: ${{ secrets.ALLOW_PRIVATE_MEDIA_SOURCES || 'false' }}
           GDRIVE_FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
           GDRIVE_FILE_NAME: ${{ secrets.GDRIVE_FILE_NAME }}
-          MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH || 'assets/bgm/cinematic_suspense_thriller.mp3' }}
+          MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH || 'assets/bgm/hot_heat_topher_mohr.mp3' }}
           ALLOW_TRAILER_SEARCH: 'false'
           ALLOW_EXTERNAL_ARTWORK: 'false'
           INPUT_MOVIE_NAME: ${{ inputs.movie_name }}
