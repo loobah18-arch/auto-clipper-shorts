@@ -478,15 +478,42 @@
       "status": "uploaded",
       "content_hash": "f51f37d5b668f546c7198fac1d125bb94de9421b7d5deb10b24eebe41ee15766",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "avengers_endgame",
+      "title": "Avengers Endgame - Part 6/6",
+      "part_number": 6,
+      "total_parts": 6,
+      "youtube_id": "xu7eX31YQ28",
+      "timestamp": "2026-10-09T00:26:55.784081+00:00",
+      "video_path": "movie_short_avengers_endgame_20261009_002419.mp4",
+      "duration_sec": 86.46,
+      "status": "uploaded",
+      "content_hash": "40fe19c11d838edfaa5a7b08c75665305947c469bef9e0fa1b43d91864a189ad",
+      "source_type": "private_media"
+    },
+    {
+      "movie_id": "avengers_endgame",
+      "title": "Avengers Endgame Full Movie Explained | Complete Story Recap",
+      "part_number": null,
+      "total_parts": 6,
+      "is_full_video": true,
+      "youtube_id": "eYXvYmduVxo",
+      "timestamp": "2026-10-09T00:30:03.956256+00:00",
+      "video_path": "avengers_endgame_full_explained_20261009_002655.mp4",
+      "duration_sec": 470.7,
+      "status": "uploaded",
+      "content_hash": "635dea06f9ac24fffe9ad19b22e810884f2b872e1048f951b356de83c6322ef1",
+      "source_type": "stitched_series"
     }
   ],
   "current_series": {
     "movie_id": "avengers_endgame",
     "movie_title": "Avengers Endgame",
-    "current_part": 5,
+    "current_part": 6,
     "total_parts": 6,
-    "completed": false,
-    "last_updated": "2026-10-08T15:41:45.712493+00:00"
+    "completed": true,
+    "last_updated": "2026-10-09T00:26:55.784141+00:00"
   },
   "superseded_uploads": [
     {
