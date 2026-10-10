@@ -24,6 +24,91 @@
   },
   "movies": [
     {
+      "id": "avengers_infinity_war",
+      "title": "Avengers Infinity War",
+      "year": 2018,
+      "genre": "Superhero Action Sci-Fi",
+      "badge": "AVENGERS INFINITY WAR",
+      "hook": "Imagine surviving the death of your home world, only for the deadliest warlord in the universe to choke a god to death in front of you...",
+      "script": "Imagine surviving the apocalyptic destruction of your home world, only for the universe's deadliest warlord to blow your escape ship wide open and execute an immortal god with his bare hands. That is how Avengers Infinity War begins! Thanos ambushes the surviving Asgardians, effortlessly pummels the Hulk unconscious, and brutally chokes Loki to death right in front of Thor. With his dying breath, Heimdall summons dark magic to launch the Hulk straight to Earth. Bruce Banner crashes through the ceiling of Doctor Strange's Sanctum Sanctorum with one terrifying warning: Thanos is coming, and he is hunting the six Infinity Stones. Tony Stark is forced to pull out the old flip phone to call Steve Rogers — but before he can dial, a massive alien dreadnought descends over New York City! Hit like and follow for Part 2 as the battle for Manhattan explodes!",
+      "tags": [
+        "avengersinfinitywar",
+        "thanos",
+        "ironman",
+        "spiderman",
+        "doctorstrange",
+        "thor",
+        "captainamerica",
+        "movieexplained",
+        "movierecap",
+        "shorts"
+      ],
+      "parts_available": 6,
+      "total_parts": 6,
+      "parts": [
+        {
+          "part_number": 1,
+          "title": "Avengers Infinity War - Part 1/6",
+          "badge": "INFINITY WAR • P1",
+          "timeline_start": "00:00:45",
+          "timeline_end": "00:24:00",
+          "hook": "Imagine surviving the death of your home world, only for the deadliest warlord in the universe to choke a god to death in front of you...",
+          "script": "Imagine surviving the apocalyptic destruction of your home world, only for the universe's deadliest warlord to blow your escape ship wide open and execute an immortal god with his bare hands. That is how Avengers Infinity War begins! Thanos ambushes the surviving Asgardians, effortlessly pummels the Hulk unconscious, and brutally chokes Loki to death right in front of Thor. With his dying breath, Heimdall summons dark magic to launch the Hulk straight to Earth. Bruce Banner crashes through the ceiling of Doctor Strange's Sanctum Sanctorum with one terrifying warning: Thanos is coming, and he is hunting the six Infinity Stones. Tony Stark is forced to pull out the old flip phone to call Steve Rogers — but before he can dial, a massive alien dreadnought descends over New York City! Hit like and follow for Part 2 as the battle for Manhattan explodes!",
+          "tags": ["avengersinfinitywar", "thanos", "loki", "thor", "ironman", "doctorstrange", "part1", "shorts"]
+        },
+        {
+          "part_number": 2,
+          "title": "Avengers Infinity War - Part 2/6",
+          "badge": "INFINITY WAR • P2",
+          "timeline_start": "00:24:00",
+          "timeline_end": "00:48:00",
+          "hook": "A massive alien warship hovers over Manhattan, and Tony Stark activates bleeding-edge nanotech armor to take on the Black Order!",
+          "script": "A colossal ring-shaped alien warship descends over Manhattan, and Tony Stark activates his bleeding-edge nanotech armor to take on Ebony Maw and Cull Obsidian! Doctor Strange conjures mystic shields, and Peter Parker abandons his school bus to join the fray. But Maw's telekinetic power is overwhelming. He suffocates Strange and drags him aboard the mothership. Iron Man and Spider-Man rocket into deep space to stage an impossible mid-flight rescue. Meanwhile in Scotland, Wanda and Vision are brutally ambushed in the dark by Corvus Glaive and Proxima Midnight, desperate to rip the Mind Stone from Vision's forehead. Wanda is cornered and outmatched — until a train passes, and Captain America, Black Widow, and Falcon emerge from the shadows to beat the aliens back! Out in deep space, the Guardians of the Galaxy collide with Thor floating unconscious among the wreckage. Part 3 is where the cosmic war escalates — subscribe so you don't miss it!",
+          "tags": ["avengersinfinitywar", "captainamerica", "blackwidow", "spiderman", "ironman", "part2", "shorts"]
+        },
+        {
+          "part_number": 3,
+          "title": "Avengers Infinity War - Part 3/6",
+          "badge": "INFINITY WAR • P3",
+          "timeline_start": "00:48:00",
+          "timeline_end": "01:12:00",
+          "hook": "The cosmic war fractures across the galaxy as Thor sets out to forge a weapon capable of killing Thanos!",
+          "script": "The cosmic war fractures across the galaxy as the heroes split up on three desperate missions. Thor reveals that only the giant dwarven forges of Nidavellir can craft a weapon powerful enough to kill Thanos. He teams up with Rocket and Groot, while Star-Lord and Gamora head to Knowhere to protect the Reality Stone. Meanwhile aboard the alien dreadnought, Tony Stark and Peter Parker pull off an insane plan inspired by the movie Alien: they breach the spaceship's hull, blasting Ebony Maw into the freezing vacuum of space and rescuing Doctor Strange! Tony officially dubs Peter an Avenger, deciding to take the battle directly to Thanos on his ruined homeworld of Titan. But on Knowhere, pure tragedy strikes. The Guardians find Thanos, and Gamora seemingly stabs him to death — only for reality to dissolve. Thanos already has the Reality Stone! He turns their weapons into bubbles and abducts Gamora into the dark! Wait until you see the devastating sacrifice in Part 4!",
+          "tags": ["avengersinfinitywar", "gamora", "starlord", "guardiansofthegalaxy", "thor", "part3", "shorts"]
+        },
+        {
+          "part_number": 4,
+          "title": "Avengers Infinity War - Part 4/6",
+          "badge": "INFINITY WAR • P4",
+          "timeline_start": "01:12:00",
+          "timeline_end": "01:36:00",
+          "hook": "Thanos reveals the horrifying price of the Soul Stone: you must sacrifice the one thing in the universe you love most!",
+          "script": "Thanos shows how utterly ruthless he truly is. Aboard his flagship, he tortures Nebula by disassembling her cybernetic body piece by piece, forcing Gamora to reveal the hidden location of the Soul Stone on the desolate world of Vormir. Escorted by the ghostly Red Skull, Thanos learns the horrifying price of the cosmic stone: a soul for a soul. In order to claim it, you must sacrifice what you love most. Gamora mocks him, thinking he is incapable of love — until she sees tears streaming down his face. In cold blood, Thanos throws Gamora off the cliff, watching her body shatter on the rocks below so he can claim the glowing orange stone. Meanwhile on Titan, Iron Man and Spider-Man clash with the Guardians before realizing they are fighting the same monster. Doctor Strange uses the Time Stone to glimpse fourteen million possible futures — and delivers the chilling truth: they only win in one! Like and follow for the epic clash on Titan in Part 5!",
+          "tags": ["avengersinfinitywar", "vormir", "soulstone", "gamora", "doctorstrange", "titan", "part4", "shorts"]
+        },
+        {
+          "part_number": 5,
+          "title": "Avengers Infinity War - Part 5/6",
+          "badge": "INFINITY WAR • P5",
+          "timeline_start": "01:36:00",
+          "timeline_end": "02:00:00",
+          "hook": "The ambush on Titan is inches from victory — until Star-Lord learns the truth and loses control!",
+          "script": "The ambush on Titan is one of the most intense battles in cinematic history. As Thanos arrives wielding four Infinity Stones, the team unleashes their master plan. Doctor Strange binds his hands with mystic ropes, Spider-Man leaps through portals to deliver relentless blows, and Mantis drops from the sky to put the Mad Titan into a psychic slumber. With the Gauntlet inches from slipping off Thanos's fingers, Star-Lord demands to know where Gamora is. The moment Mantis reveals Thanos killed her, Quill flies into an uncontrollable rage, pistol-whipping Thanos across the face and shattering Mantis's trance! An enraged Thanos breaks loose, pulls the crust of the literal moon down from orbit, and brutally impales Tony Stark with his own nanotech blade! With Tony on the brink of death, Doctor Strange makes the unthinkable choice: he hands over the Time Stone to save Stark's life! Part 6 is the devastating finale in Wakanda — hit follow so you don't miss the snap!",
+          "tags": ["avengersinfinitywar", "battleoftitan", "ironman", "thanos", "spiderman", "starlord", "part5", "shorts"]
+        },
+        {
+          "part_number": 6,
+          "title": "Avengers Infinity War - Part 6/6",
+          "badge": "INFINITY WAR • P6",
+          "timeline_start": "02:00:00",
+          "timeline_end": "02:26:00",
+          "hook": "Thousands of alien beasts storm Wakanda, and Thor drops from the sky in a flash of lightning wielding Stormbreaker!",
+          "script": "The Battle of Wakanda reaches its apocalyptic climax. Thousands of ravenous alien Outriders breach the shields, pushing Captain America and the Avengers to the brink of death — until lightning splits the sky and Thor arrives wielding Stormbreaker, completely obliterating the enemy army! But victory is ripped away in seconds as Thanos teleports onto the battlefield with five Infinity Stones. He brushes Earth's mightiest heroes aside like insects. In tears, Wanda unleashes pure raw power to destroy the Mind Stone, sacrificing the love of her life. But Thanos simply activates the Time Stone, rewinds the clock, and rips the stone straight out of Vision's forehead! Thor dives from the sky, burying Stormbreaker deep into Thanos's chest. But Thanos whispers the most terrifying line in cinema: 'You should have gone for the head.' With one snap of his fingers, half the universe disintegrates into dust. That concludes our Avengers recap! Comment which movie you want explained next!",
+          "tags": ["avengersinfinitywar", "wakanda", "thesnap", "thor", "thanos", "vision", "captainamerica", "part6", "shorts"]
+        }
+      ]
+    },
+    {
       "id": "the_avengers_2012",
       "title": "The Avengers (2012)",
       "year": 2012,

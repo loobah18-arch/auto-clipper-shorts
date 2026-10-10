@@ -505,7 +505,17 @@
       "status": "uploaded",
       "content_hash": "635dea06f9ac24fffe9ad19b22e810884f2b872e1048f951b356de83c6322ef1",
       "source_type": "stitched_series"
-    },
+    }
+  ],
+  "current_series": {
+    "movie_id": "avengers_infinity_war",
+    "movie_title": "Avengers Infinity War",
+    "current_part": 0,
+    "total_parts": 6,
+    "completed": false,
+    "last_updated": "2026-10-10T05:10:00.000000+00:00"
+  },
+  "superseded_uploads": [
     {
       "movie_id": "avengers_infinity_war",
       "title": "Avengers Infinity War - Part 1/6",
@@ -517,7 +527,9 @@
       "duration_sec": 139.44,
       "status": "uploaded",
       "content_hash": "5f3e9a888017753f15cc6b5b94897b7ec135c958635409dbdaf257d26496425c",
-      "source_type": "private_media"
+      "source_type": "private_media",
+      "superseded_at": "2026-10-10T05:10:00.000000+00:00",
+      "superseded_reason": "Reset to Part 1: Flawed male Hindi voice replaced with English female voice (en-US-AvaNeural), lowered BGM volume to -18dB (0.12), and applied 100% act-synchronized narration script."
     },
     {
       "movie_id": "avengers_infinity_war",
@@ -530,18 +542,10 @@
       "duration_sec": 111.08,
       "status": "uploaded",
       "content_hash": "e5016ab8de9c603aa0b1e2e98d8835dc62b54fa1a19c262e0037cd33cf6c759a",
-      "source_type": "private_media"
-    }
-  ],
-  "current_series": {
-    "movie_id": "avengers_infinity_war",
-    "movie_title": "Avengers Infinity War",
-    "current_part": 2,
-    "total_parts": 6,
-    "completed": false,
-    "last_updated": "2026-10-10T00:06:57.144976+00:00"
-  },
-  "superseded_uploads": [
+      "source_type": "private_media",
+      "superseded_at": "2026-10-10T05:10:00.000000+00:00",
+      "superseded_reason": "Reset to Part 1: Flawed male Hindi voice replaced with English female voice (en-US-AvaNeural), lowered BGM volume to -18dB (0.12), and applied 100% act-synchronized narration script."
+    },
     {
       "movie_id": "the_avengers_2012",
       "title": "The Avengers (2012) - Part 1",

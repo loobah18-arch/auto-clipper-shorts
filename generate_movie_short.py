@@ -159,9 +159,8 @@ def select_next_movie(requested_movie: str = None, requested_part: int = None, l
         cat_match = get_movie_from_catalog(requested_movie)
         if cat_match:
             return resolve_part(cat_match, requested_part)
-        if lang == "en" and is_indian_movie(movie_data=cat_match, title=requested_movie):
-            lang = "hi"
-            log(f"🇮🇳 Indian movie requested ('{requested_movie}') ➔ Defaulted language to Hindi ('{lang}')")
+        if lang == "hi":
+            log(f"🇮🇳 Hindi language explicitly requested for '{requested_movie}'")
         ai_movie = generate_movie_script_ai(requested_movie, language=lang)
         if requested_part:
             ai_movie["part_number"] = requested_part
@@ -377,10 +376,10 @@ def run_pipeline(
     if "CRITICAL" in badge_text.upper() or "ANALYSIS" in badge_text.upper():
         badge_text = f"{title.upper()[:14]} • P{part_number}" if part_number else "MOVIE RECAP"
 
-    # Auto-detect Indian movie: automatically switch language to Hindi ('hi') if movie/series is Indian
-    if lang == "en" and is_indian_movie(movie_data=movie_data, title=title, script_text=script_text):
+    # Narration language: Woo's Clips channel strictly enforces English female narration unless explicitly opted in
+    if os.environ.get("ALLOW_HINDI_AUTO_SWITCH", "false").lower() == "true" and lang == "en" and is_indian_movie(movie_data=movie_data, title=title, script_text=script_text):
         lang = "hi"
-        log(f"🇮🇳 Indian movie detected ('{title}') ➔ Automatically activated Hindi narration ('{lang}') & MovieGyan style!")
+        log(f"🇮🇳 Indian movie detected ('{title}') ➔ Activated Hindi narration ('{lang}')")
 
     # Enforce pure story recap: if script is missing or is an academic film critique, generate a real recap via AI
     if not script_text or is_stale_critic_analysis_script(script_text):
@@ -416,11 +415,11 @@ def run_pipeline(
     if script_text:
         log(f"🎙️ Story Recap Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
 
-    # Character-aware voice selection: male or female voice matching protagonist
+    # Voice selection: enforce English female voice (en-US-AvaNeural) for Woo's Clips channel
     character_gender = detect_character_gender(script_text, movie_data)
     if not voice:
-        voice = os.environ.get("DEFAULT_VOICE") or resolve_character_voice(character_gender, language=lang)
-    log(f"🎭 Character gender: '{character_gender.upper()}' ➔ Selected neural voice: '{voice}'")
+        voice = os.environ.get("DEFAULT_VOICE") or resolve_character_voice("female", language=lang)
+    log(f"🎙️ Selected neural voice: '{voice}' (narrator: English Female)")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     audio_path = OUTPUT_DIR / f"{movie_id}_narration_{timestamp}.mp3"
@@ -567,7 +566,7 @@ def run_pipeline(
         bgm_path=bgm_file,
         watermark_text=watermark,
         part_number=part_number,
-        bgm_volume=0.40,
+        bgm_volume=float(os.environ.get("BGM_VOLUME", "0.12")),
         bgm_start_offset=bgm_start_offset,
     )
     media_info = probe_media(final_short_path)

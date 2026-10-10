@@ -113,7 +113,7 @@ def detect_character_gender(script_text: str = "", movie_data: dict = None) -> s
 
 
 def resolve_character_voice(gender: str = "female", language: str = "en") -> str:
-    """Return the ideal natural human neural voice. Matches Bhaloo Ji channel (en-US-AvaNeural) & RecapKun storytelling."""
+    """Return the ideal natural human neural voice. Enforces English female voice (en-US-AvaNeural) for Woo's Clips channel."""
     if language == "hi":
         return "hi-IN-SwaraNeural" if gender == "female" else "hi-IN-MadhurNeural"
     return "en-US-AvaNeural"
@@ -122,14 +122,14 @@ def resolve_character_voice(gender: str = "female", language: str = "en") -> str
 INDIAN_MOVIE_KEYWORDS = [
     # Prominent Indian franchises & titles
     "rrr", "kgf", "pushpa", "baahubali", "bahubali", "dangal", "sholay", "jawan", "pathaan",
-    "animal", "stree", "kantara", "tumbbad", "drishyam", "gangs of wasseypur", "wasseypur",
+    "animal (2023)", "stree", "kantara", "tumbbad", "drishyam", "gangs of wasseypur", "wasseypur",
     "brahmastra", "salaar", "kalki", "leo", "vikram", "jailer", "singham", "bajrangi bhaijaan",
     "pk", "3 idiots", "lagaan", "dilwale dulhania le jayenge", "ddlj", "kabhi khushi kabhie gham",
-    "andhadhun", "article 15", "badhaai ho", "queen", "padmaavat", "bajirao mastani",
-    "kabir singh", "war", "tiger", "chhaava", "bhool bhulaiyaa", "munna bhai", "herapheri",
-    "hera pheri", "golmaal", "dhoom", "don", "om shanti om", "taare zameen par",
+    "andhadhun", "article 15", "badhaai ho", "queen (2014)", "padmaavat", "bajirao mastani",
+    "kabir singh", "war (2019)", "tiger zinda hai", "chhaava", "bhool bhulaiyaa", "munna bhai", "herapheri",
+    "hera pheri", "golmaal", "dhoom", "don (2006)", "om shanti om", "taare zameen par",
     "swades", "chak de india", "gully boy", "super 30", "chhappak", "sardar udham",
-    "drishyam 2", "kantara", "stree 2", "bhediya", "munjya",
+    "drishyam 2", "stree 2", "bhediya", "munjya",
     # Indian web series
     "mirzapur", "sacred games", "panchayat", "farzi", "asur", "the family man", "family man",
     "scam 1992", "delhi crime", "kota factory", "gullak", "special ops", "paatal lok",
@@ -658,8 +658,8 @@ def slice_movie_timeline_scenes(
 
     usable_span = max(10.0, end_sec - start_sec)
     num_cuts = int(target_duration // 1.6) + 1
-    cut_duration = round(target_duration / max(1, num_cuts), 2)
-    cut_duration = max(1.3, min(2.0, cut_duration))
+    cut_duration = round((target_duration + 0.6) / max(1, num_cuts), 2)
+    cut_duration = max(1.3, min(2.5, cut_duration))
 
     step = usable_span / max(1, num_cuts)
     rng = random.Random(seed)
@@ -1148,7 +1148,7 @@ def render_movie_explanation_short(
     watermark_text: str = None,
     part_number: int = None,
     bgm_start_offset: float = None,
-    bgm_volume: float = 0.40,
+    bgm_volume: float = None,
 ) -> Path:
     """
     Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
@@ -1159,6 +1159,8 @@ def render_movie_explanation_short(
     - Bold animated karaoke subtitles in lower-third
     - Crystal clear voiceover with dark suspense BGM
     """
+    if bgm_volume is None:
+        bgm_volume = float(os.environ.get("BGM_VOLUME", "0.12"))
     duration = get_audio_duration(narration_audio_path)
     if duration > MAX_SHORT_DURATION:
         log(f"⚠️ Audio duration ({duration:.1f}s) clamped to {MAX_SHORT_DURATION}s to stay within the Short duration limit.")
@@ -1218,7 +1220,7 @@ def render_movie_explanation_short(
         cmd.extend(["-stream_loop", "-1", "-i", str(bgm_path)])
         # Viral Recapper audio mix (Movrecap style):
         # 1. Voice kept crisp and prominent (1.05x volume)
-        # 2. BGM clearly audible (volume=0.25-0.30) with iconic melody intact, gently rolled off above 7500Hz
+        # 2. BGM subtle underneath voiceover (-18dB ducking / volume=0.10-0.14) with melody intact
         # 3. amix duration=first, normalize=0 preserves full dynamic range without burying the music
         audio_filters = (
             f"[1:a]volume=1.0[voice];"

@@ -202,6 +202,9 @@ class TestMoviePipeline(unittest.TestCase):
 
         # Non-Indian titles
         self.assertFalse(is_indian_movie(title="The Avengers (2012)"))
+        self.assertFalse(is_indian_movie(title="Avengers Infinity War"))
+        self.assertFalse(is_indian_movie(title="Avengers Infinity War - Part 1/6"))
+        self.assertFalse(is_indian_movie(title="Captain America: Civil War"))
         self.assertFalse(is_indian_movie(title="Dune Part Two"))
         self.assertFalse(is_indian_movie(title="The Bronze (2015)"))
         self.assertFalse(is_indian_movie(title="Interstellar (2014)"))
@@ -279,6 +282,18 @@ class TestMoviePipeline(unittest.TestCase):
         self.assertEqual(part1["part_number"], 1)
         self.assertEqual(part1["timeline_start"], "00:01:00")
         self.assertEqual(part1["timeline_end"], "00:16:00")
+
+    def test_avengers_infinity_war_catalog_and_voice(self):
+        m = get_movie_from_catalog("Avengers Infinity War")
+        self.assertIsNotNone(m)
+        self.assertEqual(len(m.get("parts", [])), 6)
+        for p in m["parts"]:
+            self.assertTrue(bool(p.get("script")), f"Part {p['part_number']} must have a curated script")
+            self.assertIn("timeline_start", p)
+            self.assertIn("timeline_end", p)
+            self.assertTrue(parse_timestamp_to_seconds(p["timeline_end"]) > parse_timestamp_to_seconds(p["timeline_start"]))
+        voice = resolve_character_voice("female", language="en")
+        self.assertEqual(voice, "en-US-AvaNeural")
 
     def test_select_next_movie_multipart_resolution(self):
         from generate_movie_short import select_next_movie

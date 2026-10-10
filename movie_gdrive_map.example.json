@@ -14,6 +14,12 @@
     "timeline_end  : optional HH:MM:SS window end; defaults to the catalog value"
   ],
   "movies": {
+    "avengers_infinity_war": {
+      "file_id": "REPLACE_WITH_YOUR_DRIVE_FILE_ID",
+      "file_name": "Avengers - Infinity War (720p).mp4",
+      "timeline_start": "00:00:45",
+      "timeline_end": "00:24:00"
+    },
     "the_avengers_2012": {
       "file_id": "REPLACE_WITH_YOUR_DRIVE_FILE_ID",
       "file_name": "the_avengers_2012.mkv",

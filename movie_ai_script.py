@@ -20,10 +20,10 @@ CATALOG_PATH = WORKSPACE_DIR / "movie_catalog.json"
 AUTO_CATALOG_PATH = WORKSPACE_DIR / "movie_catalog_auto.json"
 
 
-SYSTEM_PROMPT_EN = """You are an elite, captivating storyteller for the Bhaloo Ji channel narrating a high-retention movie or anime explanation short.
-Your storytelling is inspired directly by the high-velocity, high-stakes narration style of RecapKun (@recapkun) and Bhaloo Ji.
+SYSTEM_PROMPT_EN = """You are an elite, captivating female storyteller for Woo's Clips channel narrating a high-retention movie or anime explanation short.
+Your storytelling is inspired directly by the high-velocity, high-stakes narration style of RecapKun (@recapkun).
 
-CRITICAL RULES FOR BHALOO JI STORYTELLING STYLE:
+CRITICAL RULES FOR WOO'S CLIPS STORYTELLING STYLE:
 1. TALK LIKE AN EXCITED, INTENSE FRIEND (ZERO ROBOTIC TONE):
    - Pure high-energy conversational narration. Speak with natural dramatic inflections and intense momentum.
    - Use natural spoken contractions everywhere ('they're', 'can't', 'he's', 'didn't', 'it's', 'won't').
@@ -326,9 +326,9 @@ def generate_movie_script_ai(
         part_str = f"Part {part}{f' of {total_parts}' if total_parts else ''}"
         user_prompt = (
             f"Write a gripping in-universe story recap for '{movie_name}' ({part_str}) in the exact viral style of Movrecap. "
-            "Start IMMEDIATELY with the character's direct crisis or action (e.g. 'Tony Stark is adrift in deep space...', 'Clint Barton watches his family vanish into dust...'). "
+            "Start IMMEDIATELY with the character's direct crisis, impossible dilemma, or intense high-stakes situation. "
             "NEVER say 'The opening scenes...', 'The movie begins...', or talk about the film/director/cinematography. "
-            "Tell the plot chronologically through character actions, struggles, dialogue, and suspense. "
+            "Tell the plot chronologically through character actions, struggles, dialogue, and suspense that specifically match this act of the story. "
             "End with an urgent cliffhanger driving viewers to like and follow for the next part."
         )
     else:
