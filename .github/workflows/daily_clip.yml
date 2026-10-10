@@ -22,7 +22,7 @@ on:
         default: 'en'
         type: string
       voice:
-        description: 'Neural voice override (defaults to English female voice: en-US-AvaNeural for Woo'\''s Clips channel)'
+        description: "Neural voice override (defaults to English female voice: en-US-AvaNeural for Woo's Clips channel)"
         required: false
         default: 'en-US-AvaNeural'
         type: string
