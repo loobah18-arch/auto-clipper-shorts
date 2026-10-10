@@ -505,15 +505,28 @@
       "status": "uploaded",
       "content_hash": "635dea06f9ac24fffe9ad19b22e810884f2b872e1048f951b356de83c6322ef1",
       "source_type": "stitched_series"
+    },
+    {
+      "movie_id": "avengers_infinity_war",
+      "title": "Avengers Infinity War - Part 1/6",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": "WgeELeseXWw",
+      "timestamp": "2026-10-10T06:18:31.311378+00:00",
+      "video_path": "movie_short_avengers_infinity_war_20261010_061624.mp4",
+      "duration_sec": 55.68,
+      "status": "uploaded",
+      "content_hash": "0b52fa30eeaacecc63b5effe6e399ff96481d7493797960374ad68f5c5d492d9",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "avengers_infinity_war",
     "movie_title": "Avengers Infinity War",
-    "current_part": 0,
+    "current_part": 1,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-10T05:10:00.000000+00:00"
+    "last_updated": "2026-10-10T06:18:31.311493+00:00"
   },
   "superseded_uploads": [
     {
