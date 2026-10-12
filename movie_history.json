@@ -570,15 +570,42 @@
       "status": "uploaded",
       "content_hash": "3b442152a4cb978e78f1cf7ef74ff7cda808e318ae12cbe88815fbbe99ce3def",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "avengers_infinity_war",
+      "title": "Avengers Infinity War - Part 6/6",
+      "part_number": 6,
+      "total_parts": 6,
+      "youtube_id": "lSwLXjBtp6A",
+      "timestamp": "2026-10-12T18:57:27.378576+00:00",
+      "video_path": "movie_short_avengers_infinity_war_20261012_185421.mp4",
+      "duration_sec": 71.17,
+      "status": "uploaded",
+      "content_hash": "4357141d1f10ca223d14a13b3527f4a5314f7ece3105d528a473381c3221322d",
+      "source_type": "private_media"
+    },
+    {
+      "movie_id": "avengers_infinity_war",
+      "title": "Avengers Infinity War Full Movie Explained | Complete Story Recap",
+      "part_number": null,
+      "total_parts": 6,
+      "is_full_video": true,
+      "youtube_id": "4YpcmQi0dLo",
+      "timestamp": "2026-10-12T19:00:47.427504+00:00",
+      "video_path": "avengers_infinity_war_full_explained_20261012_185727.mp4",
+      "duration_sec": 452.24,
+      "status": "uploaded",
+      "content_hash": "24fbe0dff9eaf73107ad828d287e38b8f98e0b7c4e3424e11ff14f3300af690a",
+      "source_type": "stitched_series"
     }
   ],
   "current_series": {
     "movie_id": "avengers_infinity_war",
     "movie_title": "Avengers Infinity War",
-    "current_part": 5,
+    "current_part": 6,
     "total_parts": 6,
-    "completed": false,
-    "last_updated": "2026-10-11T23:44:35.387066+00:00"
+    "completed": true,
+    "last_updated": "2026-10-12T18:57:27.378648+00:00"
   },
   "superseded_uploads": [
     {
