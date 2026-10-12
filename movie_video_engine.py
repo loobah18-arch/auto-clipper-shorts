@@ -299,59 +299,104 @@ async def generate_speech_audio(
     rate: str = "+0%",
     pitch: str = "+0Hz",
 ) -> list:
-    """Generate TTS audio and retain provider word boundaries when available."""
-    if not edge_tts:
-        raise RuntimeError("edge-tts is required for speech generation.")
-
+    """Generate TTS audio and retain provider word boundaries when available.
+    Includes automatic retry with exponential backoff, sister-voice fallback,
+    and gTTS backup to withstand transient datacenter blocks in CI."""
     humanized_text = humanize_speech_text(script_text)
-    log(f"🎙️ Synthesizing humanized voiceover with voice: '{voice}' (rate={rate}, pitch={pitch})...")
-    communicate = edge_tts.Communicate(humanized_text, voice, rate=rate, pitch=pitch, boundary="WordBoundary")
-    sentences = []
-    word_boundaries = []
-    audio_data = bytearray()
 
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            audio_data.extend(chunk["data"])
-        elif chunk["type"] == "SentenceBoundary":
-            start_s = chunk["offset"] / 10_000_000.0
-            dur_s = chunk["duration"] / 10_000_000.0
-            sentences.append({
-                "text": chunk["text"],
-                "start": start_s,
-                "end": start_s + dur_s,
-            })
-        elif chunk["type"] == "WordBoundary":
-            start_s = chunk["offset"] / 10_000_000.0
-            dur_s = chunk["duration"] / 10_000_000.0
-            word_boundaries.append({
-                "word": str(chunk.get("text", "")).strip(),
-                "start": start_s,
-                "end": start_s + dur_s,
-            })
+    # Establish fallback voices if primary encounters 403 or handshake issues
+    if voice.startswith("hi-IN"):
+        voices_to_try = [voice, "hi-IN-SwaraNeural", "hi-IN-MadhurNeural"]
+    else:
+        voices_to_try = [voice, "en-US-AvaNeural", "en-US-JennyNeural", "en-US-EmmaNeural", "en-US-AnaNeural"]
+    voices_to_try = list(dict.fromkeys(voices_to_try))
 
-    if word_boundaries:
-        # Exact millisecond word boundaries from neural acoustic model
-        sentences = [{
-            "text": humanized_text,
-            "start": word_boundaries[0]["start"],
-            "end": word_boundaries[-1]["end"],
-            "words": word_boundaries,
-        }]
-    elif sentences:
-        for sentence in sentences:
-            sentence_words = [
-                word for word in word_boundaries
-                if sentence["start"] <= word["start"] < sentence["end"] and word["word"]
-            ]
-            if sentence_words:
-                sentence["words"] = sentence_words
+    last_error = None
+    if edge_tts:
+        for v in voices_to_try:
+            for attempt in range(1, 3):
+                try:
+                    log(f"🎙️ Synthesizing humanized voiceover with voice: '{v}' (attempt {attempt}/2, rate={rate}, pitch={pitch})...")
+                    boundary_arg = {"boundary": "WordBoundary"} if attempt == 1 else {}
+                    communicate = edge_tts.Communicate(humanized_text, v, rate=rate, pitch=pitch, **boundary_arg)
+                    sentences = []
+                    word_boundaries = []
+                    audio_data = bytearray()
 
-    with open(output_audio_path, "wb") as f:
-        f.write(audio_data)
+                    async for chunk in communicate.stream():
+                        if chunk["type"] == "audio":
+                            audio_data.extend(chunk["data"])
+                        elif chunk["type"] == "SentenceBoundary":
+                            start_s = chunk["offset"] / 10_000_000.0
+                            dur_s = chunk["duration"] / 10_000_000.0
+                            sentences.append({
+                                "text": chunk["text"],
+                                "start": start_s,
+                                "end": start_s + dur_s,
+                            })
+                        elif chunk["type"] == "WordBoundary":
+                            start_s = chunk["offset"] / 10_000_000.0
+                            dur_s = chunk["duration"] / 10_000_000.0
+                            word_boundaries.append({
+                                "word": str(chunk.get("text", "")).strip(),
+                                "start": start_s,
+                                "end": start_s + dur_s,
+                            })
 
-    log(f"✅ Voiceover generated: {len(sentences)} sentence structures and {len(word_boundaries)} word boundaries recorded.")
-    return sentences
+                    if len(audio_data) > 5000:
+                        with open(output_audio_path, "wb") as f:
+                            f.write(audio_data)
+
+                        if word_boundaries:
+                            sentences = [{
+                                "text": humanized_text,
+                                "start": word_boundaries[0]["start"],
+                                "end": word_boundaries[-1]["end"],
+                                "words": word_boundaries,
+                            }]
+                        elif sentences:
+                            for sentence in sentences:
+                                sentence_words = [
+                                    word for word in word_boundaries
+                                    if sentence["start"] <= word["start"] < sentence["end"] and word["word"]
+                                ]
+                                if sentence_words:
+                                    sentence["words"] = sentence_words
+                        else:
+                            total_dur = get_audio_duration(output_audio_path)
+                            sentences = [{
+                                "text": humanized_text,
+                                "start": 0.0,
+                                "end": total_dur,
+                            }]
+
+                        log(f"✅ Voiceover generated: {len(sentences)} sentence structures and {len(word_boundaries)} word boundaries recorded.")
+                        return sentences
+
+                except Exception as e:
+                    last_error = e
+                    log(f"⚠️ TTS synthesis notice with voice '{v}' (attempt {attempt}): {e}")
+                    await asyncio.sleep(1.0 * attempt)
+
+    # If edge-tts failed or is unavailable, use gTTS backup
+    log(f"⚠️ Edge-TTS unavailable or blocked ({last_error}); switching to reliable gTTS fallback...")
+    try:
+        from gtts import gTTS as FallbackTTS
+        lang = "hi" if voice.startswith("hi-IN") else "en"
+        tts = FallbackTTS(text=humanized_text, lang=lang)
+        tts.save(str(output_audio_path))
+        if output_audio_path.exists() and output_audio_path.stat().st_size > 5000:
+            total_dur = get_audio_duration(output_audio_path)
+            log(f"✅ Voiceover generated via gTTS fallback ({total_dur:.1f}s).")
+            return [{
+                "text": humanized_text,
+                "start": 0.0,
+                "end": total_dur,
+            }]
+    except Exception as ge:
+        log(f"⚠️ gTTS fallback failed: {ge}")
+
+    raise RuntimeError(f"All speech generation attempts failed. Last error: {last_error}")
 
 
 def create_word_timestamps_from_sentences(sentences: list) -> list:
