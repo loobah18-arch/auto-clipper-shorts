@@ -643,11 +643,14 @@ def slice_movie_timeline_scenes(
     target_duration: float,
     output_sliced_path: Path,
     seed: int | None = None,
+    narration: str = "",
+    beats: list[dict] | None = None,
 ) -> bool:
     """
-    Slices 18-24 dynamic 2.2-2.8s scenes strictly within the specified movie timeline window
-    (e.g. 00:01:30 to 00:26:00) so the visuals chronologically and accurately match the
-    narrative of that specific part. Strips 100% of original movie audio.
+    Slices dynamic narrative scenes strictly within the specified movie timeline window
+    (e.g. 00:01:30 to 00:26:00). Synchronizes cut durations 1:1 with spoken narration sentences,
+    splits shots longer than 5.5s to evade Content ID matching, applies alternating dynamic
+    punch-in zoom, and outputs a monotonic CFR 30fps stream. Strips 100% of original movie audio.
     """
     start_sec = parse_timestamp_to_seconds(timeline_start_str)
     end_sec = parse_timestamp_to_seconds(timeline_end_str)
@@ -657,36 +660,101 @@ def slice_movie_timeline_scenes(
         end_sec = 1800.0
 
     usable_span = max(10.0, end_sec - start_sec)
-    num_cuts = int(target_duration // 1.6) + 1
-    cut_duration = round((target_duration + 0.6) / max(1, num_cuts), 2)
-    cut_duration = max(1.3, min(2.5, cut_duration))
-
-    step = usable_span / max(1, num_cuts)
     rng = random.Random(seed)
-    segments = []
-    for i in range(num_cuts):
-        seg_start = start_sec + (i * step) + rng.uniform(-1.0, 1.0)
-        seg_start = max(start_sec, min(end_sec - cut_duration, seg_start))
-        segments.append((seg_start, cut_duration))
 
-    log(f"🎬 Slicing {len(segments)} narrative scenes (~{cut_duration:.1f}s each) between {timeline_start_str} and {timeline_end_str}...")
+    # 1. Dynamic Sentence-Locked Scene Allocation
+    shots = []
+    if beats and len(beats) > 0:
+        sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()] if narration else []
+        total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+
+        weights = []
+        if total_narr_words > 0 and len(sents) >= len(beats):
+            s_per_beat = max(1, len(sents) // len(beats))
+            for b_idx in range(len(beats)):
+                s_start_idx = b_idx * s_per_beat
+                s_end_idx = len(sents) if (b_idx == len(beats) - 1) else min(len(sents), (b_idx + 1) * s_per_beat)
+                group_words = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx))
+                weights.append(round(group_words / total_narr_words, 3))
+        else:
+            weights = [float(b.get("weight", 1.0 / len(beats))) for b in beats]
+
+        accum_dur = 0.0
+        for b_idx, b in enumerate(beats):
+            raw_b_start = b.get("start", start_sec)
+            b_start = parse_timestamp_to_seconds(str(raw_b_start)) if isinstance(raw_b_start, str) else float(raw_b_start)
+            b_start = max(start_sec, min(end_sec - 1.0, b_start))
+            if b_idx == len(beats) - 1:
+                b_dur = max(0.5, target_duration - accum_dur)
+            else:
+                w = weights[b_idx] if b_idx < len(weights) else (1.0 / len(beats))
+                b_dur = round(target_duration * w, 2)
+                accum_dur += b_dur
+            shots.append((b_start, b_dur))
+    elif narration:
+        sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()]
+        total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+        if total_narr_words > 0 and len(sents) > 0:
+            num_cuts = max(3, min(len(sents), 12))
+            step = (usable_span - 3.0) / max(1, num_cuts)
+            s_per_cut = max(1, len(sents) // num_cuts)
+            accum_dur = 0.0
+            for idx in range(num_cuts):
+                s_start = start_sec + (idx * step) + rng.uniform(-0.5, 0.5)
+                s_start = max(start_sec, min(end_sec - 1.5, s_start))
+                s_start_idx = idx * s_per_cut
+                s_end_idx = len(sents) if (idx == num_cuts - 1) else min(len(sents), (idx + 1) * s_per_cut)
+                w = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx)) / total_narr_words
+                if idx == num_cuts - 1:
+                    s_dur = max(0.5, target_duration - accum_dur)
+                else:
+                    s_dur = round(target_duration * w, 2)
+                    accum_dur += s_dur
+                shots.append((s_start, s_dur))
+        else:
+            num_cuts = int(target_duration // 1.6) + 1
+            cut_duration = round((target_duration + 0.6) / max(1, num_cuts), 2)
+            cut_duration = max(1.3, min(2.5, cut_duration))
+            step = usable_span / max(1, num_cuts)
+            for i in range(num_cuts):
+                seg_start = start_sec + (i * step) + rng.uniform(-1.0, 1.0)
+                seg_start = max(start_sec, min(end_sec - cut_duration, seg_start))
+                shots.append((seg_start, cut_duration))
+    else:
+        num_cuts = int(target_duration // 1.6) + 1
+        cut_duration = round((target_duration + 0.6) / max(1, num_cuts), 2)
+        cut_duration = max(1.3, min(2.5, cut_duration))
+        step = usable_span / max(1, num_cuts)
+        for i in range(num_cuts):
+            seg_start = start_sec + (i * step) + rng.uniform(-1.0, 1.0)
+            seg_start = max(start_sec, min(end_sec - cut_duration, seg_start))
+            shots.append((seg_start, cut_duration))
+
+    # 2. Anti-Copyright duration guard: split any shot > 5.5s to evade contiguous fingerprinting
+    expanded_shots = []
+    for s_start, s_dur in shots:
+        if s_dur > 5.5:
+            half = round(s_dur / 2.0, 2)
+            rem = round(s_dur - half, 2)
+            expanded_shots.append((s_start, half, 1.12))
+            expanded_shots.append((s_start + half, rem, 1.16))
+        else:
+            expanded_shots.append((s_start, s_dur, 1.13))
+
+    log(f"🎬 Slicing {len(expanded_shots)} sentence-locked anti-copyright scenes between {timeline_start_str} and {timeline_end_str}...")
 
     temp_dir = output_sliced_path.parent / f"temp_slices_{output_sliced_path.stem}"
     temp_dir.mkdir(parents=True, exist_ok=True)
     slice_files = []
 
     try:
-        for idx, (s_time, c_dur) in enumerate(segments):
+        for idx, (s_time, c_dur, zoom) in enumerate(expanded_shots):
+            if c_dur <= 0.3:
+                continue
             seg_file = temp_dir / f"slice_{idx:03d}.mp4"
-            # Human editing style: dynamic punch-in zoom on hook and kinetic crop variety
-            if idx == 0:
-                # Scene 0 (The Hook): punch-in zoom for immediate visual drama
-                vf_scale = "scale=1360:765:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
-            elif idx % 4 == 1:
-                # Subtle kinetic punch-in cut
-                vf_scale = "scale=1320:742:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
-            else:
-                vf_scale = "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
+            w_s = int(1280 * zoom)
+            h_s = int(720 * zoom)
+            vf_scale = f"fps=30,scale={w_s}:{h_s}:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
 
             cmd_slice = [
                 "ffmpeg", "-y",
@@ -697,6 +765,7 @@ def slice_movie_timeline_scenes(
                 "-c:v", "libx264",
                 "-preset", "ultrafast",
                 "-crf", "22",
+                "-avoid_negative_ts", "make_zero",
                 "-an",
                 str(seg_file)
             ]
@@ -706,7 +775,7 @@ def slice_movie_timeline_scenes(
             else:
                 log(f"   ↳ Slice {idx} at {s_time:.1f}s notice: {res.stderr[-100:] if res.stderr else 'failed'}")
 
-        if len(slice_files) >= 3:
+        if len(slice_files) >= 1:
             concat_list_file = temp_dir / "concat_list.txt"
             with open(concat_list_file, "w", encoding="utf-8") as f:
                 for sf in slice_files:
@@ -721,12 +790,15 @@ def slice_movie_timeline_scenes(
                 "-c:v", "libx264",
                 "-preset", "veryfast",
                 "-crf", "20",
+                "-pix_fmt", "yuv420p",
+                "-r", "30",
+                "-vsync", "cfr",
                 "-an",
                 str(output_sliced_path)
             ]
             subprocess.run(cmd_concat, check=True, timeout=120)
             if output_sliced_path.exists() and output_sliced_path.stat().st_size > 100_000:
-                log(f"✅ Successfully assembled {len(slice_files)} timeline scenes from movie into {output_sliced_path.name}")
+                log(f"✅ Successfully assembled {len(slice_files)} sentence-locked timeline scenes from movie into {output_sliced_path.name}")
                 return True
     except Exception as e:
         log(f"⚠️ Slicing scenes failed: {e}")
@@ -740,9 +812,10 @@ def slice_movie_timeline_scenes(
             "-ss", f"{start_sec:.2f}",
             "-i", str(movie_path),
             "-t", f"{target_duration:.2f}",
-            "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1",
+            "-vf", "fps=30,scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1",
             "-c:v", "libx264",
             "-preset", "veryfast",
+            "-avoid_negative_ts", "make_zero",
             "-an",
             str(output_sliced_path)
         ]
@@ -1017,10 +1090,12 @@ def slice_trailer_dynamic_scenes(
     target_duration: float,
     output_sliced_path: Path,
     seed: int | None = None,
+    narration: str = "",
+    beats: list[dict] | None = None,
 ) -> bool:
     """
-    Slices dynamic 2.5-3.2s cuts across the downloaded trailer and concatenates them
-    to achieve the fast-paced MovieGyan / Movie Insight Hindi visual rhythm.
+    Slices dynamic sentence-synchronized cuts across the downloaded trailer and concatenates them
+    with anti-copyright protection (>5.5s split, CFR 30fps) to achieve fast-paced visual rhythm.
     """
     try:
         trailer_dur = get_audio_duration(trailer_path)
@@ -1031,64 +1106,165 @@ def slice_trailer_dynamic_scenes(
     usable_start = min(12.0, trailer_dur * 0.1)
     usable_end = max(usable_start + 10.0, trailer_dur - 15.0)
     usable_span = max(10.0, usable_end - usable_start)
-
-    num_cuts = int(target_duration // 2.8) + 2
-    cut_duration = round(target_duration / max(1, num_cuts), 2)
-    cut_duration = max(2.2, min(3.4, cut_duration))
-
-    # Pick spaced timestamps across trailer
-    step = usable_span / max(1, num_cuts)
     rng = random.Random(seed)
-    segments = []
-    for i in range(num_cuts):
-        seg_start = usable_start + (i * step) + rng.uniform(-0.5, 0.5)
-        seg_start = max(usable_start, min(usable_end - cut_duration, seg_start))
-        segments.append((seg_start, cut_duration))
 
-    log(f"🎬 Assembling {len(segments)} dynamic scenes (~{cut_duration:.1f}s each) from trailer...")
+    shots = []
+    if beats and len(beats) > 0:
+        sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()] if narration else []
+        total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+        weights = []
+        if total_narr_words > 0 and len(sents) >= len(beats):
+            s_per_beat = max(1, len(sents) // len(beats))
+            for b_idx in range(len(beats)):
+                s_start_idx = b_idx * s_per_beat
+                s_end_idx = len(sents) if (b_idx == len(beats) - 1) else min(len(sents), (b_idx + 1) * s_per_beat)
+                group_words = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx))
+                weights.append(round(group_words / total_narr_words, 3))
+        else:
+            weights = [float(b.get("weight", 1.0 / len(beats))) for b in beats]
 
-    # Build FFmpeg filter to slice and concat
-    filter_parts = []
-    concat_inputs = []
-    for idx, (s_time, c_dur) in enumerate(segments):
-        filter_parts.append(
-            f"[0:v]trim=start={s_time:.2f}:duration={c_dur:.2f},setpts=PTS-STARTPTS,scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1[v{idx}]"
-        )
-        concat_inputs.append(f"[v{idx}]")
-
-    concat_filter = f"{';'.join(filter_parts)};{''.join(concat_inputs)}concat=n={len(segments)}:v=1:a=0[vconcat]"
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-stream_loop", "-1",
-        "-i", str(trailer_path),
-        "-filter_complex", concat_filter,
-        "-map", "[vconcat]",
-        "-t", f"{target_duration:.2f}",
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-an",
-        str(output_sliced_path)
-    ]
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode == 0 and output_sliced_path.exists():
-        log("✅ Trailer scenes dynamically sliced & assembled.")
-        return True
+        accum_dur = 0.0
+        step = usable_span / max(1, len(beats))
+        for b_idx, b in enumerate(beats):
+            raw_b = b.get("start")
+            if raw_b is not None:
+                b_start = parse_timestamp_to_seconds(str(raw_b)) if isinstance(raw_b, str) else float(raw_b)
+                b_start = max(usable_start, min(usable_end - 1.0, b_start))
+            else:
+                b_start = usable_start + (b_idx * step)
+            if b_idx == len(beats) - 1:
+                b_dur = max(0.5, target_duration - accum_dur)
+            else:
+                w = weights[b_idx] if b_idx < len(weights) else (1.0 / len(beats))
+                b_dur = round(target_duration * w, 2)
+                accum_dur += b_dur
+            shots.append((b_start, b_dur))
+    elif narration:
+        sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()]
+        total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+        if total_narr_words > 0:
+            num_cuts = max(3, min(len(sents), 10))
+            step = usable_span / max(1, num_cuts)
+            s_per_cut = max(1, len(sents) // num_cuts)
+            accum_dur = 0.0
+            for idx in range(num_cuts):
+                seg_start = usable_start + (idx * step) + rng.uniform(-0.5, 0.5)
+                seg_start = max(usable_start, min(usable_end - 1.5, seg_start))
+                s_start_idx = idx * s_per_cut
+                s_end_idx = len(sents) if (idx == num_cuts - 1) else min(len(sents), (idx + 1) * s_per_cut)
+                w = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx)) / total_narr_words
+                if idx == num_cuts - 1:
+                    s_dur = max(0.5, target_duration - accum_dur)
+                else:
+                    s_dur = round(target_duration * w, 2)
+                    accum_dur += s_dur
+                shots.append((seg_start, s_dur))
+        else:
+            num_cuts = int(target_duration // 2.8) + 2
+            cut_duration = round(target_duration / max(1, num_cuts), 2)
+            cut_duration = max(2.2, min(3.4, cut_duration))
+            step = usable_span / max(1, num_cuts)
+            for i in range(num_cuts):
+                seg_start = usable_start + (i * step) + rng.uniform(-0.5, 0.5)
+                seg_start = max(usable_start, min(usable_end - cut_duration, seg_start))
+                shots.append((seg_start, cut_duration))
     else:
-        log(f"⚠️ Slicing filter failed, falling back to direct trim: {res.stderr[:200]}")
-        # Simple fallback trim
+        num_cuts = int(target_duration // 2.8) + 2
+        cut_duration = round(target_duration / max(1, num_cuts), 2)
+        cut_duration = max(2.2, min(3.4, cut_duration))
+        step = usable_span / max(1, num_cuts)
+        for i in range(num_cuts):
+            seg_start = usable_start + (i * step) + rng.uniform(-0.5, 0.5)
+            seg_start = max(usable_start, min(usable_end - cut_duration, seg_start))
+            shots.append((seg_start, cut_duration))
+
+    # Anti-copyright split for any shot > 5.5s
+    expanded_shots = []
+    for s_start, s_dur in shots:
+        if s_dur > 5.5:
+            half = round(s_dur / 2.0, 2)
+            rem = round(s_dur - half, 2)
+            expanded_shots.append((s_start, half, 1.12))
+            expanded_shots.append((s_start + half, rem, 1.16))
+        else:
+            expanded_shots.append((s_start, s_dur, 1.13))
+
+    log(f"🎬 Assembling {len(expanded_shots)} dynamic sentence-locked scenes from trailer...")
+
+    temp_dir = output_sliced_path.parent / f"temp_trailer_slices_{output_sliced_path.stem}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    slice_files = []
+    try:
+        for idx, (s_time, c_dur, zoom) in enumerate(expanded_shots):
+            if c_dur <= 0.3:
+                continue
+            seg_file = temp_dir / f"tslice_{idx:03d}.mp4"
+            w_s = int(1280 * zoom)
+            h_s = int(720 * zoom)
+            vf_scale = f"fps=30,scale={w_s}:{h_s}:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
+            cmd_slice = [
+                "ffmpeg", "-y",
+                "-ss", f"{s_time:.2f}",
+                "-i", str(trailer_path),
+                "-t", f"{c_dur:.2f}",
+                "-vf", vf_scale,
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-crf", "22",
+                "-avoid_negative_ts", "make_zero",
+                "-an",
+                str(seg_file)
+            ]
+            res = subprocess.run(cmd_slice, capture_output=True, text=True, timeout=45)
+            if res.returncode == 0 and seg_file.exists() and seg_file.stat().st_size > 5000:
+                slice_files.append(seg_file)
+
+        if len(slice_files) >= 1:
+            concat_list = temp_dir / "concat.txt"
+            with open(concat_list, "w", encoding="utf-8") as f:
+                for sf in slice_files:
+                    f.write(f"file '{sf.resolve()}'\n")
+            cmd_concat = [
+                "ffmpeg", "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", str(concat_list),
+                "-t", f"{target_duration:.2f}",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-pix_fmt", "yuv420p",
+                "-r", "30",
+                "-vsync", "cfr",
+                "-an",
+                str(output_sliced_path)
+            ]
+            res_cat = subprocess.run(cmd_concat, capture_output=True, text=True)
+            if res_cat.returncode == 0 and output_sliced_path.exists():
+                log("✅ Trailer scenes dynamically sliced & assembled with CFR 30fps.")
+                return True
+    except Exception as e:
+        log(f"⚠️ Slicing trailer failed: {e}")
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    # Simple fallback trim
+    try:
         fb_cmd = [
             "ffmpeg", "-y",
             "-stream_loop", "-1",
             "-ss", f"{usable_start:.2f}",
             "-i", str(trailer_path),
             "-t", f"{target_duration:.2f}",
-            "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720",
-            "-c:v", "libx264", "-preset", "veryfast", "-an",
+            "-vf", "fps=30,scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720",
+            "-c:v", "libx264", "-preset", "veryfast", "-avoid_negative_ts", "make_zero", "-an",
             str(output_sliced_path)
         ]
         subprocess.run(fb_cmd, check=True)
         return True
+    except Exception as e:
+        log(f"⚠️ Fallback trailer slice failed: {e}")
+        return False
 
 
 # Default offsets are only used when an explicitly configured BGM asset is supplied.
@@ -1149,11 +1325,13 @@ def render_movie_explanation_short(
     part_number: int = None,
     bgm_start_offset: float = None,
     bgm_volume: float = None,
+    mirror: bool = True,
 ) -> Path:
     """
     Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
     - Fullscreen blurred background
     - 16:9 centered foreground clip with cinematic color grading & sharpness
+    - Multi-layered anti-Content ID protection (hflip mirroring, filmic grade, vignette, noise)
     - Channel watermark & branding for YPP review verification
     - Sleek top badge pill with movie title
     - Bold animated karaoke subtitles in lower-third
@@ -1186,7 +1364,7 @@ def render_movie_explanation_short(
     if has_bgm and bgm_start_offset is None:
         bgm_start_offset = get_default_bgm_offset(part_number, movie_title)
 
-    log(f"🎨 Rendering Movie Explanation Short (1080x1920, {duration:.1f}s)...")
+    log(f"🎨 Rendering Movie Explanation Short (1080x1920, {duration:.1f}s, mirror={mirror})...")
     if has_bgm:
         log(f"🎵 Using dark BGM: {bgm_path.name} (start_offset={bgm_start_offset:.1f}s, vol={bgm_volume:.3f})")
 
@@ -1198,14 +1376,15 @@ def render_movie_explanation_short(
 
     # Multi-layered anti-copyright transformation filtergraph:
     # 1. Fullscreen blurred background (boxblur 28:6, darkened)
-    # 2. Foreground 16:9 movie box: color grading (+14% contrast, +18% saturation, gamma 0.96),
+    # 2. Foreground 16:9 movie box: optional hflip mirror, color grading (+14% contrast, +18% saturation, gamma 0.96),
     #    cinematic vignette, high-pass unsharp (5:5:0.8) modifying frequency coefficients,
     #    temporal film noise (6) preventing static hash matching
     # 3. Clean subtle frosted-glass border outlining the movie box
     # 4. Top header badge pill and lower-third dynamic karaoke subtitles
+    flip_filter = "hflip," if mirror else ""
     video_filters = (
         "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:6,eq=brightness=-0.14:contrast=1.06[bg];"
-        "[0:v]scale=1040:-2,eq=contrast=1.14:brightness=-0.03:saturation=1.18:gamma=0.96,vignette=PI/4.2,unsharp=5:5:0.8:5:5:0.4,noise=alls=6:allf=t[fg];"
+        f"[0:v]{flip_filter}scale=1040:-2,eq=contrast=1.14:brightness=-0.03:saturation=1.18:gamma=0.96,vignette=PI/4.2,unsharp=5:5:0.8:5:5:0.4,noise=alls=6:allf=t[fg];"
         "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 40[comp];"
         f"[comp]drawbox=x=18:y=626:w=1044:h=589:color=white@0.18:t=2,"
         f"drawbox=x=80:y=120:w=920:h=82:color=black@0.80:t=fill,"
@@ -1331,4 +1510,105 @@ def stitch_full_movie_video(
         return False
     finally:
         concat_list_file.unlink(missing_ok=True)
+
+
+def extract_subtitles_from_movie(movie_path: Path | str, output_srt: Path | str | None = None) -> list[dict]:
+    """
+    Extracts embedded soft subtitles from any movie/series video file using FFmpeg.
+    Returns parsed list of dialogue cues: [{"start": float, "end": float, "text": str}].
+    """
+    movie_path = Path(movie_path)
+    if not movie_path.exists() or movie_path.stat().st_size < 1000:
+        return []
+
+    if not output_srt:
+        output_srt = movie_path.parent / f"{movie_path.stem}_subs.srt"
+    output_srt = Path(output_srt)
+
+    # 1. Try extracting subtitle stream 0:s:0 via FFmpeg
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(movie_path),
+        "-map", "0:s:0",
+        "-c:s", "text",
+        str(output_srt)
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0 or not output_srt.exists() or output_srt.stat().st_size == 0:
+        cmd_any = [
+            "ffmpeg", "-y",
+            "-i", str(movie_path),
+            "-map", "0:s?",
+            "-c:s", "text",
+            str(output_srt)
+        ]
+        res_any = subprocess.run(cmd_any, capture_output=True, text=True)
+        if res_any.returncode != 0 or not output_srt.exists() or output_srt.stat().st_size == 0:
+            return []
+
+    cues = []
+    time_pat = re.compile(r"(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})")
+    try:
+        content = output_srt.read_text(encoding="utf-8", errors="replace")
+        blocks = content.strip().split("\n\n")
+        for b in blocks:
+            lines = [l.strip() for l in b.split("\n") if l.strip()]
+            for l_idx, line in enumerate(lines):
+                m = time_pat.search(line)
+                if m:
+                    h1, m1, s1, ms1, h2, m2, s2, ms2 = map(int, m.groups())
+                    start_sec = (h1 * 3600) + (m1 * 60) + s1 + (ms1 / 1000.0)
+                    end_sec = (h2 * 3600) + (m2 * 60) + s2 + (ms2 / 1000.0)
+                    text = " ".join(lines[l_idx + 1:]) if l_idx + 1 < len(lines) else ""
+                    clean_text = re.sub(r"<[^>]+>|\{[^}]+\}", "", text).strip()
+                    if clean_text:
+                        cues.append({
+                            "start": round(start_sec, 2),
+                            "end": round(end_sec, 2),
+                            "text": clean_text
+                        })
+                    break
+    except Exception:
+        pass
+
+    return cues
+
+
+def cluster_dialogue_into_acts(dialogue_cues: list[dict], num_parts: int = 6, movie_duration: float = 7200.0) -> list[dict]:
+    """
+    Clusters extracted movie dialogue into chronological narrative acts.
+    Filters out opening credits (~0-120s) and ending credits (~last 300s).
+    """
+    if not dialogue_cues:
+        return []
+
+    head_skip = min(120.0, movie_duration * 0.03)
+    tail_skip = max(head_skip + 60.0, movie_duration - 300.0)
+    story_cues = [c for c in dialogue_cues if head_skip <= c["start"] <= tail_skip]
+    if not story_cues:
+        story_cues = dialogue_cues
+
+    total_cues = len(story_cues)
+    cues_per_act = max(1, total_cues // max(1, num_parts))
+    acts = []
+
+    for i in range(num_parts):
+        start_idx = i * cues_per_act
+        end_idx = total_cues if i == num_parts - 1 else min(total_cues, (i + 1) * cues_per_act)
+        act_cues = story_cues[start_idx:end_idx]
+        if not act_cues:
+            continue
+        act_start = act_cues[0]["start"]
+        act_end = act_cues[-1]["end"]
+        act_text = " ".join(c["text"] for c in act_cues[:15])
+        acts.append({
+            "part": i + 1,
+            "timeline_start": f"{int(act_start//3600):02d}:{int((act_start%3600)//60):02d}:{int(act_start%60):02d}",
+            "timeline_end": f"{int(act_end//3600):02d}:{int((act_end%3600)//60):02d}:{int(act_end%60):02d}",
+            "sample_dialogue": act_text,
+            "cue_count": len(act_cues)
+        })
+
+    return acts
+
 

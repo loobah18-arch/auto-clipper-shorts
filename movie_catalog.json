@@ -54,7 +54,16 @@
           "timeline_end": "00:24:00",
           "hook": "Imagine surviving the death of your home world, only for the deadliest warlord in the universe to choke a god to death in front of you...",
           "script": "Imagine surviving the apocalyptic destruction of your home world, only for the universe's deadliest warlord to blow your escape ship wide open and execute an immortal god with his bare hands. That is how Avengers Infinity War begins! Thanos ambushes the surviving Asgardians, effortlessly pummels the Hulk unconscious, and brutally chokes Loki to death right in front of Thor. With his dying breath, Heimdall summons dark magic to launch the Hulk straight to Earth. Bruce Banner crashes through the ceiling of Doctor Strange's Sanctum Sanctorum with one terrifying warning: Thanos is coming, and he is hunting the six Infinity Stones. Tony Stark is forced to pull out the old flip phone to call Steve Rogers — but before he can dial, a massive alien dreadnought descends over New York City! Hit like and follow for Part 2 as the battle for Manhattan explodes!",
-          "tags": ["avengersinfinitywar", "thanos", "loki", "thor", "ironman", "doctorstrange", "part1", "shorts"]
+          "tags": ["avengersinfinitywar", "thanos", "loki", "thor", "ironman", "doctorstrange", "part1", "shorts"],
+          "beats": [
+            {"start": "00:01:10", "weight": 0.22, "description": "Thanos boards Asgardian refugee ship"},
+            {"start": "00:02:15", "weight": 0.08, "description": "Infinity War opening sequence"},
+            {"start": "00:03:40", "weight": 0.20, "description": "Hulk defeated and Loki choked by Thanos"},
+            {"start": "00:04:15", "weight": 0.12, "description": "Heimdall bifrost sends Hulk to Earth"},
+            {"start": "00:05:40", "weight": 0.16, "description": "Banner crashes through Sanctum Sanctorum ceiling"},
+            {"start": "00:15:20", "weight": 0.14, "description": "Tony Stark flip phone and alien Q-ship arrival"},
+            {"start": "00:21:30", "weight": 0.08, "description": "Battle for Manhattan begins"}
+          ]
         },
         {
           "part_number": 2,
@@ -64,7 +73,17 @@
           "timeline_end": "00:48:00",
           "hook": "A massive alien warship hovers over Manhattan, and Tony Stark activates bleeding-edge nanotech armor to take on the Black Order!",
           "script": "A colossal ring-shaped alien warship descends over Manhattan, and Tony Stark activates his bleeding-edge nanotech armor to take on Ebony Maw and Cull Obsidian! Doctor Strange conjures mystic shields, and Peter Parker abandons his school bus to join the fray. But Maw's telekinetic power is overwhelming. He suffocates Strange and drags him aboard the mothership. Iron Man and Spider-Man rocket into deep space to stage an impossible mid-flight rescue. Meanwhile in Scotland, Wanda and Vision are brutally ambushed in the dark by Corvus Glaive and Proxima Midnight, desperate to rip the Mind Stone from Vision's forehead. Wanda is cornered and outmatched — until a train passes, and Captain America, Black Widow, and Falcon emerge from the shadows to beat the aliens back! Out in deep space, the Guardians of the Galaxy collide with Thor floating unconscious among the wreckage. Part 3 is where the cosmic war escalates — subscribe so you don't miss it!",
-          "tags": ["avengersinfinitywar", "captainamerica", "blackwidow", "spiderman", "ironman", "part2", "shorts"]
+          "tags": ["avengersinfinitywar", "captainamerica", "blackwidow", "spiderman", "ironman", "part2", "shorts"],
+          "beats": [
+            {"start": "00:24:45", "weight": 0.18, "description": "Nanotech Iron Man vs Ebony Maw"},
+            {"start": "00:27:10", "weight": 0.12, "description": "Strange mystic shields and Spidey bus jump"},
+            {"start": "00:30:20", "weight": 0.12, "description": "Ebony Maw captures Strange to mothership"},
+            {"start": "00:32:00", "weight": 0.10, "description": "Tony and Peter fly into outer space"},
+            {"start": "00:37:30", "weight": 0.16, "description": "Scotland ambush on Wanda and Vision"},
+            {"start": "00:40:15", "weight": 0.14, "description": "Cap, Natasha and Falcon train arrival rescue"},
+            {"start": "00:43:00", "weight": 0.10, "description": "Guardians encounter floating Thor in space"},
+            {"start": "00:46:15", "weight": 0.08, "description": "Cosmic war escalation teaser"}
+          ]
         },
         {
           "part_number": 3,
@@ -74,7 +93,17 @@
           "timeline_end": "01:12:00",
           "hook": "The cosmic war fractures across the galaxy as Thor sets out to forge a weapon capable of killing Thanos!",
           "script": "The cosmic war fractures across the galaxy as the heroes split up on three desperate missions. Thor reveals that only the giant dwarven forges of Nidavellir can craft a weapon powerful enough to kill Thanos. He teams up with Rocket and Groot, while Star-Lord and Gamora head to Knowhere to protect the Reality Stone. Meanwhile aboard the alien dreadnought, Tony Stark and Peter Parker pull off an insane plan inspired by the movie Alien: they breach the spaceship's hull, blasting Ebony Maw into the freezing vacuum of space and rescuing Doctor Strange! Tony officially dubs Peter an Avenger, deciding to take the battle directly to Thanos on his ruined homeworld of Titan. But on Knowhere, pure tragedy strikes. The Guardians find Thanos, and Gamora seemingly stabs him to death — only for reality to dissolve. Thanos already has the Reality Stone! He turns their weapons into bubbles and abducts Gamora into the dark! Wait until you see the devastating sacrifice in Part 4!",
-          "tags": ["avengersinfinitywar", "gamora", "starlord", "guardiansofthegalaxy", "thor", "part3", "shorts"]
+          "tags": ["avengersinfinitywar", "gamora", "starlord", "guardiansofthegalaxy", "thor", "part3", "shorts"],
+          "beats": [
+            {"start": "00:48:30", "weight": 0.10, "description": "Three desperate galaxy missions split"},
+            {"start": "00:50:30", "weight": 0.14, "description": "Thor reveals Nidavellir weapon plan"},
+            {"start": "00:53:15", "weight": 0.12, "description": "Rocket, Groot and Thor journey"},
+            {"start": "00:58:20", "weight": 0.18, "description": "Alien vacuum hull breach blasts Ebony Maw"},
+            {"start": "01:01:10", "weight": 0.12, "description": "Peter Parker knighted Avenger on Q-ship"},
+            {"start": "01:04:20", "weight": 0.14, "description": "Gamora attacks illusion Thanos on Knowhere"},
+            {"start": "01:07:30", "weight": 0.12, "description": "Reality Stone bubbles and Gamora abduction"},
+            {"start": "01:10:45", "weight": 0.08, "description": "Part 4 sacrifice teaser"}
+          ]
         },
         {
           "part_number": 4,
@@ -84,7 +113,17 @@
           "timeline_end": "01:36:00",
           "hook": "Thanos reveals the horrifying price of the Soul Stone: you must sacrifice the one thing in the universe you love most!",
           "script": "Thanos shows how utterly ruthless he truly is. Aboard his flagship, he tortures Nebula by disassembling her cybernetic body piece by piece, forcing Gamora to reveal the hidden location of the Soul Stone on the desolate world of Vormir. Escorted by the ghostly Red Skull, Thanos learns the horrifying price of the cosmic stone: a soul for a soul. In order to claim it, you must sacrifice what you love most. Gamora mocks him, thinking he is incapable of love — until she sees tears streaming down his face. In cold blood, Thanos throws Gamora off the cliff, watching her body shatter on the rocks below so he can claim the glowing orange stone. Meanwhile on Titan, Iron Man and Spider-Man clash with the Guardians before realizing they are fighting the same monster. Doctor Strange uses the Time Stone to glimpse fourteen million possible futures — and delivers the chilling truth: they only win in one! Like and follow for the epic clash on Titan in Part 5!",
-          "tags": ["avengersinfinitywar", "vormir", "soulstone", "gamora", "doctorstrange", "titan", "part4", "shorts"]
+          "tags": ["avengersinfinitywar", "vormir", "soulstone", "gamora", "doctorstrange", "titan", "part4", "shorts"],
+          "beats": [
+            {"start": "01:15:00", "weight": 0.18, "description": "Nebula tortured and Vormir revealed"},
+            {"start": "01:21:30", "weight": 0.12, "description": "Red Skull on Vormir reveals price"},
+            {"start": "01:23:40", "weight": 0.10, "description": "Soul for a soul rule explained"},
+            {"start": "01:24:50", "weight": 0.12, "description": "Gamora sees tears on Thanos face"},
+            {"start": "01:26:50", "weight": 0.16, "description": "Thanos throws Gamora off Vormir cliff"},
+            {"start": "01:30:15", "weight": 0.12, "description": "Titan standoff between Avengers and Guardians"},
+            {"start": "01:33:40", "weight": 0.12, "description": "Doctor Strange views 14,000,605 futures"},
+            {"start": "01:35:10", "weight": 0.08, "description": "Battle of Titan Part 5 teaser"}
+          ]
         },
         {
           "part_number": 5,
@@ -94,7 +133,17 @@
           "timeline_end": "02:00:00",
           "hook": "The ambush on Titan is inches from victory — until Star-Lord learns the truth and loses control!",
           "script": "The ambush on Titan is one of the most intense battles in cinematic history. As Thanos arrives wielding four Infinity Stones, the team unleashes their master plan. Doctor Strange binds his hands with mystic ropes, Spider-Man leaps through portals to deliver relentless blows, and Mantis drops from the sky to put the Mad Titan into a psychic slumber. With the Gauntlet inches from slipping off Thanos's fingers, Star-Lord demands to know where Gamora is. The moment Mantis reveals Thanos killed her, Quill flies into an uncontrollable rage, pistol-whipping Thanos across the face and shattering Mantis's trance! An enraged Thanos breaks loose, pulls the crust of the literal moon down from orbit, and brutally impales Tony Stark with his own nanotech blade! With Tony on the brink of death, Doctor Strange makes the unthinkable choice: he hands over the Time Stone to save Stark's life! Part 6 is the devastating finale in Wakanda — hit follow so you don't miss the snap!",
-          "tags": ["avengersinfinitywar", "battleoftitan", "ironman", "thanos", "spiderman", "starlord", "part5", "shorts"]
+          "tags": ["avengersinfinitywar", "battleoftitan", "ironman", "thanos", "spiderman", "starlord", "part5", "shorts"],
+          "beats": [
+            {"start": "01:38:20", "weight": 0.10, "description": "Thanos arrives on ruined planet Titan"},
+            {"start": "01:40:15", "weight": 0.12, "description": "Avengers master ambush begins"},
+            {"start": "01:42:15", "weight": 0.16, "description": "Strange binds, Spidey strikes, Mantis sleeps"},
+            {"start": "01:45:00", "weight": 0.10, "description": "Gauntlet inches from slipping off"},
+            {"start": "01:46:30", "weight": 0.16, "description": "Star-Lord pistol-whips Thanos and breaks trance"},
+            {"start": "01:52:10", "weight": 0.16, "description": "Thanos pulls down moon and impales Tony Stark"},
+            {"start": "01:55:40", "weight": 0.12, "description": "Doctor Strange surrenders Time Stone for Tony"},
+            {"start": "01:58:30", "weight": 0.08, "description": "Wakanda snap finale Part 6 teaser"}
+          ]
         },
         {
           "part_number": 6,
@@ -104,7 +153,17 @@
           "timeline_end": "02:26:00",
           "hook": "Thousands of alien beasts storm Wakanda, and Thor drops from the sky in a flash of lightning wielding Stormbreaker!",
           "script": "The Battle of Wakanda reaches its apocalyptic climax. Thousands of ravenous alien Outriders breach the shields, pushing Captain America and the Avengers to the brink of death — until lightning splits the sky and Thor arrives wielding Stormbreaker, completely obliterating the enemy army! But victory is ripped away in seconds as Thanos teleports onto the battlefield with five Infinity Stones. He brushes Earth's mightiest heroes aside like insects. In tears, Wanda unleashes pure raw power to destroy the Mind Stone, sacrificing the love of her life. But Thanos simply activates the Time Stone, rewinds the clock, and rips the stone straight out of Vision's forehead! Thor dives from the sky, burying Stormbreaker deep into Thanos's chest. But Thanos whispers the most terrifying line in cinema: 'You should have gone for the head.' With one snap of his fingers, half the universe disintegrates into dust. That concludes our Avengers recap! Comment which movie you want explained next!",
-          "tags": ["avengersinfinitywar", "wakanda", "thesnap", "thor", "thanos", "vision", "captainamerica", "part6", "shorts"]
+          "tags": ["avengersinfinitywar", "wakanda", "thesnap", "thor", "thanos", "vision", "captainamerica", "part6", "shorts"],
+          "beats": [
+            {"start": "02:04:30", "weight": 0.20, "description": "Wakanda battle and Thor Stormbreaker lightning entry"},
+            {"start": "02:11:00", "weight": 0.14, "description": "Thanos arrives in Wakanda brushing heroes aside"},
+            {"start": "02:15:30", "weight": 0.14, "description": "Wanda destroys Mind Stone in tears"},
+            {"start": "02:17:15", "weight": 0.16, "description": "Thanos rewinds time and rips stone from Vision"},
+            {"start": "02:19:40", "weight": 0.12, "description": "Thor Stormbreaker chest strike"},
+            {"start": "02:21:10", "weight": 0.08, "description": "You should have gone for the head"},
+            {"start": "02:21:50", "weight": 0.10, "description": "The Snap and half universe dusting"},
+            {"start": "02:24:30", "weight": 0.06, "description": "Recap conclusion and comment prompt"}
+          ]
         }
       ]
     },

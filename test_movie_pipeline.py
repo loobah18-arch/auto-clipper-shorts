@@ -1070,6 +1070,270 @@ class TestMoviePipeline(unittest.TestCase):
                 "PO Token provider address missing from yt-dlp invocation",
             )
 
+    def test_avengers_catalog_has_curated_beats(self):
+        """All 6 parts of Avengers Infinity War must have curated scene-locked beats."""
+        catalog = load_catalog()
+        avengers = next((m for m in catalog["movies"] if m["id"] == "avengers_infinity_war"), None)
+        self.assertIsNotNone(avengers, "Avengers Infinity War missing from catalog")
+        self.assertEqual(len(avengers["parts"]), 6)
+        for part in avengers["parts"]:
+            self.assertIn("beats", part, f"Part {part['part_number']} is missing beats")
+            beats = part["beats"]
+            self.assertGreaterEqual(len(beats), 4, f"Part {part['part_number']} has too few beats")
+            for beat in beats:
+                self.assertIn("start", beat)
+                self.assertIn("description", beat)
+                start_sec = parse_timestamp_to_seconds(beat["start"])
+                self.assertGreater(start_sec, 0)
+
+    def test_slice_movie_timeline_scenes_sentence_sync(self):
+        """slice_movie_timeline_scenes must produce sentence-locked cuts and CFR 30fps concat."""
+        recorded_cmds: list[list[str]] = []
+
+        def fake_run(cmd, *args, **kwargs):
+            recorded_cmds.append(list(cmd))
+            # If creating a slice file, pretend it succeeded and write bytes
+            out_file = cmd[-1]
+            if str(out_file).endswith(".mp4"):
+                p = Path(out_file)
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(b"x" * 200_000)
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            movie_dummy = tmp_path / "dummy_movie.mp4"
+            movie_dummy.write_bytes(b"dummy" * 500)
+            out_sliced = tmp_path / "sliced.mp4"
+
+            narration = "Thanos attacks the Asgardian ship. Hulk gets knocked out. Loki is choked to death. Bruce lands on Earth."
+            beats = [
+                {"start": "00:01:00", "description": "Thanos boards"},
+                {"start": "00:02:30", "description": "Hulk fights"},
+                {"start": "00:03:45", "description": "Loki falls"},
+                {"start": "00:05:00", "description": "Bruce on Earth"},
+            ]
+
+            with unittest.mock.patch.object(movie_video_engine.subprocess, "run", side_effect=fake_run):
+                ok = movie_video_engine.slice_movie_timeline_scenes(
+                    movie_dummy,
+                    "00:00:30",
+                    "00:10:00",
+                    target_duration=50.0,
+                    output_sliced_path=out_sliced,
+                    narration=narration,
+                    beats=beats,
+                )
+
+            self.assertTrue(ok)
+            self.assertTrue(recorded_cmds)
+            # Verify slice commands have fps=30, -avoid_negative_ts make_zero
+            slice_cmd = recorded_cmds[0]
+            self.assertIn("-avoid_negative_ts", slice_cmd)
+            self.assertIn("make_zero", slice_cmd)
+            self.assertTrue(any("fps=30" in arg for arg in slice_cmd))
+
+            # Verify final concat command enforces CFR 30fps
+            concat_cmd = recorded_cmds[-1]
+            self.assertIn("-r", concat_cmd)
+            self.assertIn("30", concat_cmd)
+            self.assertIn("-vsync", concat_cmd)
+            self.assertIn("cfr", concat_cmd)
+
+    def test_slice_trailer_dynamic_scenes_sentence_sync(self):
+        """slice_trailer_dynamic_scenes must use sentence weights and CFR 30fps concat."""
+        recorded_cmds: list[list[str]] = []
+
+        def fake_run(cmd, *args, **kwargs):
+            recorded_cmds.append(list(cmd))
+            out_file = cmd[-1]
+            if str(out_file).endswith(".mp4"):
+                p = Path(out_file)
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(b"x" * 200_000)
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            trailer_dummy = tmp_path / "dummy_trailer.mp4"
+            trailer_dummy.write_bytes(b"trailer" * 500)
+            out_sliced = tmp_path / "trailer_sliced.mp4"
+
+            narration = "A giant spaceship lands in New York. Tony Stark suits up. Spider-Man joins the battle."
+            with unittest.mock.patch("movie_video_engine.get_audio_duration", return_value=120.0):
+                with unittest.mock.patch.object(movie_video_engine.subprocess, "run", side_effect=fake_run):
+                    ok = movie_video_engine.slice_trailer_dynamic_scenes(
+                        trailer_dummy,
+                        target_duration=45.0,
+                        output_sliced_path=out_sliced,
+                        narration=narration,
+                    )
+
+            self.assertTrue(ok)
+            concat_cmd = recorded_cmds[-1]
+            self.assertIn("-r", concat_cmd)
+            self.assertIn("30", concat_cmd)
+            self.assertIn("-vsync", concat_cmd)
+            self.assertIn("cfr", concat_cmd)
+
+    def test_render_movie_explanation_short_mirror(self):
+        """render_movie_explanation_short must insert hflip when mirror=True and omit it when False."""
+        recorded_cmds: list[list[str]] = []
+
+        def fake_run(cmd, *args, **kwargs):
+            recorded_cmds.append(list(cmd))
+            out_file = cmd[-1]
+            Path(out_file).write_bytes(b"render" * 1000)
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            dummy_video = tmp_path / "sliced.mp4"
+            dummy_audio = tmp_path / "audio.mp3"
+            dummy_ass = tmp_path / "subs.ass"
+            dummy_video.write_bytes(b"video" * 100)
+            dummy_audio.write_bytes(b"audio" * 100)
+            dummy_ass.write_text("[Events]\n", encoding="utf-8")
+
+            out_mirrored = tmp_path / "final_mirrored.mp4"
+            out_normal = tmp_path / "final_normal.mp4"
+
+            with unittest.mock.patch("movie_video_engine.get_audio_duration", return_value=45.0):
+                with unittest.mock.patch.object(movie_video_engine.subprocess, "run", side_effect=fake_run):
+                    movie_video_engine.render_movie_explanation_short(
+                        sliced_video_path=dummy_video,
+                        narration_audio_path=dummy_audio,
+                        ass_subtitle_path=dummy_ass,
+                        movie_title="Test Movie",
+                        badge_text="TEST",
+                        output_final_path=out_mirrored,
+                        mirror=True,
+                    )
+                    movie_video_engine.render_movie_explanation_short(
+                        sliced_video_path=dummy_video,
+                        narration_audio_path=dummy_audio,
+                        ass_subtitle_path=dummy_ass,
+                        movie_title="Test Movie",
+                        badge_text="TEST",
+                        output_final_path=out_normal,
+                        mirror=False,
+                    )
+
+            # Inspect filtergraphs
+            cmd_mirror = recorded_cmds[0]
+            filter_idx_mirror = cmd_mirror.index("-filter_complex") + 1
+            fg_mirror = cmd_mirror[filter_idx_mirror]
+            self.assertIn("hflip,", fg_mirror, "Mirror=True must include hflip in foreground filter")
+
+            cmd_normal = recorded_cmds[1]
+            filter_idx_normal = cmd_normal.index("-filter_complex") + 1
+            fg_normal = cmd_normal[filter_idx_normal]
+            self.assertNotIn("hflip,", fg_normal, "Mirror=False must not include hflip in foreground filter")
+
+    def test_extract_subtitles_from_movie_and_clustering(self):
+        """extract_subtitles_from_movie must parse cues and cluster_dialogue_into_acts must create acts."""
+        sample_srt = (
+            "1\n00:01:40,000 --> 00:01:45,000\nThis is the opening scene.\n\n"
+            "2\n00:10:00,000 --> 00:10:05,000\nThanos attacks the refugees.\n\n"
+            "3\n00:30:00,000 --> 00:30:05,000\nBattle in New York City.\n\n"
+            "4\n01:00:00,000 --> 01:00:05,000\nMission to Nidavellir.\n\n"
+            "5\n01:30:00,000 --> 01:30:05,000\nShowdown on Vormir.\n\n"
+            "6\n01:50:00,000 --> 01:50:05,000\nAmbush on Titan.\n\n"
+            "7\n02:15:00,000 --> 02:15:05,000\nBattle of Wakanda.\n\n"
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            movie_dummy = tmp_path / "movie.mkv"
+            movie_dummy.write_bytes(b"dummy" * 500)
+            srt_out = tmp_path / "movie_subs.srt"
+
+            def fake_run(cmd, *args, **kwargs):
+                srt_out.write_text(sample_srt, encoding="utf-8")
+                return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+            with unittest.mock.patch.object(movie_video_engine.subprocess, "run", side_effect=fake_run):
+                cues = movie_video_engine.extract_subtitles_from_movie(movie_dummy, srt_out)
+
+            self.assertEqual(len(cues), 7)
+            self.assertEqual(cues[0]["start"], 100.0)
+            self.assertEqual(cues[0]["text"], "This is the opening scene.")
+
+            # Cluster into 6 acts
+            acts = movie_video_engine.cluster_dialogue_into_acts(cues, num_parts=6, movie_duration=8500.0)
+            self.assertGreaterEqual(len(acts), 1)
+            self.assertIn("timeline_start", acts[0])
+            self.assertIn("timeline_end", acts[0])
+
+    def test_youtube_title_explanation_enforcement(self):
+        """All uploaded video titles must explicitly contain 'Explanation' or 'Explained'."""
+        import generate_movie_short
+
+        recorded_titles: list[str] = []
+
+        class MockRequest:
+            def next_chunk(self):
+                return (None, {"id": "test_yt_123"})
+
+        class MockVideos:
+            def insert(self, part, body, media_body):
+                recorded_titles.append(body["snippet"]["title"])
+                return MockRequest()
+
+        class MockYouTube:
+            def videos(self):
+                return MockVideos()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            dummy_video = tmp_path / "vid.mp4"
+            dummy_thumb = tmp_path / "thumb.jpg"
+            dummy_video.write_bytes(b"vid")
+            dummy_thumb.write_bytes(b"thumb")
+
+            env_vars = {
+                "CLIENT_ID": "fake_id",
+                "CLIENT_SECRET": "fake_sec",
+                "REFRESH_TOKEN": "fake_ref",
+            }
+            with unittest.mock.patch.dict(os.environ, env_vars):
+                with unittest.mock.patch.object(generate_movie_short, "Credentials", return_value=object()):
+                    with unittest.mock.patch.object(generate_movie_short, "build", return_value=MockYouTube()):
+                        with unittest.mock.patch.object(generate_movie_short, "MediaFileUpload", return_value=object()):
+                            # Test Short with part number
+                            generate_movie_short.upload_movie_to_youtube(
+                                dummy_video, dummy_thumb,
+                                {"title": "Avengers Infinity War", "part_number": 2, "total_parts": 6},
+                                is_short=True
+                            )
+                            # Test Short without part number
+                            generate_movie_short.upload_movie_to_youtube(
+                                dummy_video, dummy_thumb,
+                                {"title": "The Platform", "year": 2019},
+                                is_short=True
+                            )
+                            # Test Full video
+                            generate_movie_short.upload_movie_to_youtube(
+                                dummy_video, dummy_thumb,
+                                {"title": "Interstellar", "series_title": "Interstellar", "year": 2014},
+                                is_short=False
+                            )
+                            # Test arbitrary title
+                            generate_movie_short.upload_movie_to_youtube(
+                                dummy_video, dummy_thumb,
+                                {"title": "Random Title Without Keywords"},
+                                is_short=True
+                            )
+
+        self.assertEqual(len(recorded_titles), 4)
+        for title in recorded_titles:
+            self.assertTrue(
+                "explain" in title.lower(),
+                f"Title '{title}' does not contain 'Explanation' or 'Explained'",
+            )
+
+
+
 
 def _fake_run(payload: dict) -> dict:
     """Build a unittest.mock.patch kwargs dict returning a canned ffprobe payload."""

@@ -276,6 +276,9 @@ def upload_movie_to_youtube(
         video_kind = "MOVIE EXPLANATION & STORY RECAP"
         hashtags = "#shorts #movieexplained #movierecap #moviegyan #movieinsighthindi #endingexplained #plottwist #cinema #hollywood"
 
+    if "explain" not in youtube_title.lower():
+        youtube_title = f"{youtube_title} | Explanation"[:100]
+
     description = f"""{youtube_title}
 
 🎬 {video_kind}
@@ -472,10 +475,17 @@ def run_pipeline(
                 duration,
                 sliced_video_path,
                 seed=render_seed,
+                narration=script_text,
+                beats=movie_data.get("beats"),
             )
         else:
             sliced_ok = slice_trailer_dynamic_scenes(
-                Path(video_file), duration, sliced_video_path, seed=render_seed
+                Path(video_file),
+                duration,
+                sliced_video_path,
+                seed=render_seed,
+                narration=script_text,
+                beats=movie_data.get("beats"),
             )
     else:
         private_allowed = os.environ.get("ALLOW_PRIVATE_MEDIA_SOURCES", "false").lower() == "true"
@@ -501,6 +511,8 @@ def run_pipeline(
                     duration,
                     sliced_video_path,
                     seed=render_seed,
+                    narration=script_text,
+                    beats=movie_data.get("beats"),
                 )
         elif gdrive_source and not private_allowed:
             log(
@@ -516,7 +528,12 @@ def run_pipeline(
             trailer_ok = download_movie_trailer(search_query, raw_trailer_path, trailer_url=trailer_url)
             if trailer_ok:
                 sliced_ok = slice_trailer_dynamic_scenes(
-                    raw_trailer_path, duration, sliced_video_path, seed=render_seed
+                    raw_trailer_path,
+                    duration,
+                    sliced_video_path,
+                    seed=render_seed,
+                    narration=script_text,
+                    beats=movie_data.get("beats"),
                 )
 
     if not sliced_ok or not sliced_video_path.exists():
@@ -568,6 +585,7 @@ def run_pipeline(
         part_number=part_number,
         bgm_volume=float(os.environ.get("BGM_VOLUME", "0.12")),
         bgm_start_offset=bgm_start_offset,
+        mirror=True,
     )
     media_info = probe_media(final_short_path)
     duration = media_info.duration_sec
