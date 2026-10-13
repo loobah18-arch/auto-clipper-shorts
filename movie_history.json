@@ -610,15 +610,28 @@
       "status": "uploaded",
       "content_hash": "2cf20f48787f2929add59acc53a3c587f7b0ad160dc9c5d115a6b92ae0477b72",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "dune",
+      "title": "Dune - Part 2/6",
+      "part_number": 2,
+      "total_parts": 6,
+      "youtube_id": "p6sz06gA5yc",
+      "timestamp": "2026-10-13T16:05:12.393588+00:00",
+      "video_path": "movie_short_dune_20261013_160143.mp4",
+      "duration_sec": 74.6,
+      "status": "uploaded",
+      "content_hash": "86690088832c3dfb2d4dcf342762b46f05214794577f04062c2e101cf0ae6d43",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "dune",
     "movie_title": "Dune",
-    "current_part": 1,
+    "current_part": 2,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-13T02:07:53.914866+00:00"
+    "last_updated": "2026-10-13T16:05:12.393662+00:00"
   },
   "superseded_uploads": [
     {
