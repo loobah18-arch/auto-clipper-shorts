@@ -662,15 +662,42 @@
       "status": "uploaded",
       "content_hash": "75d44b225781cd74983ea2015e6da2f5c683b026154614858ff7dc97939b7104",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "dune",
+      "title": "Dune - Part 6/6",
+      "part_number": 6,
+      "total_parts": 6,
+      "youtube_id": "QBXQYhpu8OM",
+      "timestamp": "2026-10-15T13:32:02.238246+00:00",
+      "video_path": "movie_short_dune_20261015_132850.mp4",
+      "duration_sec": 73.8,
+      "status": "uploaded",
+      "content_hash": "42633b7df0ada541034dcc46cbd3c5711dc179af0d35669d518138b6be51ec39",
+      "source_type": "private_media"
+    },
+    {
+      "movie_id": "dune",
+      "title": "Dune Full Movie Explained | Complete Story Recap",
+      "part_number": null,
+      "total_parts": 6,
+      "is_full_video": true,
+      "youtube_id": "gkbM0_Gl_04",
+      "timestamp": "2026-10-15T13:36:03.750101+00:00",
+      "video_path": "dune_full_explained_20261015_133202.mp4",
+      "duration_sec": 486.72,
+      "status": "uploaded",
+      "content_hash": "d2921011bbcb8179a88de5293fc9156358f7f84e16bc396aa78f89759aacf799",
+      "source_type": "stitched_series"
     }
   ],
   "current_series": {
     "movie_id": "dune",
     "movie_title": "Dune",
-    "current_part": 5,
+    "current_part": 6,
     "total_parts": 6,
-    "completed": false,
-    "last_updated": "2026-10-14T23:20:54.119685+00:00"
+    "completed": true,
+    "last_updated": "2026-10-15T13:32:02.238337+00:00"
   },
   "superseded_uploads": [
     {
