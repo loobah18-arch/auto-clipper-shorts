@@ -298,6 +298,28 @@ Narration and commentary are original to this channel. Visuals are sourced only 
 """
 
     upload_type_str = "Normal Video (16:9 / Full)" if not is_short else "Short (9:16)"
+
+    # Multi-Agent Anti-Copyright Filter Verification & Remediation
+    from movie_copyright_filter import MovieMultiAgentCopyrightShield
+    shield = MovieMultiAgentCopyrightShield()
+    youtube_title, description = shield.remediate_metadata(
+        title=youtube_title,
+        description=description,
+        is_short=is_short,
+        part_num=part_num,
+    )
+    filter_res = shield.inspect_candidate(
+        video_path=video_path,
+        title=youtube_title,
+        description=description,
+        is_short=is_short,
+        hashtags=tags,
+    )
+    if not filter_res.passed:
+        log(f"🛑 [MovieShield] Upload REJECTED by copyright filter: {filter_res.summary}")
+        log("Aborting YouTube upload to protect @woosclips channel standing.")
+        return None
+
     log(f"🚀 Uploading {upload_type_str} to YouTube channel @woosclips: '{youtube_title}'...")
     try:
         creds = Credentials(
@@ -591,6 +613,56 @@ def run_pipeline(
     duration = media_info.duration_sec
     generate_thumbnail(final_short_path, thumb_path, title)
 
+    # Multi-Agent Anti-Copyright Filter & Remediation Retry Loop
+    from movie_copyright_filter import MovieMultiAgentCopyrightShield
+    shield = MovieMultiAgentCopyrightShield()
+    MAX_FILTER_RETRIES = 3
+    candidate_passed = False
+    last_filter_res = None
+
+    for attempt in range(1, MAX_FILTER_RETRIES + 1):
+        clean_title, clean_desc = shield.remediate_metadata(
+            title=title,
+            description=movie_data.get("description", ""),
+            is_short=True,
+            part_num=part_number,
+        )
+        title = clean_title
+        filter_res = shield.inspect_candidate(
+            video_path=final_short_path,
+            title=title,
+            description=clean_desc,
+            is_short=True,
+        )
+        last_filter_res = filter_res
+        log(f"🛡️ [MultiAgentShield] Short Attempt {attempt}/{MAX_FILTER_RETRIES}: {filter_res.summary}")
+
+        if filter_res.passed or dry_run:
+            candidate_passed = True
+            break
+
+        log(f"⚠️ [MultiAgentShield] Short candidate rejected on attempt {attempt}. Retrying with enhanced remediation...")
+        if not dry_run and attempt < MAX_FILTER_RETRIES:
+            log(f"🔄 Re-rendering Short with tightened micro-cuts and safe bounds...")
+            render_movie_explanation_short(
+                sliced_video_path=sliced_video_path,
+                narration_audio_path=audio_path,
+                ass_subtitle_path=subtitles_path,
+                movie_title=title,
+                badge_text=badge_text,
+                output_final_path=final_short_path,
+                bgm_path=bgm_file,
+                watermark_text=watermark,
+                part_number=part_number,
+                bgm_volume=float(os.environ.get("BGM_VOLUME", "0.12")),
+                bgm_start_offset=bgm_start_offset,
+                mirror=True,
+            )
+
+    if not candidate_passed and not dry_run:
+        log("🛑 [MultiAgentShield] All retry attempts failed copyright checks. Video will NOT be uploaded to prevent block.")
+        upload_requested = False
+
     youtube_id = None
     if upload_requested:
         youtube_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=True)
@@ -715,6 +787,27 @@ def stitch_and_upload_full_series(
     full_movie_data["title"] = f"{series_title} Full Movie Explained | Complete Story Recap"
     full_movie_data["part_number"] = None
     full_movie_data["is_full_video"] = True
+
+    # Multi-Agent Anti-Copyright Filter Verification for Full Video
+    from movie_copyright_filter import MovieMultiAgentCopyrightShield
+    shield = MovieMultiAgentCopyrightShield()
+    clean_full_title, _ = shield.remediate_metadata(
+        title=full_movie_data["title"],
+        description=full_movie_data.get("description", ""),
+        is_short=False,
+    )
+    full_movie_data["title"] = clean_full_title
+
+    full_filter_res = shield.inspect_candidate(
+        video_path=full_video_path,
+        title=full_movie_data["title"],
+        description=full_movie_data.get("description", ""),
+        is_short=False,
+    )
+    log(f"🛡️ [MultiAgentShield] Full Video Check: {full_filter_res.summary}")
+    if not full_filter_res.passed and not dry_run:
+        log("🛑 [MultiAgentShield] Full video candidate failed anti-copyright checks. Aborting full video upload.")
+        upload_requested = False
 
     full_youtube_id = None
     if upload_requested:
