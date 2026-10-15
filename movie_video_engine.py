@@ -37,6 +37,7 @@ ASSETS_DIR = WORKSPACE_DIR / "assets"
 BGM_DIR = ASSETS_DIR / "bgm"
 
 NON_COPYRIGHT_BGM_TRACKS = [
+    "aerohead_fragments_recap.mp3",
     "hot_heat_topher_mohr.mp3",
     "cinematic_suspense_thriller.mp3",
     "cinematic_suspense_drone.mp3",
@@ -45,8 +46,8 @@ NON_COPYRIGHT_BGM_TRACKS = [
     "cozy_cafe_guitar.mp3",
     "snowfall_calm_aesthetic.mp3",
 ]
-DEFAULT_RECAPPERS_BGM = BGM_DIR / "hot_heat_topher_mohr.mp3"
-DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "hot_heat_topher_mohr.mp3"
+DEFAULT_RECAPPERS_BGM = BGM_DIR / "aerohead_fragments_recap.mp3"
+DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "aerohead_fragments_recap.mp3"
 KNOWN_COPYRIGHTED_BGM = {
     "feeling_blue.mp3",
     "mitski_washing_machine_heart.mp3",
@@ -112,11 +113,11 @@ def detect_character_gender(script_text: str = "", movie_data: dict = None) -> s
     return "female" if female_score > male_score else "male"
 
 
-def resolve_character_voice(gender: str = "female", language: str = "en") -> str:
-    """Return the ideal natural human neural voice. Enforces English female voice (en-US-AvaNeural) for Woo's Clips channel."""
+def resolve_character_voice(gender: str = "male", language: str = "en") -> str:
+    """Return the ideal natural human neural voice. Enforces signature RecapKun / Bhaloo Ji voice (en-US-ChristopherNeural) for Woo's Clips channel."""
     if language == "hi":
         return "hi-IN-SwaraNeural" if gender == "female" else "hi-IN-MadhurNeural"
-    return "en-US-AvaNeural"
+    return "en-US-ChristopherNeural"
 
 
 INDIAN_MOVIE_KEYWORDS = [
@@ -295,8 +296,8 @@ def humanize_speech_text(text: str) -> str:
 async def generate_speech_audio(
     script_text: str,
     output_audio_path: Path,
-    voice: str = "en-US-AvaNeural",
-    rate: str = "+0%",
+    voice: str = "en-US-ChristopherNeural",
+    rate: str = "+8%",
     pitch: str = "+0Hz",
 ) -> list:
     """Generate TTS audio and retain provider word boundaries when available.
@@ -308,7 +309,7 @@ async def generate_speech_audio(
     if voice.startswith("hi-IN"):
         voices_to_try = [voice, "hi-IN-SwaraNeural", "hi-IN-MadhurNeural"]
     else:
-        voices_to_try = [voice, "en-US-AvaNeural", "en-US-JennyNeural", "en-US-EmmaNeural", "en-US-AnaNeural"]
+        voices_to_try = [voice, "en-US-ChristopherNeural", "en-US-EricNeural", "en-US-GuyNeural", "en-US-AvaNeural"]
     voices_to_try = list(dict.fromkeys(voices_to_try))
 
     last_error = None

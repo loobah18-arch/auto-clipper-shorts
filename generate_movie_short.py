@@ -440,11 +440,11 @@ def run_pipeline(
     if script_text:
         log(f"🎙️ Story Recap Script ({len(script_text.split())} words): \"{script_text[:85]}...\"")
 
-    # Voice selection: enforce English female voice (en-US-AvaNeural) for Woo's Clips channel
+    # Voice selection: enforce signature RecapKun / Bhaloo Ji voice (en-US-ChristopherNeural)
     character_gender = detect_character_gender(script_text, movie_data)
     if not voice:
-        voice = os.environ.get("DEFAULT_VOICE") or resolve_character_voice("female", language=lang)
-    log(f"🎙️ Selected neural voice: '{voice}' (narrator: English Female)")
+        voice = os.environ.get("DEFAULT_VOICE") or resolve_character_voice(character_gender, language=lang)
+    log(f"🎙️ Selected neural voice: '{voice}' (narrator: Bhaloo Ji / RecapKun signature style)")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     audio_path = OUTPUT_DIR / f"{movie_id}_narration_{timestamp}.mp3"
@@ -849,7 +849,7 @@ def main():
     parser = argparse.ArgumentParser(description="Movie Explanation YouTube Shorts Automation Pipeline")
     parser.add_argument("--movie", type=str, default=None, help="Name of movie to explain (e.g. 'The Avengers (2012)')")
     parser.add_argument("--part", type=int, default=None, help="Part number of multi-part movie series (e.g. 1, 2, 3)")
-    parser.add_argument("--voice", type=str, default=None, help="Edge-TTS voice (default: en-US-AvaNeural natural conversational female)")
+    parser.add_argument("--voice", type=str, default=None, help="Edge-TTS voice (default: en-US-ChristopherNeural RecapKun / Bhaloo Ji signature storyteller voice)")
     parser.add_argument("--lang", type=str, choices=["en", "hi"], default="en", help="Language: 'en' or 'hi'")
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument("--dry-run", action="store_true", help="Render in the cloud without uploading to YouTube")

@@ -22,9 +22,9 @@ on:
         default: 'en'
         type: string
       voice:
-        description: "Neural voice override (defaults to English female voice: en-US-AvaNeural for Woo's Clips channel)"
+        description: "Neural voice override (defaults to RecapKun / Bhaloo Ji voice: en-US-ChristopherNeural for Woo's Clips channel)"
         required: false
-        default: 'en-US-AvaNeural'
+        default: 'en-US-ChristopherNeural'
         type: string
       dry_run:
         description: 'Run pipeline without uploading to YouTube'
@@ -232,9 +232,9 @@ jobs:
           ALLOW_PRIVATE_MEDIA_SOURCES: ${{ secrets.ALLOW_PRIVATE_MEDIA_SOURCES || 'false' }}
           GDRIVE_FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
           GDRIVE_FILE_NAME: ${{ secrets.GDRIVE_FILE_NAME }}
-          MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH || 'assets/bgm/hot_heat_topher_mohr.mp3' }}
+          MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH || 'assets/bgm/aerohead_fragments_recap.mp3' }}
           BGM_VOLUME: '0.12'
-          DEFAULT_VOICE: 'en-US-AvaNeural'
+          DEFAULT_VOICE: 'en-US-ChristopherNeural'
           ALLOW_TRAILER_SEARCH: 'false'
           ALLOW_EXTERNAL_ARTWORK: 'false'
           INPUT_MOVIE_NAME: ${{ inputs.movie_name }}
