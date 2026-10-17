@@ -258,7 +258,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "🛡️ Verifying rendered artifacts against Multi-Agent Anti-Copyright Filter..."
-          python movie_copyright_filter.py --verify-output output/ || true
+          python movie_copyright_filter.py --verify-output output/
 
       - name: 🧾 Capture Render Diagnostics
         if: always()
