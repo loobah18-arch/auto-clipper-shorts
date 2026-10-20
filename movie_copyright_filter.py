@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-MAX_SHORT_DURATION = 58.5
+MAX_SHORT_DURATION = float(os.environ.get("MAX_SHORT_DURATION", "180.0"))
 MIN_SHORT_DURATION = 10.0
 MAX_SHOT_DURATION = 3.2
 
