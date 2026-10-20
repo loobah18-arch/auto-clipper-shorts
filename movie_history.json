@@ -780,15 +780,28 @@
       "status": "rendered",
       "content_hash": "6b5597ffab0d589ed368cacdefe9cbc98241dec402d39595abb96f85303bca70",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "dune_two",
+      "title": "Dune Two - Part 1/6 Ending Explained Part 1 #Shorts #MovieExplained",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": "9XD5IYyjiw8",
+      "timestamp": "2026-10-20T12:49:14.298422+00:00",
+      "video_path": "movie_short_dune_two_20261020_124701.mp4",
+      "duration_sec": 77.5,
+      "status": "uploaded",
+      "content_hash": "60bb2ca5e3c40a8ad735001001e4c625e7c6607d2ead1e603ab8a3c773de5bbc",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
-    "movie_id": "dune",
-    "movie_title": "Dune",
-    "current_part": 6,
+    "movie_id": "dune_two",
+    "movie_title": "Dune Two",
+    "current_part": 1,
     "total_parts": 6,
-    "completed": true,
-    "last_updated": "2026-10-15T13:32:02.238337+00:00"
+    "completed": false,
+    "last_updated": "2026-10-20T12:49:14.298490+00:00"
   },
   "superseded_uploads": [
     {
