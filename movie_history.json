@@ -845,15 +845,42 @@
       "status": "uploaded",
       "content_hash": "7b9d26f1755e28b2ad72320b2df0d6eb146cbd8f8357361442d74b62f22168f1",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "dune_two",
+      "title": "Dune Two - Part 6/6 Ending Explained Part 6 #Shorts #MovieExplained",
+      "part_number": 6,
+      "total_parts": 6,
+      "youtube_id": "AAlBT-5suMA",
+      "timestamp": "2026-10-22T14:37:43.032618+00:00",
+      "video_path": "movie_short_dune_two_20261022_143452.mp4",
+      "duration_sec": 65.67,
+      "status": "uploaded",
+      "content_hash": "6895f6655ac8e6cfcbd07244df61ae12b5bb9f68ce0408a8858283e070a4b0a6",
+      "source_type": "private_media"
+    },
+    {
+      "movie_id": "dune_two",
+      "title": "Dune Two Full Movie Explained | Complete Story Recap",
+      "part_number": null,
+      "total_parts": 6,
+      "is_full_video": true,
+      "youtube_id": null,
+      "timestamp": "2026-10-22T14:41:33.846757+00:00",
+      "video_path": "dune_two_full_explained_20261022_143743.mp4",
+      "duration_sec": 442.77,
+      "status": "rendered",
+      "content_hash": "f5921fec51260b3cd39f11b0bdf3f63408a7cc92fe4696325ff78dc6d588b230",
+      "source_type": "stitched_series"
     }
   ],
   "current_series": {
     "movie_id": "dune_two",
     "movie_title": "Dune Two",
-    "current_part": 5,
+    "current_part": 6,
     "total_parts": 6,
-    "completed": false,
-    "last_updated": "2026-10-21T23:25:15.429439+00:00"
+    "completed": true,
+    "last_updated": "2026-10-22T14:37:43.032709+00:00"
   },
   "superseded_uploads": [
     {
