@@ -872,15 +872,28 @@
       "status": "rendered",
       "content_hash": "f5921fec51260b3cd39f11b0bdf3f63408a7cc92fe4696325ff78dc6d588b230",
       "source_type": "stitched_series"
+    },
+    {
+      "movie_id": "joker",
+      "title": "Joker - Part 1/6 Ending Explained Part 1 #Shorts #MovieExplained",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": "xZ5TmgH2ox4",
+      "timestamp": "2026-10-22T23:45:49.636788+00:00",
+      "video_path": "movie_short_joker_20261022_234242.mp4",
+      "duration_sec": 76.43,
+      "status": "uploaded",
+      "content_hash": "82e9b3a9847c417cc45070febd83744becaaeb0219d1831c5d71213de75c4c45",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
-    "movie_id": "dune_two",
-    "movie_title": "Dune Two",
-    "current_part": 6,
+    "movie_id": "joker",
+    "movie_title": "Joker",
+    "current_part": 1,
     "total_parts": 6,
-    "completed": true,
-    "last_updated": "2026-10-22T14:37:43.032709+00:00"
+    "completed": false,
+    "last_updated": "2026-10-22T23:45:49.636874+00:00"
   },
   "superseded_uploads": [
     {
