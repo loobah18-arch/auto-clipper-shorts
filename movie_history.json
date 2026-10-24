@@ -924,15 +924,28 @@
       "status": "uploaded",
       "content_hash": "65d34abaa9f43c4226669faaf0b7b3c8e35e4c6bcb480293ea24fc11239c9282",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "joker",
+      "title": "Joker - Part 5/6 Ending Explained Part 5 #Shorts #MovieExplained",
+      "part_number": 5,
+      "total_parts": 6,
+      "youtube_id": "bgNIXDCrIqQ",
+      "timestamp": "2026-10-24T22:34:15.453658+00:00",
+      "video_path": "movie_short_joker_20261024_223134.mp4",
+      "duration_sec": 77.86,
+      "status": "uploaded",
+      "content_hash": "f7d28e291252b4f208df97d29888c2742be2dcab43603d6d3b4eb0a37718a491",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "joker",
     "movie_title": "Joker",
-    "current_part": 4,
+    "current_part": 5,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-24T12:45:57.255351+00:00"
+    "last_updated": "2026-10-24T22:34:15.453749+00:00"
   },
   "superseded_uploads": [
     {
