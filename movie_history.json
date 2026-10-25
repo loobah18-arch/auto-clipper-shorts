@@ -964,15 +964,28 @@
       "status": "rendered",
       "content_hash": "e1db965b4e060b961500e9143f01068339ef8f2fd4530fa4599bbc5b482f4609",
       "source_type": "stitched_series"
+    },
+    {
+      "movie_id": "venom_the_last_dance",
+      "title": "Venom The Last Dance - Part 1/6 Ending Explained Part 1 #Shorts #MovieExplained",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": "Yaork3zFV9o",
+      "timestamp": "2026-10-25T22:38:43.542733+00:00",
+      "video_path": "movie_short_venom_the_last_dance_20261025_223549.mp4",
+      "duration_sec": 72.72,
+      "status": "uploaded",
+      "content_hash": "539e90e838b5cbb9c09a9f27c939c089379d580c8fa1e2586637c509d0bb84b6",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
-    "movie_id": "joker",
-    "movie_title": "Joker",
-    "current_part": 6,
+    "movie_id": "venom_the_last_dance",
+    "movie_title": "Venom The Last Dance",
+    "current_part": 1,
     "total_parts": 6,
-    "completed": true,
-    "last_updated": "2026-10-25T13:15:21.676245+00:00"
+    "completed": false,
+    "last_updated": "2026-10-25T22:38:43.542832+00:00"
   },
   "superseded_uploads": [
     {
