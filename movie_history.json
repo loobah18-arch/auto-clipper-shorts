@@ -937,15 +937,42 @@
       "status": "uploaded",
       "content_hash": "f7d28e291252b4f208df97d29888c2742be2dcab43603d6d3b4eb0a37718a491",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "joker",
+      "title": "Joker - Part 6/6 Ending Explained Part 6 #Shorts #MovieExplained",
+      "part_number": 6,
+      "total_parts": 6,
+      "youtube_id": "lG8dhZouWSc",
+      "timestamp": "2026-10-25T13:15:21.676175+00:00",
+      "video_path": "movie_short_joker_20261025_131311.mp4",
+      "duration_sec": 74.9,
+      "status": "uploaded",
+      "content_hash": "255c38014a6294ae534a698cf89a04a85dd4429f90898f384d4791f3227f0a51",
+      "source_type": "private_media"
+    },
+    {
+      "movie_id": "joker",
+      "title": "Joker Full Movie Explained | Complete Story Recap",
+      "part_number": null,
+      "total_parts": 6,
+      "is_full_video": true,
+      "youtube_id": null,
+      "timestamp": "2026-10-25T13:17:41.825015+00:00",
+      "video_path": "joker_full_explained_20261025_131521.mp4",
+      "duration_sec": 457.12,
+      "status": "rendered",
+      "content_hash": "e1db965b4e060b961500e9143f01068339ef8f2fd4530fa4599bbc5b482f4609",
+      "source_type": "stitched_series"
     }
   ],
   "current_series": {
     "movie_id": "joker",
     "movie_title": "Joker",
-    "current_part": 5,
+    "current_part": 6,
     "total_parts": 6,
-    "completed": false,
-    "last_updated": "2026-10-24T22:34:15.453749+00:00"
+    "completed": true,
+    "last_updated": "2026-10-25T13:15:21.676245+00:00"
   },
   "superseded_uploads": [
     {
