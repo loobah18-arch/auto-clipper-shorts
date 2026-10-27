@@ -280,8 +280,12 @@ class MovieDescriptionCopyrightAgent:
 class MovieMultiAgentCopyrightShield:
     """Orchestrates all 3 filter agents and performs automated remediation & retry loops."""
 
-    def __init__(self, blocked_titles: Optional[List[str]] = None):
-        self.video_agent = MovieVideoCopyrightAgent()
+    def __init__(
+        self,
+        blocked_titles: Optional[List[str]] = None,
+        max_short_duration: float = MAX_SHORT_DURATION,
+    ):
+        self.video_agent = MovieVideoCopyrightAgent(max_short_duration=max_short_duration)
         self.title_agent = MovieTitleCopyrightAgent(blocked_titles=blocked_titles)
         self.desc_agent = MovieDescriptionCopyrightAgent()
 

@@ -938,7 +938,6 @@ def run_pipeline(
     if not qc_report.passed:
         raise MediaValidationError(f"Technical QC failed for {final_short_path.name}: {'; '.join(qc_report.failures)}")
 
-    return final_short_path
     save_movie_history(HISTORY_FILE, history)
 
     # Cache part video so that once all parts are finished, they can be stitched into a full long video
