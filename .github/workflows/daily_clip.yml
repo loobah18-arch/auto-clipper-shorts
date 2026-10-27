@@ -178,6 +178,7 @@ jobs:
           python test_pipeline.py
           python test_movie_pipeline.py
           python test_workflow_contract.py
+          python test_duration_and_rights_regression.py
 
       - name: 🗂️ Auto-Ingest Drive Catalog
         env:
