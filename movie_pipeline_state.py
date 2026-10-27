@@ -52,6 +52,8 @@ class RenderManifest:
     video_sha256: str | None
     source_type: str
     generated_at: str
+    quality_score: float | None = None
+    editing_manifest_file: str | None = None
 
     def to_dict(self) -> dict[str, JsonValue]:
         """Return a JSON-compatible manifest."""

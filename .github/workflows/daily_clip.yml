@@ -285,6 +285,7 @@ jobs:
             output/thumb_*.jpg
             output/*_subtitles_*.ass
             output/render_manifest_*.json
+            output/editing_manifest_*.json
             output/ffprobe_report.txt
             pipeline_debug.log
           retention-days: 7

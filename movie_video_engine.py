@@ -22,9 +22,27 @@ from pathlib import Path
 
 from movie_pipeline_state import stable_seed
 from movie_quality import MAX_SHORT_DURATION
+from movie_story_engine import (
+    EditorialCut,
+    EditorialTimelineBuilder,
+    RetentionEngine,
+    SceneCandidate,
+    SceneIndexManager,
+    StoryBeat,
+    StoryBeatAnalyzer,
+    VisualRelevanceEngine,
+)
 
 WORKSPACE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(WORKSPACE_DIR))
+
+_LAST_EDITORIAL_CUTS: list[EditorialCut] = []
+
+
+def get_last_editorial_cuts() -> list[EditorialCut]:
+    """Return the editorial cuts generated during the most recent scene slicing."""
+    global _LAST_EDITORIAL_CUTS
+    return list(_LAST_EDITORIAL_CUTS)
 
 try:
     import edge_tts
@@ -434,12 +452,19 @@ def create_word_timestamps_from_sentences(sentences: list) -> list:
     return words
 
 
-def generate_moviegyan_subtitles(words: list, output_ass_path: Path, group_size: int = 3, language: str = "en"):
+def generate_moviegyan_subtitles(
+    words: list,
+    output_ass_path: Path,
+    group_size: int = 3,
+    language: str = "en",
+    emphasis_keywords: set[str] | None = None,
+):
     """
     Generates high-retention karaoke ASS subtitles formatted in MovieGyan / Movie Insight Hindi style:
     - Bold sans-serif font
-    - Bright neon yellow active word (&H0000FFFF&)
+    - Bright neon yellow active word (&H0000FFFF&) with punch scale
     - Crisp white inactive words (&H00FFFFFF&)
+    - Optional keyword emphasis for names, numbers, major plot twists (&H00FFFF00&)
     - Thick black outline (&H00000000&)
     - Centered in lower-third
     """
@@ -449,6 +474,8 @@ def generate_moviegyan_subtitles(words: list, output_ass_path: Path, group_size:
         font_name = "Roboto"
     elif language == "hi":
         font_name = "Noto Sans Devanagari"
+
+    emphasis_set = {k.upper() for k in (emphasis_keywords or set())}
 
     ass_content = f"""[Script Info]
 ScriptType: v4.00+
@@ -487,10 +514,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             line_parts = []
             for j, w in enumerate(chunk):
+                raw_w = w["word"]
                 if j == active_idx:
-                    line_parts.append(r"{\c&H0000FFFF&\fscx112\fscy112}" + w["word"] + r"{\r}")
+                    line_parts.append(r"{\c&H0000FFFF&\fscx112\fscy112}" + raw_w + r"{\r}")
+                elif raw_w.upper() in emphasis_set or re.search(r"\b\d+\b", raw_w):
+                    line_parts.append(r"{\c&H00FFFF00&\b1}" + raw_w + r"{\r}")
                 else:
-                    line_parts.append(r"{\c&H00FFFFFF&}" + w["word"] + r"{\r}")
+                    line_parts.append(r"{\c&H00FFFFFF&}" + raw_w + r"{\r}")
 
             text_line = " ".join(line_parts)
             events.append(f"Dialogue: 0,{format_time(t_start)},{format_time(t_end)},Default,,0,0,0,,{text_line}\n")
@@ -710,53 +740,99 @@ def slice_movie_timeline_scenes(
 
     # 1. Dynamic Sentence-Locked Scene Allocation
     shots = []
-    if beats and len(beats) > 0:
-        sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()] if narration else []
-        total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+    global _LAST_EDITORIAL_CUTS
+    intelligent_success = False
 
-        weights = []
-        if total_narr_words > 0 and len(sents) >= len(beats):
-            s_per_beat = max(1, len(sents) // len(beats))
-            for b_idx in range(len(beats)):
-                s_start_idx = b_idx * s_per_beat
-                s_end_idx = len(sents) if (b_idx == len(beats) - 1) else min(len(sents), (b_idx + 1) * s_per_beat)
-                group_words = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx))
-                weights.append(round(group_words / total_narr_words, 3))
-        else:
-            weights = [float(b.get("weight", 1.0 / len(beats))) for b in beats]
+    # Check if caller provided explicit beats with pre-timed 'start' (e.g. catalog or unit test contract)
+    has_explicit_timed_beats = bool(beats and len(beats) > 0 and any(isinstance(b, dict) and "start" in b for b in beats))
 
-        accum_dur = 0.0
-        for b_idx, b in enumerate(beats):
-            raw_b_start = b.get("start", start_sec)
-            b_start = parse_timestamp_to_seconds(str(raw_b_start)) if isinstance(raw_b_start, str) else float(raw_b_start)
-            b_start = max(start_sec, min(end_sec - 1.0, b_start))
-            if b_idx == len(beats) - 1:
-                b_dur = max(0.5, target_duration - accum_dur)
+    if not has_explicit_timed_beats and narration:
+        try:
+            if beats and isinstance(beats[0], dict) and "beat_id" in beats[0]:
+                story_beats = [StoryBeat(**b) if isinstance(b, dict) else b for b in beats]
             else:
-                w = weights[b_idx] if b_idx < len(weights) else (1.0 / len(beats))
-                b_dur = round(target_duration * w, 2)
-                accum_dur += b_dur
-            shots.append((b_start, b_dur))
-    elif narration:
-        sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()]
-        total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
-        if total_narr_words > 0 and len(sents) > 0:
-            num_cuts = max(3, min(len(sents), 12))
-            step = (usable_span - 3.0) / max(1, num_cuts)
-            s_per_cut = max(1, len(sents) // num_cuts)
+                story_beats = StoryBeatAnalyzer.analyze_script(narration, target_duration)
+
+            candidates = SceneIndexManager.build_or_load_index(
+                movie_path,
+                movie_id=output_sliced_path.stem,
+                start_sec=start_sec,
+                end_sec=end_sec,
+            )
+            if story_beats and candidates:
+                timeline_cuts = EditorialTimelineBuilder.build_timeline(
+                    story_beats,
+                    candidates,
+                    target_duration,
+                )
+                reports = RetentionEngine.audit_timeline(timeline_cuts, story_beats, target_duration)
+                revised_cuts = RetentionEngine.automatically_revise_timeline(timeline_cuts, candidates, reports)
+                if revised_cuts:
+                    _LAST_EDITORIAL_CUTS = list(revised_cuts)
+                    for cut in revised_cuts:
+                        shots.append((cut.source_start, cut.duration))
+                    intelligent_success = True
+                    log(f"🎬 Story Relevance Engine assembled {len(revised_cuts)} editorial cuts across {len(story_beats)} beats.")
+        except Exception as e:
+            log(f"⚠️ Intelligent scene relevance notice ({e}); falling back to sentence-synchronized slicing.")
+
+    if not intelligent_success:
+        if beats and len(beats) > 0:
+            sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()] if narration else []
+            total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+
+            weights = []
+            if total_narr_words > 0 and len(sents) >= len(beats):
+                s_per_beat = max(1, len(sents) // len(beats))
+                for b_idx in range(len(beats)):
+                    s_start_idx = b_idx * s_per_beat
+                    s_end_idx = len(sents) if (b_idx == len(beats) - 1) else min(len(sents), (b_idx + 1) * s_per_beat)
+                    group_words = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx))
+                    weights.append(round(group_words / total_narr_words, 3))
+            else:
+                weights = [float(b.get("weight", 1.0 / len(beats))) for b in beats]
+
             accum_dur = 0.0
-            for idx in range(num_cuts):
-                s_start = start_sec + (idx * step) + rng.uniform(-0.5, 0.5)
-                s_start = max(start_sec, min(end_sec - 1.5, s_start))
-                s_start_idx = idx * s_per_cut
-                s_end_idx = len(sents) if (idx == num_cuts - 1) else min(len(sents), (idx + 1) * s_per_cut)
-                w = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx)) / total_narr_words
-                if idx == num_cuts - 1:
-                    s_dur = max(0.5, target_duration - accum_dur)
+            for b_idx, b in enumerate(beats):
+                raw_b_start = b.get("start", start_sec)
+                b_start = parse_timestamp_to_seconds(str(raw_b_start)) if isinstance(raw_b_start, str) else float(raw_b_start)
+                b_start = max(start_sec, min(end_sec - 1.0, b_start))
+                if b_idx == len(beats) - 1:
+                    b_dur = max(0.5, target_duration - accum_dur)
                 else:
-                    s_dur = round(target_duration * w, 2)
-                    accum_dur += s_dur
-                shots.append((s_start, s_dur))
+                    w = weights[b_idx] if b_idx < len(weights) else (1.0 / len(beats))
+                    b_dur = round(target_duration * w, 2)
+                    accum_dur += b_dur
+                shots.append((b_start, b_dur))
+        elif narration:
+            sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()]
+            total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+            if total_narr_words > 0 and len(sents) > 0:
+                num_cuts = max(3, min(len(sents), 12))
+                step = (usable_span - 3.0) / max(1, num_cuts)
+                s_per_cut = max(1, len(sents) // num_cuts)
+                accum_dur = 0.0
+                for idx in range(num_cuts):
+                    s_start = start_sec + (idx * step) + rng.uniform(-0.5, 0.5)
+                    s_start = max(start_sec, min(end_sec - 1.5, s_start))
+                    s_start_idx = idx * s_per_cut
+                    s_end_idx = len(sents) if (idx == num_cuts - 1) else min(len(sents), (idx + 1) * s_per_cut)
+                    w = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx)) / total_narr_words
+                    if idx == num_cuts - 1:
+                        s_dur = max(0.5, target_duration - accum_dur)
+                    else:
+                        s_dur = round(target_duration * w, 2)
+                        accum_dur += s_dur
+                    shots.append((s_start, s_dur))
+            else:
+                num_cuts = int(target_duration // 1.6) + 1
+                cut_duration = round((target_duration + 0.6) / max(1, num_cuts), 2)
+                cut_duration = max(1.3, min(2.5, cut_duration))
+                step = usable_span / max(1, num_cuts)
+                for i in range(num_cuts):
+                    seg_start = start_sec + (i * step) + rng.uniform(-1.0, 1.0)
+                    seg_start = max(start_sec, min(end_sec - cut_duration, seg_start))
+                    shots.append((seg_start, cut_duration))
         else:
             num_cuts = int(target_duration // 1.6) + 1
             cut_duration = round((target_duration + 0.6) / max(1, num_cuts), 2)
@@ -766,15 +842,26 @@ def slice_movie_timeline_scenes(
                 seg_start = start_sec + (i * step) + rng.uniform(-1.0, 1.0)
                 seg_start = max(start_sec, min(end_sec - cut_duration, seg_start))
                 shots.append((seg_start, cut_duration))
-    else:
-        num_cuts = int(target_duration // 1.6) + 1
-        cut_duration = round((target_duration + 0.6) / max(1, num_cuts), 2)
-        cut_duration = max(1.3, min(2.5, cut_duration))
-        step = usable_span / max(1, num_cuts)
-        for i in range(num_cuts):
-            seg_start = start_sec + (i * step) + rng.uniform(-1.0, 1.0)
-            seg_start = max(start_sec, min(end_sec - cut_duration, seg_start))
-            shots.append((seg_start, cut_duration))
+
+        # Ensure fallback cuts are recorded in editorial timeline manifest
+        fallback_cuts = []
+        cur_t = 0.0
+        for i, (st, du) in enumerate(shots):
+            fallback_cuts.append(EditorialCut(
+                cut_id=i + 1,
+                beat_id=i + 1,
+                scene_id=f"scene_{i+1:03d}",
+                source_start=st,
+                duration=du,
+                target_start=round(cur_t, 2),
+                target_end=round(cur_t + du, 2),
+                relevance_score=0.82,
+                shot_type="medium",
+                zoom_factor=1.13,
+                rationale="Fallback sentence-synchronized shot allocation",
+            ))
+            cur_t += du
+        _LAST_EDITORIAL_CUTS = fallback_cuts
 
     # 2. Anti-Copyright duration guard: split any shot > 5.5s to evade contiguous fingerprinting
     expanded_shots = []
@@ -1155,56 +1242,101 @@ def slice_trailer_dynamic_scenes(
     rng = random.Random(seed)
 
     shots = []
-    if beats and len(beats) > 0:
-        sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()] if narration else []
-        total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
-        weights = []
-        if total_narr_words > 0 and len(sents) >= len(beats):
-            s_per_beat = max(1, len(sents) // len(beats))
-            for b_idx in range(len(beats)):
-                s_start_idx = b_idx * s_per_beat
-                s_end_idx = len(sents) if (b_idx == len(beats) - 1) else min(len(sents), (b_idx + 1) * s_per_beat)
-                group_words = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx))
-                weights.append(round(group_words / total_narr_words, 3))
-        else:
-            weights = [float(b.get("weight", 1.0 / len(beats))) for b in beats]
+    global _LAST_EDITORIAL_CUTS
+    intelligent_success = False
 
-        accum_dur = 0.0
-        step = usable_span / max(1, len(beats))
-        for b_idx, b in enumerate(beats):
-            raw_b = b.get("start")
-            if raw_b is not None:
-                b_start = parse_timestamp_to_seconds(str(raw_b)) if isinstance(raw_b, str) else float(raw_b)
-                b_start = max(usable_start, min(usable_end - 1.0, b_start))
+    has_explicit_timed_beats = bool(beats and len(beats) > 0 and any(isinstance(b, dict) and "start" in b for b in beats))
+
+    if not has_explicit_timed_beats and narration:
+        try:
+            if beats and isinstance(beats[0], dict) and "beat_id" in beats[0]:
+                story_beats = [StoryBeat(**b) if isinstance(b, dict) else b for b in beats]
             else:
-                b_start = usable_start + (b_idx * step)
-            if b_idx == len(beats) - 1:
-                b_dur = max(0.5, target_duration - accum_dur)
+                story_beats = StoryBeatAnalyzer.analyze_script(narration, target_duration)
+
+            candidates = SceneIndexManager.build_or_load_index(
+                trailer_path,
+                movie_id=output_sliced_path.stem,
+                start_sec=usable_start,
+                end_sec=usable_end,
+            )
+            if story_beats and candidates:
+                timeline_cuts = EditorialTimelineBuilder.build_timeline(
+                    story_beats,
+                    candidates,
+                    target_duration,
+                )
+                reports = RetentionEngine.audit_timeline(timeline_cuts, story_beats, target_duration)
+                revised_cuts = RetentionEngine.automatically_revise_timeline(timeline_cuts, candidates, reports)
+                if revised_cuts:
+                    _LAST_EDITORIAL_CUTS = list(revised_cuts)
+                    for cut in revised_cuts:
+                        shots.append((cut.source_start, cut.duration))
+                    intelligent_success = True
+                    log(f"🎬 Trailer Story Relevance Engine assembled {len(revised_cuts)} editorial cuts.")
+        except Exception as e:
+            log(f"⚠️ Trailer intelligent scene relevance notice ({e}); falling back to dynamic slicing.")
+
+    if not intelligent_success:
+        if beats and len(beats) > 0:
+            sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()] if narration else []
+            total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+            weights = []
+            if total_narr_words > 0 and len(sents) >= len(beats):
+                s_per_beat = max(1, len(sents) // len(beats))
+                for b_idx in range(len(beats)):
+                    s_start_idx = b_idx * s_per_beat
+                    s_end_idx = len(sents) if (b_idx == len(beats) - 1) else min(len(sents), (b_idx + 1) * s_per_beat)
+                    group_words = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx))
+                    weights.append(round(group_words / total_narr_words, 3))
             else:
-                w = weights[b_idx] if b_idx < len(weights) else (1.0 / len(beats))
-                b_dur = round(target_duration * w, 2)
-                accum_dur += b_dur
-            shots.append((b_start, b_dur))
-    elif narration:
-        sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()]
-        total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
-        if total_narr_words > 0:
-            num_cuts = max(3, min(len(sents), 10))
-            step = usable_span / max(1, num_cuts)
-            s_per_cut = max(1, len(sents) // num_cuts)
+                weights = [float(b.get("weight", 1.0 / len(beats))) for b in beats]
+
             accum_dur = 0.0
-            for idx in range(num_cuts):
-                seg_start = usable_start + (idx * step) + rng.uniform(-0.5, 0.5)
-                seg_start = max(usable_start, min(usable_end - 1.5, seg_start))
-                s_start_idx = idx * s_per_cut
-                s_end_idx = len(sents) if (idx == num_cuts - 1) else min(len(sents), (idx + 1) * s_per_cut)
-                w = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx)) / total_narr_words
-                if idx == num_cuts - 1:
-                    s_dur = max(0.5, target_duration - accum_dur)
+            step = usable_span / max(1, len(beats))
+            for b_idx, b in enumerate(beats):
+                raw_b = b.get("start")
+                if raw_b is not None:
+                    b_start = parse_timestamp_to_seconds(str(raw_b)) if isinstance(raw_b, str) else float(raw_b)
+                    b_start = max(usable_start, min(usable_end - 1.0, b_start))
                 else:
-                    s_dur = round(target_duration * w, 2)
-                    accum_dur += s_dur
-                shots.append((seg_start, s_dur))
+                    b_start = usable_start + (b_idx * step)
+                if b_idx == len(beats) - 1:
+                    b_dur = max(0.5, target_duration - accum_dur)
+                else:
+                    w = weights[b_idx] if b_idx < len(weights) else (1.0 / len(beats))
+                    b_dur = round(target_duration * w, 2)
+                    accum_dur += b_dur
+                shots.append((b_start, b_dur))
+        elif narration:
+            sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration) if s.strip()]
+            total_narr_words = sum(len(s.split()) for s in sents) if sents else 0
+            if total_narr_words > 0:
+                num_cuts = max(3, min(len(sents), 10))
+                step = usable_span / max(1, num_cuts)
+                s_per_cut = max(1, len(sents) // num_cuts)
+                accum_dur = 0.0
+                for idx in range(num_cuts):
+                    seg_start = usable_start + (idx * step) + rng.uniform(-0.5, 0.5)
+                    seg_start = max(usable_start, min(usable_end - 1.5, seg_start))
+                    s_start_idx = idx * s_per_cut
+                    s_end_idx = len(sents) if (idx == num_cuts - 1) else min(len(sents), (idx + 1) * s_per_cut)
+                    w = sum(len(sents[j].split()) for j in range(s_start_idx, s_end_idx)) / total_narr_words
+                    if idx == num_cuts - 1:
+                        s_dur = max(0.5, target_duration - accum_dur)
+                    else:
+                        s_dur = round(target_duration * w, 2)
+                        accum_dur += s_dur
+                    shots.append((seg_start, s_dur))
+            else:
+                num_cuts = int(target_duration // 2.8) + 2
+                cut_duration = round(target_duration / max(1, num_cuts), 2)
+                cut_duration = max(2.2, min(3.4, cut_duration))
+                step = usable_span / max(1, num_cuts)
+                for i in range(num_cuts):
+                    seg_start = usable_start + (i * step) + rng.uniform(-0.5, 0.5)
+                    seg_start = max(usable_start, min(usable_end - cut_duration, seg_start))
+                    shots.append((seg_start, cut_duration))
         else:
             num_cuts = int(target_duration // 2.8) + 2
             cut_duration = round(target_duration / max(1, num_cuts), 2)
@@ -1214,15 +1346,25 @@ def slice_trailer_dynamic_scenes(
                 seg_start = usable_start + (i * step) + rng.uniform(-0.5, 0.5)
                 seg_start = max(usable_start, min(usable_end - cut_duration, seg_start))
                 shots.append((seg_start, cut_duration))
-    else:
-        num_cuts = int(target_duration // 2.8) + 2
-        cut_duration = round(target_duration / max(1, num_cuts), 2)
-        cut_duration = max(2.2, min(3.4, cut_duration))
-        step = usable_span / max(1, num_cuts)
-        for i in range(num_cuts):
-            seg_start = usable_start + (i * step) + rng.uniform(-0.5, 0.5)
-            seg_start = max(usable_start, min(usable_end - cut_duration, seg_start))
-            shots.append((seg_start, cut_duration))
+
+        fallback_cuts = []
+        cur_t = 0.0
+        for i, (st, du) in enumerate(shots):
+            fallback_cuts.append(EditorialCut(
+                cut_id=i + 1,
+                beat_id=i + 1,
+                scene_id=f"trailer_scene_{i+1:03d}",
+                source_start=st,
+                duration=du,
+                target_start=round(cur_t, 2),
+                target_end=round(cur_t + du, 2),
+                relevance_score=0.80,
+                shot_type="medium",
+                zoom_factor=1.13,
+                rationale="Fallback trailer scene allocation",
+            ))
+            cur_t += du
+        _LAST_EDITORIAL_CUTS = fallback_cuts
 
     # Anti-copyright split for any shot > 5.5s
     expanded_shots = []
@@ -1372,6 +1514,7 @@ def render_movie_explanation_short(
     bgm_start_offset: float = None,
     bgm_volume: float = None,
     mirror: bool = True,
+    hook_text: str | None = None,
 ) -> Path:
     """
     Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
@@ -1380,6 +1523,7 @@ def render_movie_explanation_short(
     - Multi-layered anti-Content ID protection (hflip mirroring, filmic grade, vignette, noise)
     - Channel watermark & branding for YPP review verification
     - Sleek top badge pill with movie title
+    - Optional dynamic opening 3-second hook overlay text
     - Bold animated karaoke subtitles in lower-third
     - Crystal clear voiceover with dark suspense BGM
     """
@@ -1420,13 +1564,27 @@ def render_movie_explanation_short(
         clean_wm = re.sub(r"[^A-Za-z0-9@\._\- ]", "", watermark_text).strip()
         watermark_filter = f",drawtext=text='{clean_wm}':fontsize=26:fontcolor=white@0.65:{font_opt}:x=w-text_w-50:y=h-text_h-240"
 
+    # Optional opening hook overlay (Phases 9 & 10: 2-7 words, subtle animation, first 0.2s - 3.2s)
+    hook_overlay_filter = ""
+    if hook_text and str(hook_text).strip():
+        clean_hook = re.sub(r"[^A-Za-z0-9\s\.\!\?\-]", "", str(hook_text)).strip().upper()
+        hook_words = clean_hook.split()[:7]
+        hook_display = " ".join(hook_words)
+        if hook_display:
+            hook_overlay_filter = (
+                f",drawbox=x=100:y=210:w=880:h=90:color=black@0.85:t=fill:enable='between(t,0.2,3.2)',"
+                f"drawbox=x=100:y=210:w=880:h=90:color=white@0.25:t=2:enable='between(t,0.2,3.2)',"
+                f"drawtext=text='{hook_display}':fontsize=42:fontcolor=yellow:{font_opt}:x=(w-text_w)/2:y=235:"
+                f"alpha='if(lt(t,0.6),(t-0.2)/0.4,if(gt(t,2.8),(3.2-t)/0.4,1))':enable='between(t,0.2,3.2)'"
+            )
+
     # Multi-layered anti-copyright transformation filtergraph:
     # 1. Fullscreen blurred background (boxblur 28:6, darkened)
     # 2. Foreground 16:9 movie box: optional hflip mirror, color grading (+14% contrast, +18% saturation, gamma 0.96),
     #    cinematic vignette, high-pass unsharp (5:5:0.8) modifying frequency coefficients,
     #    temporal film noise (6) preventing static hash matching
     # 3. Clean subtle frosted-glass border outlining the movie box
-    # 4. Top header badge pill and lower-third dynamic karaoke subtitles
+    # 4. Top header badge pill, optional opening hook overlay, and lower-third dynamic karaoke subtitles
     flip_filter = "hflip," if mirror else ""
     video_filters = (
         "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:6,eq=brightness=-0.14:contrast=1.06[bg];"
@@ -1436,6 +1594,7 @@ def render_movie_explanation_short(
         f"drawbox=x=80:y=120:w=920:h=82:color=black@0.80:t=fill,"
         f"drawbox=x=80:y=120:w=920:h=82:color=white@0.22:t=2,"
         f"drawtext=text='{badge_display}':fontsize=34:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=145"
+        f"{hook_overlay_filter}"
         f"{watermark_filter},"
         f"ass='{ass_esc}'[vfinal]"
     )

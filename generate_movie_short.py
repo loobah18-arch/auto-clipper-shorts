@@ -50,6 +50,12 @@ from movie_pipeline_state import (
     write_manifest,
 )
 from movie_quality import MAX_SHORT_DURATION, MediaValidationError, probe_media, validate_upload_source
+from movie_story_engine import (
+    EditingManifest,
+    QualityScorer,
+    RetentionEngine,
+    StoryBeatAnalyzer,
+)
 from movie_video_engine import (
     generate_speech_audio,
     create_word_timestamps_from_sentences,
@@ -70,6 +76,7 @@ from movie_video_engine import (
     resolve_character_voice,
     is_indian_movie,
     stitch_full_movie_video,
+    get_last_editorial_cuts,
     log,
     OUTPUT_DIR,
 )
@@ -473,8 +480,26 @@ def run_pipeline(
             f"the {MAX_SHORT_DURATION:.0f}s Short"
         )
 
-    log(f"⏱️ Audio narration duration: {duration:.2f} seconds")
-    generate_moviegyan_subtitles(words, subtitles_path, group_size=3, language=lang)
+    # Phase 3 & 14: Story Beat Analysis & keyword prosody extraction
+    story_beats = StoryBeatAnalyzer.analyze_script(
+        script_text,
+        total_duration=duration,
+        sentences=sentences if not audio_file else None,
+    )
+    movie_data["beats"] = [b.to_dict() for b in story_beats]
+
+    # Phase 13: Caption Emphasis keyword extraction (names, numbers, danger, key actions)
+    emphasis_keywords = set()
+    for b in story_beats:
+        for ent in b.characters + b.objects + b.actions:
+            if ent and len(ent) >= 3:
+                emphasis_keywords.add(ent.upper())
+        for kw in b.keywords:
+            if kw and len(kw) >= 4:
+                emphasis_keywords.add(kw.upper())
+
+    log(f"⏱️ Audio narration duration: {duration:.2f} seconds ({len(story_beats)} story beats analyzed)")
+    generate_moviegyan_subtitles(words, subtitles_path, group_size=3, language=lang, emphasis_keywords=emphasis_keywords)
 
     cache_dir = WORKSPACE_DIR / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -608,10 +633,51 @@ def run_pipeline(
         bgm_volume=float(os.environ.get("BGM_VOLUME", "0.12")),
         bgm_start_offset=bgm_start_offset,
         mirror=True,
+        hook_text=movie_data.get("hook", ""),
     )
     media_info = probe_media(final_short_path)
     duration = media_info.duration_sec
     generate_thumbnail(final_short_path, thumb_path, title)
+
+    # Phase 16, 29, 32: Editorial Quality Score, Retention Audit, & Machine-Readable Manifest
+    editorial_cuts = get_last_editorial_cuts()
+    retention_reports = RetentionEngine.audit_timeline(editorial_cuts, story_beats, duration)
+    quality_report = QualityScorer.evaluate(
+        editorial_cuts,
+        story_beats,
+        has_bgm=bool(bgm_file and bgm_file.exists()),
+        has_subtitles=True,
+    )
+    log(
+        f"🏆 Editorial Quality Score: {quality_report.total_score:.1f}/100 "
+        f"[Hook: {quality_report.hook_score:.1f}/20, "
+        f"Relevance: {quality_report.visual_relevance_score:.1f}/20, "
+        f"Clarity: {quality_report.story_clarity_score:.1f}/15, "
+        f"Pacing: {quality_report.pacing_score:.1f}/15, "
+        f"Captions: {quality_report.captions_score:.1f}/10, "
+        f"Audio: {quality_report.audio_score:.1f}/10, "
+        f"Emotion: {quality_report.emotional_impact_score:.1f}/5, "
+        f"Ending: {quality_report.ending_score:.1f}/5]"
+    )
+    if quality_report.recommendations:
+        for rec in quality_report.recommendations:
+            log(f"   ↳ Editorial optimization notice: {rec}")
+
+    editing_manifest_path = OUTPUT_DIR / f"editing_manifest_{movie_id}_{timestamp}.json"
+    editing_manifest = EditingManifest(
+        movie=title,
+        part=part_number,
+        narration_duration=round(duration, 2),
+        total_video_duration=round(duration, 2),
+        selected_scenes=[c.to_dict() for c in editorial_cuts],
+        quality_score=quality_report.to_dict(),
+        retention_report=[r.__dict__ for r in retention_reports],
+        bgm_track=bgm_file.name if bgm_file else "none",
+        warnings=quality_report.recommendations,
+        fallback_events=[],
+    )
+    editing_manifest.write_to_file(editing_manifest_path)
+    log(f"📋 Machine-readable editing manifest saved: {editing_manifest_path.name}")
 
     # Multi-Agent Anti-Copyright Filter & Remediation Retry Loop
     from movie_copyright_filter import MovieMultiAgentCopyrightShield
@@ -657,6 +723,7 @@ def run_pipeline(
                 bgm_volume=float(os.environ.get("BGM_VOLUME", "0.12")),
                 bgm_start_offset=bgm_start_offset,
                 mirror=True,
+                hook_text=movie_data.get("hook", ""),
             )
 
     if not candidate_passed and not dry_run:
@@ -688,6 +755,8 @@ def run_pipeline(
             video_sha256=video_hash,
             source_type=source_type,
             generated_at=utc_now(),
+            quality_score=quality_report.total_score,
+            editing_manifest_file=editing_manifest_path.name,
         ),
     )
 
