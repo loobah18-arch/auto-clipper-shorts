@@ -11,6 +11,7 @@ Orchestrates the entire movie explanation pipeline:
 7. YouTube Shorts Upload (with SEO title, tags, and Fair Use attribution)
 """
 
+import json
 import os
 import re
 import sys
