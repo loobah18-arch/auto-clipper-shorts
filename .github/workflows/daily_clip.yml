@@ -130,8 +130,11 @@ jobs:
 
       - name: 🎥 Install FFmpeg & System Tools
         run: |
-          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=15 -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core fonts-liberation fonts-noto-core aria2
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          export NEEDRESTART_MODE=a
+          sudo -E apt-get update -qq
+          sudo -E apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core fonts-liberation fonts-noto-core aria2
 
 
 
