@@ -40,6 +40,11 @@ on:
           - 'shorts_9x16'
           - 'cinerush_style'
           - 'landscape'
+      allow_unreviewed_rights:
+        description: 'Allow publishing of unreviewed movie assets without manual review gate'
+        required: false
+        default: true
+        type: boolean
       set_visibility:
         description: 'Optional: comma-separated video IDs to change visibility (skips the normal pipeline)'
         required: false
@@ -258,6 +263,7 @@ jobs:
           INPUT_VOICE: ${{ inputs.voice }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
           INPUT_PROFILE: ${{ inputs.profile }}
+          INPUT_ALLOW_UNREVIEWED_RIGHTS: ${{ inputs.allow_unreviewed_rights }}
         run: |
           set -euo pipefail
           echo "🎬 Running Movie Explanation Shorts Generator (Cinematic Story Style)..."
@@ -267,6 +273,7 @@ jobs:
           if [ -n "$INPUT_LANG" ]; then ARGS+=(--lang "$INPUT_LANG"); fi
           if [ -n "$INPUT_VOICE" ]; then ARGS+=(--voice "$INPUT_VOICE"); fi
           if [ -n "${INPUT_PROFILE:-}" ]; then ARGS+=(--profile "$INPUT_PROFILE"); fi
+          if [ "${INPUT_ALLOW_UNREVIEWED_RIGHTS:-true}" = "true" ]; then ARGS+=(--allow-unreviewed-rights); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
           python generate_movie_short.py "${ARGS[@]}" 2>&1 | tee pipeline_debug.log
 
