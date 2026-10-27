@@ -990,15 +990,28 @@
       "status": "uploaded",
       "content_hash": "3f4588d405c96661c1d60f0e9812f932f28d6263b250fb9ca98fa8011d21cc42",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "venom_the_last_dance",
+      "title": "Venom The Last Dance - Part 3/6 Ending Explained Part 3 #Shorts #MovieExplained",
+      "part_number": 3,
+      "total_parts": 6,
+      "youtube_id": "b3nn_3-agTs",
+      "timestamp": "2026-10-27T00:23:37.547818+00:00",
+      "video_path": "movie_short_venom_the_last_dance_20261027_002031.mp4",
+      "duration_sec": 80.71,
+      "status": "uploaded",
+      "content_hash": "c1ad7e3817b1a616c50627e73d9aa46b1d0bd7049b972255a4929b30b0292cfe",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "venom_the_last_dance",
     "movie_title": "Venom The Last Dance",
-    "current_part": 2,
+    "current_part": 3,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-26T15:49:27.539845+00:00"
+    "last_updated": "2026-10-27T00:23:37.547911+00:00"
   },
   "superseded_uploads": [
     {
