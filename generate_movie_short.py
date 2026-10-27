@@ -25,15 +25,20 @@ WORKSPACE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(WORKSPACE_DIR))
 
 from movie_ai_script import (
+    calculate_script_word_budget,
     generate_movie_script_ai,
-    load_catalog,
     get_movie_from_catalog,
     is_stale_critic_analysis_script,
+    load_catalog,
+    shorten_movie_script,
+    ScriptDurationExceededError,
 )
 from movie_pipeline_state import (
     DuplicateEpisodeError,
     JsonValue,
+    MediaRightsRecord,
     RenderManifest,
+    RightsStatus,
     RunStatus,
     append_history_entry,
     episode_key,
@@ -49,7 +54,17 @@ from movie_pipeline_state import (
     entry_is_uploaded,
     write_manifest,
 )
-from movie_quality import MAX_SHORT_DURATION, MediaValidationError, probe_media, validate_upload_source
+from movie_quality import (
+    DEFAULT_SHORTS_MAX_DURATION,
+    MAX_SHORT_DURATION,
+    ConfigurationError,
+    MediaValidationError,
+    TechnicalQCReport,
+    probe_media,
+    validate_duration_policy,
+    validate_rendered_video_technical,
+    validate_upload_source,
+)
 from movie_story_engine import (
     EditingManifest,
     QualityScorer,
@@ -390,11 +405,21 @@ def run_pipeline(
     video_file: str | None = None,
     audio_file: str | None = None,
     watermark: str | None = None,
+    max_duration: float | None = None,
+    profile: str = "shorts",
+    allow_unreviewed_rights: bool = False,
 ) -> Path:
     """Execute the cloud movie Short pipeline and persist its outcome."""
     log("=" * 65)
     log("🎬 STARTING MOVIE EXPLANATION SHORTS GENERATOR (MovieGyan Style)")
     log("=" * 65)
+
+    target_max_duration = validate_duration_policy(
+        max_duration=max_duration,
+        is_long_video=False,
+        profile=profile,
+    )
+    log(f"⏱️ Duration Policy: Profile='{profile}', Safe Ceiling={target_max_duration:.1f}s")
 
     movie_data = select_next_movie(movie_name, requested_part=part, lang=lang)
     movie_id = str(movie_data.get("id", re.sub(r"[^\w]", "_", str(movie_data.get("title", "movie"))).lower()))
@@ -425,6 +450,8 @@ def run_pipeline(
             part=part_number,
             total_parts=total_parts,
             language=lang,
+            target_max_duration=target_max_duration,
+            format=profile,
         )
         script_text = str(ai_data.get("script", ""))
         if ai_data.get("hook"):
@@ -474,10 +501,32 @@ def run_pipeline(
         duration = get_audio_duration(audio_path)
         words = create_word_timestamps_from_sentences(sentences)
 
-    if duration > MAX_SHORT_DURATION:
+    # Automated script shortening revision loop:
+    # If the synthesized narration exceeds target_max_duration, iteratively rewrite it more concisely
+    # preserving plot progression, causal beats, and cliffhanger outro.
+    MAX_SCRIPT_REVISIONS = 3
+    revision_attempt = 0
+
+    while duration > target_max_duration and revision_attempt < MAX_SCRIPT_REVISIONS and not audio_file:
+        revision_attempt += 1
+        current_words = len(script_text.split())
+        reduction_ratio = target_max_duration / max(1.0, duration)
+        target_words = max(25, int(current_words * reduction_ratio * 0.95))
+        log(
+            f"⚠️ Narration duration ({duration:.2f}s) exceeds safe ceiling ({target_max_duration:.1f}s). "
+            f"Automatically condensing script ({current_words} ➔ ~{target_words} words, revision {revision_attempt}/{MAX_SCRIPT_REVISIONS})..."
+        )
+        script_text = shorten_movie_script(script_text, target_words=target_words, movie_name=title)
+        script_hash = hashlib.sha256(script_text.encode("utf-8")).hexdigest()
+        sentences = asyncio.run(generate_speech_audio(script_text, audio_path, voice=voice))
+        duration = get_audio_duration(audio_path)
+        words = create_word_timestamps_from_sentences(sentences)
+        log(f"   ↳ Revision {revision_attempt} synthesized: {duration:.2f}s ({len(script_text.split())} words)")
+
+    if duration > target_max_duration:
         raise MediaValidationError(
-            f"Narration is {duration:.2f}s; shorten the script before rendering "
-            f"the {MAX_SHORT_DURATION:.0f}s Short"
+            f"Narration duration ({duration:.2f}s) exceeds the configured limit of {target_max_duration:.1f}s "
+            f"even after {revision_attempt} automated revision attempts. Shorten script manually or adjust settings."
         )
 
     # Phase 3 & 14: Story Beat Analysis & keyword prosody extraction
@@ -499,7 +548,14 @@ def run_pipeline(
                 emphasis_keywords.add(kw.upper())
 
     log(f"⏱️ Audio narration duration: {duration:.2f} seconds ({len(story_beats)} story beats analyzed)")
-    generate_moviegyan_subtitles(words, subtitles_path, group_size=3, language=lang, emphasis_keywords=emphasis_keywords)
+    generate_moviegyan_subtitles(
+        words,
+        subtitles_path,
+        group_size=3,
+        language=lang,
+        emphasis_keywords=emphasis_keywords,
+        max_duration=target_max_duration,
+    )
 
     cache_dir = WORKSPACE_DIR / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -634,10 +690,45 @@ def run_pipeline(
         bgm_start_offset=bgm_start_offset,
         mirror=True,
         hook_text=movie_data.get("hook", ""),
+        max_duration=target_max_duration,
     )
-    media_info = probe_media(final_short_path)
-    duration = media_info.duration_sec
     generate_thumbnail(final_short_path, thumb_path, title)
+
+    # 1. FINAL RENDER TECHNICAL QC & DURATION VERIFICATION GATE
+    qc_report = validate_rendered_video_technical(
+        final_short_path,
+        subtitles_path=subtitles_path,
+        max_duration=target_max_duration,
+        is_long_video=False,
+        profile=profile,
+    )
+    duration = qc_report.measured_duration
+    log(
+        f"🔍 Technical QC: {'PASSED ✅' if qc_report.passed else 'FAILED ❌'} "
+        f"[Measured Duration: {qc_report.measured_duration:.2f}s / max {qc_report.target_max_duration:.2f}s, "
+        f"Res: {qc_report.width}x{qc_report.height}, Video: {qc_report.has_video}, Audio: {qc_report.has_audio}, "
+        f"Subtitles: {'SYNCED ✅' if qc_report.subtitle_passed else 'OUT_OF_BOUNDS ❌'}]"
+    )
+    if qc_report.failures:
+        for fail in qc_report.failures:
+            log(f"   ↳ QC Failure: {fail}")
+    if qc_report.warnings:
+        for warn in qc_report.warnings:
+            log(f"   ↳ QC Warning: {warn}")
+
+    # 2. MEDIA RIGHTS VALIDATION STAGE
+    from movie_copyright_filter import MediaRightsAgent
+    rights_record = MediaRightsAgent.evaluate_rights(
+        source_type=source_type,
+        asset_metadata=movie_data,
+        bgm_track=bgm_file.name if bgm_file else None,
+        allow_unreviewed=allow_unreviewed_rights,
+    )
+    log(
+        f"⚖️ Media Rights Status: {rights_record.rights_status.value.upper()} "
+        f"(Requires Review: {'YES ⚠️' if rights_record.requires_manual_review else 'NO ✅'}) "
+        f"[{rights_record.notes}]"
+    )
 
     # Phase 16, 29, 32: Editorial Quality Score, Retention Audit, & Machine-Readable Manifest
     editorial_cuts = get_last_editorial_cuts()
@@ -679,9 +770,26 @@ def run_pipeline(
     editing_manifest.write_to_file(editing_manifest_path)
     log(f"📋 Machine-readable editing manifest saved: {editing_manifest_path.name}")
 
+    # 3. EXPLICIT PIPELINE OUTPUT STATE DETERMINATION
+    if not qc_report.duration_passed:
+        current_state = RunStatus.DURATION_QC_FAILED
+        log(f"🛑 Pipeline State: DURATION_QC_FAILED (duration {duration:.2f}s > max {target_max_duration:.2f}s)")
+        upload_requested = False
+    elif not qc_report.passed:
+        current_state = RunStatus.TECHNICAL_QC_FAILED
+        log("🛑 Pipeline State: TECHNICAL_QC_FAILED (technical quality checks failed)")
+        upload_requested = False
+    elif rights_record.requires_manual_review:
+        current_state = RunStatus.RIGHTS_REVIEW_REQUIRED
+        log("⚠️ Pipeline State: RIGHTS_REVIEW_REQUIRED (media rights unverified; requires manual review)")
+        upload_requested = False
+    else:
+        current_state = RunStatus.PUBLISH_READY
+        log("✨ Pipeline State: PUBLISH_READY (all technical, duration, and rights gates cleared)")
+
     # Multi-Agent Anti-Copyright Filter & Remediation Retry Loop
     from movie_copyright_filter import MovieMultiAgentCopyrightShield
-    shield = MovieMultiAgentCopyrightShield()
+    shield = MovieMultiAgentCopyrightShield(max_short_duration=target_max_duration)
     MAX_FILTER_RETRIES = 3
     candidate_passed = False
     last_filter_res = None
@@ -724,6 +832,7 @@ def run_pipeline(
                 bgm_start_offset=bgm_start_offset,
                 mirror=True,
                 hook_text=movie_data.get("hook", ""),
+                max_duration=target_max_duration,
             )
 
     if not candidate_passed and not dry_run:
@@ -731,12 +840,47 @@ def run_pipeline(
         upload_requested = False
 
     youtube_id = None
-    if upload_requested:
+    if upload_requested and current_state == RunStatus.PUBLISH_READY:
         youtube_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=True)
-    status = RunStatus.UPLOADED.value if youtube_id else (
-        RunStatus.RENDERED.value if not upload_requested else RunStatus.FAILED.value
-    )
-    video_hash = sha256_file(final_short_path)
+
+    status = RunStatus.UPLOADED.value if youtube_id else current_state.value
+    video_hash = sha256_file(final_short_path) if final_short_path.exists() else None
+
+    # 4. WRITE COMPREHENSIVE MACHINE-READABLE RENDER REPORT
+    render_report_path = OUTPUT_DIR / f"render_report_{movie_id}_{timestamp}.json"
+    render_report_data = {
+        "job_id": f"job_{movie_id}_{timestamp}",
+        "movie_id": movie_id,
+        "movie_title": title,
+        "selected_profile": profile,
+        "configured_max_duration": round(target_max_duration, 2),
+        "measured_final_duration": round(duration, 2),
+        "narration_duration": round(duration, 2),
+        "number_of_scenes": len(editorial_cuts),
+        "resolution": f"{qc_report.width}x{qc_report.height}",
+        "frame_rate": 30.0,
+        "audio_validation": {
+            "has_audio": qc_report.has_audio,
+            "codec": qc_report.audio_codec,
+            "container_duration": qc_report.container_duration,
+            "audio_stream_duration": qc_report.audio_stream_duration,
+        },
+        "subtitle_validation": {
+            "subtitles_passed": qc_report.subtitle_passed,
+            "subtitle_file": subtitles_path.name,
+        },
+        "media_rights_review": rights_record.to_dict(),
+        "technical_qc": qc_report.to_dict(),
+        "quality_score": quality_report.to_dict(),
+        "manual_review_required": rights_record.requires_manual_review or not qc_report.passed,
+        "final_pipeline_state": status,
+        "generated_at": utc_now(),
+    }
+    with open(render_report_path, "w", encoding="utf-8") as rf:
+        json.dump(render_report_data, rf, indent=2, ensure_ascii=False)
+        rf.write("\n")
+    log(f"📊 Machine-readable render report saved: {render_report_path.name}")
+
     write_manifest(
         manifest_path,
         RenderManifest(
@@ -757,6 +901,13 @@ def run_pipeline(
             generated_at=utc_now(),
             quality_score=quality_report.total_score,
             editing_manifest_file=editing_manifest_path.name,
+            profile=profile,
+            target_max_duration=round(target_max_duration, 2),
+            rights_status=rights_record.rights_status.value,
+            rights_review_required=rights_record.requires_manual_review,
+            technical_qc_passed=qc_report.passed,
+            qc_failures=qc_report.failures,
+            manual_review_required=rights_record.requires_manual_review or not qc_report.passed,
         ),
     )
 
@@ -782,6 +933,12 @@ def run_pipeline(
             part_number,
             total_parts,
         )
+
+    # Fail closed: If technical QC failed, raise MediaValidationError to prevent mistake
+    if not qc_report.passed:
+        raise MediaValidationError(f"Technical QC failed for {final_short_path.name}: {'; '.join(qc_report.failures)}")
+
+    return final_short_path
     save_movie_history(HISTORY_FILE, history)
 
     # Cache part video so that once all parts are finished, they can be stitched into a full long video
@@ -927,6 +1084,9 @@ def main():
     parser.add_argument("--video-file", type=str, default=None, help="Path to local high-res movie or scene pack MP4/MKV")
     parser.add_argument("--audio-file", type=str, default=None, help="Path to custom human-recorded voiceover MP3/WAV")
     parser.add_argument("--watermark", type=str, default=None, help="Channel watermark text (e.g. '@CinemaInsights')")
+    parser.add_argument("--max-duration", type=float, default=None, help="Maximum allowed video duration (default: 58.0s for Shorts)")
+    parser.add_argument("--profile", type=str, choices=["shorts", "long_form"], default="shorts", help="Video profile ('shorts' [<=58s] or 'long_form')")
+    parser.add_argument("--allow-unreviewed-rights", action="store_true", help="Allow upload of assets with unverified rights without manual review gate")
     parser.add_argument("--stitch-series", type=str, default=None, help="Movie ID to stitch all cached parts into a Full Long Video")
     args = parser.parse_args()
 
@@ -979,7 +1139,10 @@ def main():
         force_upload=args.upload,
         video_file=args.video_file,
         audio_file=args.audio_file,
-        watermark=args.watermark
+        watermark=args.watermark,
+        max_duration=args.max_duration,
+        profile=args.profile,
+        allow_unreviewed_rights=args.allow_unreviewed_rights,
     )
 
 

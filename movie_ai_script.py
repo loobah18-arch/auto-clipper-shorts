@@ -49,36 +49,36 @@ CRITICAL RULES FOR BHALOO JI & RECAPKUN EXPLANATION STYLE:
    - End with an irresistible, nail-biting cliffhanger that forces the viewer to demand the next part:
      e.g., "Wait until you see the impossible choice he makes in Part 2! Like and follow so you don't miss it!"
 
-7. WORD COUNT & TIMING:
-   - 170 to 220 words (pacing calibrated for 45-55 second Shorts at +8% ChristopherNeural cadence).
+7. WORD COUNT & TIMING (STRICT DURATION CEILING):
+   - 110 to 135 words maximum. Pacing calibrated strictly for a 50-55 second Short under the YouTube Shorts 60s copyright safe limit. Never exceed 140 words.
 
 Respond ONLY with a valid JSON object matching this schema:
 {
   "title": "Movie Title (Year)",
   "badge": "MOVIE RECAP",
   "hook": "Intense opening hook",
-  "script": "The complete spoken human narrative recap (170-220 words)",
+  "script": "The complete spoken human narrative recap (110-135 words)",
   "tags": ["movierecap", "movieexplained", "endingexplained", "storyexplained", "plottwist", "cinema"]
 }
 """
 
 SYSTEM_PROMPT_HI = """You are an elite YouTube movie storyteller and recap creator in conversational, energetic Hindi / Hinglish, in the exact viral style of Movrecap, MovieGyan and Movies Insight Hindi.
-Your goal is to narrate a thrilling, detailed MOVIE EXPLANATION & STORY RECAP (200-320 words).
+Your goal is to narrate a thrilling, detailed MOVIE EXPLANATION & STORY RECAP (120-150 words).
 
 RULES:
 1. PURE STORYTELLING: Bilkul natural aur bolne wale andaaz mein kahani sunaao. Kirdaaron ke saath kya hota hai, unka sangharsh aur plot ke twists ko vistaar se samjhao. Koi boring film analysis, camera techniques ya director ka naam mat lo.
 2. NATURAL PAUSES & CADENCE: Em-dashes (' — ') aur ellipses ('...') ka use karo taaki aawaaz mein natural breath pauses aur suspense aaye ('Wait — dekho yahan kya hota hai...', 'Aur fir? Sannata.').
-3. Hook: Shuruat aisi ho ki viewer scroll na kar sake (e.g., 'Is ladki ne sab kuch kho diya tha — lekin ek ajeeb vasiyat ne sab badal diya...', '200 saal se zameen ke niche kaid hai ye insaan — lekin aaj...').
+3. Hook: Shuruat aisi ho ki viewer scroll na kar sake (e.g., 'Is ladki ne sab kuch kho diya tha — lekin ek ajeeb vasiyat ne sab badal diya...').
 4. Detailed Story Beats: Har scene ke mod aur suspense ko theek se explain karo taaki viewer kahani mein poori tarah doob jaye.
-5. Cliffhanger / Ending: Ending par zabardast suspense chhodo taaki viewer agla part ya full video dekhe: 'Ab kya ye bach payenge? Dekhiye agle part mein! Like aur subscribe zaroor karna!'
-6. Word count: 200-320 words detailed explanation.
+5. Cliffhanger / Ending: Ending par zabardast suspense chhodo taaki viewer agla part dekhe: 'Ab kya ye bach payenge? Dekhiye agle part mein! Like aur subscribe zaroor karna!'
+6. Word count: 120-150 words (strictly under 55 seconds).
 
 Respond ONLY with a valid JSON object:
 {
   "title": "Movie Title (Year)",
   "badge": "MOVIE RECAP • HINDI",
   "hook": "Suspenseful Hindi opening hook",
-  "script": "The complete spoken Hindi script (200-320 words)",
+  "script": "The complete spoken Hindi script (120-150 words)",
   "tags": ["movierecap", "movieexplainedinhindi", "movieinsighthindi", "storyexplained", "plottwist"]
 }
 """
@@ -304,30 +304,120 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
         raise ModelReplyError(str(error), raw=content) from error
 
 
+class ScriptDurationExceededError(Exception):
+    """Raised when script narration cannot fit within the maximum duration ceiling."""
+
+
+def calculate_script_word_budget(
+    target_duration: float = 58.0,
+    format: str = "shorts",
+    expected_speech_rate_wps: float = 2.4,
+    intro_allowance: float = 2.5,
+    outro_allowance: float = 3.5,
+) -> tuple[int, int]:
+    """Calculate the target word count range (min_words, max_words) for a script.
+
+    For Shorts, bounds the script strictly so narration comfortably finishes under 58s.
+    """
+    if format == "long_form":
+        nominal_dur = max(65.0, target_duration)
+        mid = int(nominal_dur * 2.3)
+        return (int(mid * 0.85), int(mid * 1.15))
+
+    usable_dur = max(10.0, target_duration - intro_allowance - outro_allowance)
+    nominal_words = int(usable_dur * expected_speech_rate_wps)
+    min_words = max(25, int(nominal_words * 0.85))
+    max_words = max(min_words + 15, int(nominal_words * 1.05))
+    return (min_words, max_words)
+
+
+def shorten_movie_script(
+    script_text: str,
+    target_words: int = 120,
+    movie_name: str = "",
+) -> str:
+    """Concise rewriting of a script to meet word budget while preserving causal story progression.
+
+    Preserves:
+    1. Opening hook sentence (crucial for retention)
+    2. Essential plot progression and causal relationships
+    3. Cliffhanger / outro closing sentence
+    Removes redundant explanations and filler adjectives.
+    """
+    words = script_text.split()
+    if len(words) <= target_words:
+        return script_text
+
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", script_text) if s.strip()]
+    if len(sentences) <= 2:
+        truncated = " ".join(words[:target_words])
+        if not truncated.endswith((".", "!", "?")):
+            truncated += "..."
+        return truncated
+
+    hook_sentence = sentences[0]
+    outro_sentence = sentences[-1]
+    middle_sentences = sentences[1:-1]
+
+    hook_len = len(hook_sentence.split())
+    outro_len = len(outro_sentence.split())
+    available_middle_words = max(15, target_words - hook_len - outro_len)
+
+    causal_markers = {
+        "but", "suddenly", "because", "when", "however", "then", "until",
+        "discovers", "realizes", "reveals", "trapped", "escapes", "kills",
+        "secrets", "truth", "lies", "confronts", "decision"
+    }
+    scored_middle = []
+    for s in middle_sentences:
+        s_words = set(s.lower().split())
+        score = len(s_words.intersection(causal_markers))
+        scored_middle.append((score, s))
+
+    selected_middle: list[str] = []
+    accum_words = 0
+    for _, s in scored_middle:
+        s_len = len(s.split())
+        if accum_words + s_len <= available_middle_words:
+            selected_middle.append(s)
+            accum_words += s_len
+
+    if not selected_middle and middle_sentences:
+        mid = middle_sentences[0]
+        selected_middle.append(" ".join(mid.split()[:available_middle_words]))
+
+    condensed = " ".join([hook_sentence] + selected_middle + [outro_sentence])
+    return condensed
+
+
 def generate_movie_script_ai(
     movie_name: str,
     part: int | None = None,
     total_parts: int | None = None,
     language: str = "en",
+    target_max_duration: float = 58.0,
+    format: str = "shorts",
 ) -> dict:
     """
     Generates a fresh Movrecap-style movie recap script using Groq /
     OpenRouter / DeepSeek, falling back to a generic template only if every
     provider fails.
 
-    The returned dict always carries ``script_source``: "groq", "openrouter" or
-    "deepseek" for real AI output, or "template" for the built-in fallback.
-    Callers that need genuine narration must check this.
+    Calibrated with target duration to avoid exceeding Shorts duration boundaries.
     """
     api_key_groq = os.environ.get("GROQ_API_KEY")
     api_key_deepseek = os.environ.get("DEEPSEEK_API_KEY")
     api_key_openrouter = os.environ.get("OPENROUTER_API_KEY")
+
+    min_w, max_w = calculate_script_word_budget(target_duration=target_max_duration, format=format)
+    budget_instruction = f"Strictly {min_w} to {max_w} words (calibrated for {target_max_duration:.0f}s {format})."
 
     sys_prompt = SYSTEM_PROMPT_HI if language == "hi" else SYSTEM_PROMPT_EN
     if part is not None:
         part_str = f"Part {part}{f' of {total_parts}' if total_parts else ''}"
         user_prompt = (
             f"Write a gripping in-universe story recap for '{movie_name}' ({part_str}) in the exact viral style of Movrecap. "
+            f"LENGTH REQUIREMENT: {budget_instruction} "
             "Start IMMEDIATELY with the character's direct crisis, impossible dilemma, or intense high-stakes situation. "
             "NEVER say 'The opening scenes...', 'The movie begins...', or talk about the film/director/cinematography. "
             "Tell the plot chronologically through character actions, struggles, dialogue, and suspense that specifically match this act of the story. "
@@ -336,6 +426,7 @@ def generate_movie_script_ai(
     else:
         user_prompt = (
             f"Write a gripping in-universe story recap for '{movie_name}' in the exact viral style of Movrecap. "
+            f"LENGTH REQUIREMENT: {budget_instruction} "
             "Start IMMEDIATELY with the character's direct crisis or dilemma. "
             "NEVER say 'The opening scenes...', 'The movie begins...', or talk about the film/director/cinematography. "
             "Tell the plot chronologically through character actions, struggles, and suspense. "

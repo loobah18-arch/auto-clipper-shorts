@@ -20,9 +20,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-MAX_SHORT_DURATION = float(os.environ.get("MAX_SHORT_DURATION", "180.0"))
+MAX_SHORT_DURATION = float(os.environ.get("MAX_SHORT_DURATION", "58.0"))
 MIN_SHORT_DURATION = 10.0
 MAX_SHOT_DURATION = 3.2
+
+from movie_pipeline_state import MediaRightsRecord, RightsStatus
 
 SCRAPER_PATTERN_EP = re.compile(r'\b[Ss]\d+[\s._-]*[Ee][Pp]?\s*\d+\b', re.IGNORECASE)
 SCRAPER_PATTERN_SEASON = re.compile(r'\bSeason\s*\d+\s*Episode\s*\d+\b', re.IGNORECASE)
@@ -329,6 +331,79 @@ class MovieMultiAgentCopyrightShield:
         clean_title = self.title_agent.remediate_title(title, is_short=is_short, part_num=part_num)
         clean_desc = self.desc_agent.remediate_description(description, title=clean_title)
         return clean_title, clean_desc
+
+
+class MediaRightsAgent:
+    """Evaluates media rights status for source assets without making false claims of clearance."""
+
+    @staticmethod
+    def evaluate_rights(
+        source_type: str,
+        asset_metadata: dict | None = None,
+        bgm_track: str | None = None,
+        allow_unreviewed: bool = False,
+    ) -> MediaRightsRecord:
+        meta = asset_metadata or {}
+        explicit_status = meta.get("rights_status") or meta.get("license_status")
+        license_id = meta.get("license_id") or meta.get("license")
+        attribution = meta.get("attribution") or meta.get("rights_holder")
+
+        if explicit_status in [s.value for s in RightsStatus]:
+            status = RightsStatus(explicit_status)
+            requires_review = (status in (RightsStatus.PERMISSION_UNKNOWN, RightsStatus.RESTRICTED)) and not allow_unreviewed
+            return MediaRightsRecord(
+                source_type=source_type,
+                rights_status=status,
+                license_id=license_id,
+                attribution=attribution,
+                requires_manual_review=requires_review,
+                notes=f"Explicitly recorded rights status: {status.value}",
+            )
+
+        if source_type == "neutral_fallback":
+            return MediaRightsRecord(
+                source_type=source_type,
+                rights_status=RightsStatus.PUBLIC_DOMAIN_VERIFIED,
+                attribution="Procedural motion graphic",
+                requires_manual_review=False,
+                notes="Generated procedural background; no third-party copyrighted footage",
+            )
+
+        if source_type == "authorized_trailer":
+            is_official = bool(meta.get("official") or meta.get("trailer_url"))
+            return MediaRightsRecord(
+                source_type=source_type,
+                rights_status=RightsStatus.AUTHORIZED if is_official else RightsStatus.PERMISSION_UNKNOWN,
+                license_id=license_id,
+                attribution=attribution or meta.get("channel_title"),
+                requires_manual_review=not is_official and not allow_unreviewed,
+                notes="Official promotional trailer" if is_official else "Trailer rights unverified; requires review",
+            )
+
+        if source_type in ("private_media", "gdrive", "local_media"):
+            has_license = bool(license_id or meta.get("license_file"))
+            if has_license:
+                return MediaRightsRecord(
+                    source_type=source_type,
+                    rights_status=RightsStatus.LICENSED,
+                    license_id=license_id,
+                    attribution=attribution,
+                    requires_manual_review=False,
+                    notes=f"Licensed private media record: {license_id}",
+                )
+            return MediaRightsRecord(
+                source_type=source_type,
+                rights_status=RightsStatus.PERMISSION_UNKNOWN,
+                requires_manual_review=not allow_unreviewed,
+                notes="Drive file present but underlying movie rights status is unverified; requires manual review",
+            )
+
+        return MediaRightsRecord(
+            source_type=source_type,
+            rights_status=RightsStatus.PERMISSION_UNKNOWN,
+            requires_manual_review=not allow_unreviewed,
+            notes=f"Source type '{source_type}' has no verified rights documentation",
+        )
 
 
 def verify_output_directory(output_dir: Path | str) -> bool:

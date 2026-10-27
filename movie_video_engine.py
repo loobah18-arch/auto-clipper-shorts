@@ -21,7 +21,11 @@ import subprocess
 from pathlib import Path
 
 from movie_pipeline_state import stable_seed
-from movie_quality import MAX_SHORT_DURATION
+from movie_quality import (
+    DEFAULT_SHORTS_MAX_DURATION,
+    MAX_SHORT_DURATION,
+    validate_duration_policy,
+)
 from movie_story_engine import (
     EditorialCut,
     EditorialTimelineBuilder,
@@ -458,6 +462,7 @@ def generate_moviegyan_subtitles(
     group_size: int = 3,
     language: str = "en",
     emphasis_keywords: set[str] | None = None,
+    max_duration: float | None = None,
 ):
     """
     Generates high-retention karaoke ASS subtitles formatted in MovieGyan / Movie Insight Hindi style:
@@ -467,6 +472,7 @@ def generate_moviegyan_subtitles(
     - Optional keyword emphasis for names, numbers, major plot twists (&H00FFFF00&)
     - Thick black outline (&H00000000&)
     - Centered in lower-third
+    - Strictly clamped to max_duration so captions never extend past the video
     """
     font_name = "DejaVu Sans"
     sys_font = find_system_font(language)
@@ -511,6 +517,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             t_end = target["end"]
             if active_idx < len(chunk) - 1:
                 t_end = min(t_end, chunk[active_idx + 1]["start"])
+
+            if max_duration is not None and max_duration > 0:
+                if t_start >= max_duration:
+                    continue
+                t_end = min(t_end, max_duration)
 
             line_parts = []
             for j, w in enumerate(chunk):
@@ -1515,6 +1526,7 @@ def render_movie_explanation_short(
     bgm_volume: float = None,
     mirror: bool = True,
     hook_text: str | None = None,
+    max_duration: float | None = None,
 ) -> Path:
     """
     Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
@@ -1529,10 +1541,16 @@ def render_movie_explanation_short(
     """
     if bgm_volume is None:
         bgm_volume = float(os.environ.get("BGM_VOLUME", "0.12"))
+
+    effective_max_duration = (
+        float(max_duration)
+        if max_duration is not None and max_duration > 0
+        else validate_duration_policy(is_long_video=False, profile="shorts")
+    )
     duration = get_audio_duration(narration_audio_path)
-    if duration > MAX_SHORT_DURATION:
-        log(f"⚠️ Audio duration ({duration:.1f}s) clamped to {MAX_SHORT_DURATION}s to stay within the Short duration limit.")
-        duration = MAX_SHORT_DURATION
+    if duration > effective_max_duration:
+        log(f"⚠️ Audio duration ({duration:.1f}s) clamped to {effective_max_duration:.1f}s to strictly stay within duration ceiling.")
+        duration = effective_max_duration
 
     clean_badge = re.sub(r"[^A-Za-z0-9\s\(\)\-\.\,\!\?]", "", badge_text or movie_title).strip().upper()[:28]
     if "CRITICAL" in clean_badge or "ANALYSIS" in clean_badge:

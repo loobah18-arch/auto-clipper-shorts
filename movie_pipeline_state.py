@@ -12,9 +12,46 @@ JsonValue: TypeAlias = str | int | float | bool | None | list["JsonValue"] | dic
 
 
 class RunStatus(StrEnum):
+    SCRIPT_READY = "script_ready"
+    MEDIA_VALIDATION_REQUIRED = "media_validation_required"
+    RENDERING = "rendering"
+    TECHNICAL_QC_FAILED = "technical_qc_failed"
+    DURATION_QC_FAILED = "duration_qc_failed"
+    RIGHTS_REVIEW_REQUIRED = "rights_review_required"
+    READY_FOR_MANUAL_REVIEW = "ready_for_manual_review"
+    PUBLISH_READY = "publish_ready"
     RENDERED = "rendered"
     UPLOADED = "uploaded"
     FAILED = "failed"
+
+
+class RightsStatus(StrEnum):
+    AUTHORIZED = "authorized"
+    LICENSED = "licensed"
+    PUBLIC_DOMAIN_VERIFIED = "public_domain_verified"
+    PERMISSION_UNKNOWN = "permission_unknown"
+    RESTRICTED = "restricted"
+
+
+@dataclass(frozen=True, slots=True)
+class MediaRightsRecord:
+    """Explicit media-rights provenance and clearance status."""
+    source_type: str
+    rights_status: RightsStatus
+    license_id: str | None = None
+    attribution: str | None = None
+    requires_manual_review: bool = False
+    notes: str = ""
+
+    def to_dict(self) -> dict[str, JsonValue]:
+        return {
+            "source_type": self.source_type,
+            "rights_status": self.rights_status.value,
+            "license_id": self.license_id,
+            "attribution": self.attribution,
+            "requires_manual_review": self.requires_manual_review,
+            "notes": self.notes,
+        }
 
 
 class HistoryError(Exception):
@@ -54,10 +91,20 @@ class RenderManifest:
     generated_at: str
     quality_score: float | None = None
     editing_manifest_file: str | None = None
+    profile: str = "shorts"
+    target_max_duration: float = 58.0
+    rights_status: str = "permission_unknown"
+    rights_review_required: bool = False
+    technical_qc_passed: bool = True
+    qc_failures: list[str] | None = None
+    manual_review_required: bool = False
 
     def to_dict(self) -> dict[str, JsonValue]:
         """Return a JSON-compatible manifest."""
-        return dict(asdict(self))
+        data = dict(asdict(self))
+        if data.get("qc_failures") is None:
+            data["qc_failures"] = []
+        return data
 
 
 def utc_now() -> str:

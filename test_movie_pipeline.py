@@ -397,9 +397,10 @@ class TestMoviePipeline(unittest.TestCase):
 
     def test_media_contract_rejects_invalid_render(self):
         validate_media_info(MediaInfo(50.0, 1080, 1920, True))
-        validate_media_info(MediaInfo(120.0, 1080, 1920, True))  # Detailed explanation length supported
+        # Extended duration supported under long-form profile or is_long_video=True
+        validate_media_info(MediaInfo(120.0, 1080, 1920, True), is_long_video=True)
         with self.assertRaises(MediaValidationError):
-            validate_media_info(MediaInfo(180.1, 1080, 1920, True))
+            validate_media_info(MediaInfo(58.1, 1080, 1920, True))
         with self.assertRaises(MediaValidationError):
             validate_media_info(MediaInfo(50.0, 720, 1280, True))
         with self.assertRaises(MediaValidationError):
