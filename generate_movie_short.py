@@ -66,11 +66,14 @@ from movie_quality import (
     validate_rendered_video_technical,
     validate_upload_source,
 )
+from movie_profiles import ProfileType, resolve_profile
 from movie_story_engine import (
     EditingManifest,
     QualityScorer,
     RetentionEngine,
     StoryBeatAnalyzer,
+    format_cinematic_subtitles,
+    generate_story_title,
 )
 from movie_video_engine import (
     generate_speech_audio,
@@ -549,10 +552,11 @@ def run_pipeline(
                 emphasis_keywords.add(kw.upper())
 
     log(f"⏱️ Audio narration duration: {duration:.2f} seconds ({len(story_beats)} story beats analyzed)")
-    generate_moviegyan_subtitles(
-        words,
-        subtitles_path,
-        group_size=3,
+    active_profile = resolve_profile(profile)
+    format_cinematic_subtitles(
+        words=words,
+        output_ass_path=subtitles_path,
+        profile=active_profile,
         language=lang,
         emphasis_keywords=emphasis_keywords,
         max_duration=target_max_duration,
@@ -689,9 +693,10 @@ def run_pipeline(
         part_number=part_number,
         bgm_volume=float(os.environ.get("BGM_VOLUME", "0.12")),
         bgm_start_offset=bgm_start_offset,
-        mirror=True,
+        mirror=False,
         hook_text=movie_data.get("hook", ""),
         max_duration=target_max_duration,
+        profile=profile,
     )
     generate_thumbnail(final_short_path, thumb_path, title)
 
@@ -765,8 +770,13 @@ def run_pipeline(
         quality_score=quality_report.to_dict(),
         retention_report=[r.__dict__ for r in retention_reports],
         bgm_track=bgm_file.name if bgm_file else "none",
-        warnings=quality_report.recommendations,
-        fallback_events=[],
+        profile=active_profile.profile_type.value,
+        resolution=f"{qc_report.width}x{qc_report.height}",
+        aspect_ratio=active_profile.aspect_ratio,
+        story_beats=[b.to_dict() for b in story_beats],
+        effect_plans=[c.effect_plan.to_dict() if hasattr(c, "effect_plan") and hasattr(c.effect_plan, "to_dict") else {} for c in editorial_cuts],
+        warnings=quality_report.recommendations + qc_report.warnings,
+        fallback_events=[c.fallback_reason for c in editorial_cuts if c.fallback_used],
     )
     editing_manifest.write_to_file(editing_manifest_path)
     log(f"📋 Machine-readable editing manifest saved: {editing_manifest_path.name}")
@@ -1085,7 +1095,7 @@ def main():
     parser.add_argument("--audio-file", type=str, default=None, help="Path to custom human-recorded voiceover MP3/WAV")
     parser.add_argument("--watermark", type=str, default=None, help="Channel watermark text (e.g. '@CinemaInsights')")
     parser.add_argument("--max-duration", type=float, default=None, help="Maximum allowed video duration (default: 58.0s for Shorts)")
-    parser.add_argument("--profile", type=str, choices=["shorts", "long_form"], default="shorts", help="Video profile ('shorts' [<=58s] or 'long_form')")
+    parser.add_argument("--profile", type=str, choices=["shorts", "shorts_9x16", "cinerush", "cinerush_style", "square", "landscape", "long_form", "long_video"], default="shorts", help="Video profile ('shorts_9x16', 'cinerush_style', 'landscape')")
     parser.add_argument("--allow-unreviewed-rights", action="store_true", help="Allow upload of assets with unverified rights without manual review gate")
     parser.add_argument("--stitch-series", type=str, default=None, help="Movie ID to stitch all cached parts into a Full Long Video")
     args = parser.parse_args()

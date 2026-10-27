@@ -21,6 +21,7 @@ import subprocess
 from pathlib import Path
 
 from movie_pipeline_state import stable_seed
+from movie_profiles import ProfileConfig, ProfileType, resolve_profile
 from movie_quality import (
     DEFAULT_SHORTS_MAX_DURATION,
     MAX_SHORT_DURATION,
@@ -1524,28 +1525,30 @@ def render_movie_explanation_short(
     part_number: int = None,
     bgm_start_offset: float = None,
     bgm_volume: float = None,
-    mirror: bool = True,
+    mirror: bool = False,
     hook_text: str | None = None,
     max_duration: float | None = None,
+    profile: ProfileConfig | str | None = None,
 ) -> Path:
     """
-    Renders the final 9:16 vertical Short (1080x1920) in the signature MovieGyan layout:
-    - Fullscreen blurred background
-    - 16:9 centered foreground clip with cinematic color grading & sharpness
-    - Multi-layered anti-Content ID protection (hflip mirroring, filmic grade, vignette, noise)
-    - Channel watermark & branding for YPP review verification
-    - Sleek top badge pill with movie title
+    Renders the final video in the selected profile (CineRush 1:1, Cinematic Shorts 9:16, or Landscape):
+    - Movie footage dominates the frame with cinematic clarity & natural color
+    - Channel watermark & branding
+    - Top badge pill with movie title
     - Optional dynamic opening 3-second hook overlay text
-    - Bold animated karaoke subtitles in lower-third
-    - Crystal clear voiceover with dark suspense BGM
+    - Clean cinematic subtitles with selective word emphasis
+    - Crystal clear voiceover with smoothly ducked BGM and fade transitions
     """
     if bgm_volume is None:
         bgm_volume = float(os.environ.get("BGM_VOLUME", "0.12"))
 
+    active_profile = resolve_profile(profile if profile else "shorts_9x16")
+    is_long = (active_profile.profile_type == ProfileType.LANDSCAPE)
+
     effective_max_duration = (
         float(max_duration)
         if max_duration is not None and max_duration > 0
-        else validate_duration_policy(is_long_video=False, profile="shorts")
+        else validate_duration_policy(is_long_video=is_long, profile=active_profile.profile_type.value)
     )
     duration = get_audio_duration(narration_audio_path)
     if duration > effective_max_duration:
@@ -1572,17 +1575,19 @@ def render_movie_explanation_short(
     if has_bgm and bgm_start_offset is None:
         bgm_start_offset = get_default_bgm_offset(part_number, movie_title)
 
-    log(f"🎨 Rendering Movie Explanation Short (1080x1920, {duration:.1f}s, mirror={mirror})...")
+    width = active_profile.width
+    height = active_profile.height
+    log(f"🎨 Rendering Movie Explanation Short ({width}x{height}, {duration:.1f}s, profile={active_profile.profile_type.value})...")
     if has_bgm:
         log(f"🎵 Using dark BGM: {bgm_path.name} (start_offset={bgm_start_offset:.1f}s, vol={bgm_volume:.3f})")
 
-    # Optional channel watermark for YPP brand identity
+    # Optional channel watermark for brand identity
     watermark_filter = ""
     if watermark_text:
         clean_wm = re.sub(r"[^A-Za-z0-9@\._\- ]", "", watermark_text).strip()
         watermark_filter = f",drawtext=text='{clean_wm}':fontsize=26:fontcolor=white@0.65:{font_opt}:x=w-text_w-50:y=h-text_h-240"
 
-    # Optional opening hook overlay (Phases 9 & 10: 2-7 words, subtle animation, first 0.2s - 3.2s)
+    # Optional opening hook overlay (2-7 words, subtle animation, first 0.2s - 3.2s)
     hook_overlay_filter = ""
     if hook_text and str(hook_text).strip():
         clean_hook = re.sub(r"[^A-Za-z0-9\s\.\!\?\-]", "", str(hook_text)).strip().upper()
@@ -1596,37 +1601,50 @@ def render_movie_explanation_short(
                 f"alpha='if(lt(t,0.6),(t-0.2)/0.4,if(gt(t,2.8),(3.2-t)/0.4,1))':enable='between(t,0.2,3.2)'"
             )
 
-    # Multi-layered anti-copyright transformation filtergraph:
-    # 1. Fullscreen blurred background (boxblur 28:6, darkened)
-    # 2. Foreground 16:9 movie box: optional hflip mirror, color grading (+14% contrast, +18% saturation, gamma 0.96),
-    #    cinematic vignette, high-pass unsharp (5:5:0.8) modifying frequency coefficients,
-    #    temporal film noise (6) preventing static hash matching
-    # 3. Clean subtle frosted-glass border outlining the movie box
-    # 4. Top header badge pill, optional opening hook overlay, and lower-third dynamic karaoke subtitles
     flip_filter = "hflip," if mirror else ""
-    video_filters = (
-        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:6,eq=brightness=-0.14:contrast=1.06[bg];"
-        f"[0:v]{flip_filter}scale=1040:-2,eq=contrast=1.14:brightness=-0.03:saturation=1.18:gamma=0.96,vignette=PI/4.2,unsharp=5:5:0.8:5:5:0.4,noise=alls=6:allf=t[fg];"
-        "[bg][fg]overlay=(W-w)/2:(H-h)/2 - 40[comp];"
-        f"[comp]drawbox=x=18:y=626:w=1044:h=589:color=white@0.18:t=2,"
-        f"drawbox=x=80:y=120:w=920:h=82:color=black@0.80:t=fill,"
-        f"drawbox=x=80:y=120:w=920:h=82:color=white@0.22:t=2,"
-        f"drawtext=text='{badge_display}':fontsize=34:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=145"
-        f"{hook_overlay_filter}"
-        f"{watermark_filter},"
-        f"ass='{ass_esc}'[vfinal]"
-    )
+
+    # Dynamic Filter Graph based on Profile
+    if active_profile.profile_type == ProfileType.CINERUSH_STYLE:
+        # CINERUSH_STYLE: 1920x1920 (1:1 square), movie footage dominates frame
+        video_filters = (
+            f"[0:v]{flip_filter}scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},"
+            f"eq=contrast=1.06:brightness=-0.02:saturation=1.08,"
+            f"drawbox=x=60:y=100:w={width-120}:h=90:color=black@0.80:t=fill,"
+            f"drawbox=x=60:y=100:w={width-120}:h=90:color=white@0.22:t=2,"
+            f"drawtext=text='{badge_display}':fontsize=38:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=125"
+            f"{hook_overlay_filter}"
+            f"{watermark_filter},"
+            f"ass='{ass_esc}'[vfinal]"
+        )
+    elif active_profile.profile_type == ProfileType.LANDSCAPE:
+        # LANDSCAPE: 1920x1080 (16:9 widescreen)
+        video_filters = (
+            f"[0:v]{flip_filter}scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},"
+            f"eq=contrast=1.05:brightness=-0.02:saturation=1.06"
+            f"{watermark_filter},"
+            f"ass='{ass_esc}'[vfinal]"
+        )
+    else:
+        # SHORTS_9X16: 1080x1920 (9:16 portrait), movie footage dominates frame
+        video_filters = (
+            f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},boxblur=24:6,eq=brightness=-0.16:contrast=1.05[bg];"
+            f"[0:v]{flip_filter}scale={width}:-2,eq=contrast=1.08:brightness=-0.02:saturation=1.10[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2[comp];"
+            f"[comp]drawbox=x=80:y=120:w=920:h=82:color=black@0.80:t=fill,"
+            f"drawbox=x=80:y=120:w=920:h=82:color=white@0.22:t=2,"
+            f"drawtext=text='{badge_display}':fontsize=34:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=145"
+            f"{hook_overlay_filter}"
+            f"{watermark_filter},"
+            f"ass='{ass_esc}'[vfinal]"
+        )
 
     cmd = ["ffmpeg", "-y", "-i", str(sliced_video_path), "-i", str(narration_audio_path)]
     if has_bgm:
         cmd.extend(["-stream_loop", "-1", "-i", str(bgm_path)])
-        # Viral Recapper audio mix (Movrecap style):
-        # 1. Voice kept crisp and prominent (1.05x volume)
-        # 2. BGM subtle underneath voiceover (-18dB ducking / volume=0.10-0.14) with melody intact
-        # 3. amix duration=first, normalize=0 preserves full dynamic range without burying the music
+        audio_fade_out_st = max(0.5, duration - 1.5)
         audio_filters = (
             f"[1:a]volume=1.0[voice];"
-            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=0.8,volume={bgm_volume:.3f}[bgm];"
+            f"[2:a]atrim=start={bgm_start_offset:.2f},asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=0.8,afade=t=out:st={audio_fade_out_st:.2f}:d=1.5,volume={bgm_volume:.3f}[bgm];"
             f"[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[afinal]"
         )
         filter_complex = f"{video_filters};{audio_filters}"
@@ -1634,7 +1652,6 @@ def render_movie_explanation_short(
     else:
         filter_complex = video_filters
         map_args = ["-map", "[vfinal]", "-map", "1:a"]
-
 
     cmd.extend([
         "-filter_complex", filter_complex,

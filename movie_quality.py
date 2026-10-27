@@ -42,7 +42,7 @@ def validate_duration_policy(
     negative, or Shorts durations exceeding the 60.0s YouTube hard cap).
     """
     if max_duration is None:
-        if is_long_video or profile == "long_form":
+        if is_long_video or profile in ("long_form", "landscape", "long_video"):
             raw = os.environ.get("MAX_LONG_VIDEO_DURATION", str(DEFAULT_LONG_VIDEO_MAX_DURATION))
         else:
             raw = os.environ.get("MAX_SHORT_DURATION", str(DEFAULT_SHORTS_MAX_DURATION))
@@ -58,7 +58,7 @@ def validate_duration_policy(
     if val <= 0:
         raise ConfigurationError(f"Maximum duration must be positive, got {val:.2f}s")
 
-    if is_long_video or profile == "long_form":
+    if is_long_video or profile in ("long_form", "landscape", "long_video"):
         if val <= SHORTS_HARD_CAP:
             raise ConfigurationError(
                 f"Long-form video max duration must exceed {SHORTS_HARD_CAP:.0f}s, got {val:.2f}s"
@@ -380,17 +380,21 @@ def validate_rendered_video_technical(
         failures.append("Rendered output is missing an audio stream (silent video rejected)")
 
     # 2. Resolution checks
-    if not is_long_video and profile == "shorts":
-        if width != EXPECTED_WIDTH or height != EXPECTED_HEIGHT:
-            failures.append(f"Short resolution is {width}x{height}; required 9:16 vertical ({EXPECTED_WIDTH}x{EXPECTED_HEIGHT})")
-    elif is_long_video:
+    p_lower = str(profile).lower()
+    if p_lower in ("cinerush", "cinerush_style", "square", "1:1"):
+        if width != height or width < 720:
+            failures.append(f"CineRush 1:1 resolution is {width}x{height}; required square (e.g. 1920x1920 or 1080x1080)")
+    elif p_lower in ("landscape", "16:9") or is_long_video:
         valid_dims = (
-            (width == EXPECTED_WIDTH and height == EXPECTED_HEIGHT) or
             (width == 1920 and height == 1080) or
-            (width == 1280 and height == 720)
+            (width == 1280 and height == 720) or
+            (width == EXPECTED_WIDTH and height == EXPECTED_HEIGHT)
         )
         if not valid_dims:
-            failures.append(f"Long-form resolution {width}x{height} is not supported")
+            failures.append(f"Landscape/Long-form resolution {width}x{height} is not supported")
+    elif p_lower in ("shorts", "shorts_9x16", "9:16"):
+        if width != EXPECTED_WIDTH or height != EXPECTED_HEIGHT:
+            failures.append(f"Short resolution is {width}x{height}; required 9:16 vertical ({EXPECTED_WIDTH}x{EXPECTED_HEIGHT})")
 
     # 3. Duration check against target ceiling (including 0.05s container tolerance)
     duration_passed = True
