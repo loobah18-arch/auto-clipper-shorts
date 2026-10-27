@@ -31,6 +31,15 @@ on:
         required: false
         default: false
         type: boolean
+      profile:
+        description: 'Output layout profile (shorts_9x16 [9:16 vertical], cinerush_style [1:1 square], or landscape [16:9 widescreen])'
+        required: false
+        default: 'shorts_9x16'
+        type: choice
+        options:
+          - 'shorts_9x16'
+          - 'cinerush_style'
+          - 'landscape'
       set_visibility:
         description: 'Optional: comma-separated video IDs to change visibility (skips the normal pipeline)'
         required: false
@@ -177,11 +186,13 @@ jobs:
       - name: 🧪 Run Pipeline Unit Tests
         run: |
           set -euo pipefail
-          python -m compileall -q generate_movie_short.py movie_video_engine.py movie_pipeline_state.py movie_quality.py test_workflow_contract.py
+          python -m compileall -q generate_movie_short.py movie_video_engine.py movie_pipeline_state.py movie_quality.py movie_profiles.py movie_story_engine.py test_workflow_contract.py test_cinematic_editor.py
           python test_pipeline.py
           python test_movie_pipeline.py
           python test_workflow_contract.py
           python test_duration_and_rights_regression.py
+          python test_movie_story_engine.py
+          python test_cinematic_editor.py
 
       - name: 🗂️ Auto-Ingest Drive Catalog
         env:
@@ -246,14 +257,16 @@ jobs:
           INPUT_LANG: ${{ inputs.lang }}
           INPUT_VOICE: ${{ inputs.voice }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_PROFILE: ${{ inputs.profile }}
         run: |
           set -euo pipefail
-          echo "🎬 Running Movie Explanation Shorts Generator (MovieGyan Style)..."
+          echo "🎬 Running Movie Explanation Shorts Generator (Cinematic Story Style)..."
           ARGS=()
           if [ -n "$INPUT_MOVIE_NAME" ]; then ARGS+=(--movie "$INPUT_MOVIE_NAME"); fi
           if [ -n "$INPUT_PART" ]; then ARGS+=(--part "$INPUT_PART"); fi
           if [ -n "$INPUT_LANG" ]; then ARGS+=(--lang "$INPUT_LANG"); fi
           if [ -n "$INPUT_VOICE" ]; then ARGS+=(--voice "$INPUT_VOICE"); fi
+          if [ -n "${INPUT_PROFILE:-}" ]; then ARGS+=(--profile "$INPUT_PROFILE"); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
           python generate_movie_short.py "${ARGS[@]}" 2>&1 | tee pipeline_debug.log
 
