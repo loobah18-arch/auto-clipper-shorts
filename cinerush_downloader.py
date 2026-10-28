@@ -27,8 +27,57 @@ def log(msg: str) -> None:
 def build_cinerush_search_query(topic_or_movie: str) -> str:
     """Builds a high-intent scene search query targeting movie clip channels and rejecting reality TV / trailers."""
     clean = re.sub(r"[^\w\s-]", "", topic_or_movie).strip()
-    # Add scene keywords and negative terms to avoid reality TV, news, and trailers
-    return f'ytsearch12:{clean} Movieclips full scene HD -trailer -review -shorts -teaser -ost -court -cam -news -interview -reaction -recap -podcast'
+    # Add scene keywords and negative terms to avoid reality TV, news, reenactments, and trailers
+    return f'ytsearch12:{clean} Movieclips full scene HD -trailer -review -shorts -teaser -ost -court -cam -news -interview -reaction -recap -podcast -reenactment -parody'
+
+
+CINERUSH_PLAYER_CLIENTS: list[tuple[str, str, str]] = [
+    ("tv", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best", "youtube:player_client=tv"),
+    ("android", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best", "youtube:player_client=android"),
+    ("ios", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best", "youtube:player_client=ios"),
+    ("web_safari", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best", "youtube:player_client=web_safari"),
+    ("mweb", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best", "youtube:player_client=mweb"),
+    ("default", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best", "youtube:player_client=default"),
+]
+
+
+def download_candidate_video(
+    target_url: str,
+    video_id: str,
+    output_dir: Path,
+    pot_url: str = "",
+    cookies_file: str | None = None,
+) -> Path | None:
+    """Attempts to download video using multi-client fallback ladder and PO token provider."""
+    out_template = str(output_dir / "cinerush_scene_%(id)s.%(ext)s")
+    for client_name, fmt, client_arg in CINERUSH_PLAYER_CLIENTS:
+        cmd = [
+            "yt-dlp",
+            "-f", fmt,
+            "--merge-output-format", "mp4",
+            "-o", out_template,
+            "--no-playlist",
+            "--no-warnings",
+        ]
+        if pot_url:
+            cmd.extend(["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url}"])
+        if client_arg:
+            cmd.extend(["--extractor-args", client_arg])
+        if cookies_file:
+            cmd.extend(["--cookies", cookies_file])
+        cmd.append(target_url)
+
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+        dest = output_dir / f"cinerush_scene_{video_id}.mp4"
+        if dest.exists() and dest.stat().st_size > 300_000:
+            log(f"✅ Download succeeded via '{client_name}' client: {dest.name} ({dest.stat().st_size / 1024 / 1024:.1f} MB)")
+            return dest
+        matches = list(output_dir.glob(f"cinerush_scene_{video_id}.*"))
+        if matches and matches[0].stat().st_size > 300_000:
+            log(f"✅ Download succeeded via '{client_name}' client: {matches[0].name}")
+            return matches[0]
+        log(f"   ↳ [{client_name}] client notice: {res.stderr[:90].strip() or 'incomplete'}")
+    return None
 
 
 def resolve_media_info(video_path: Path) -> dict[str, Any]:
@@ -138,49 +187,24 @@ def download_movie_scene(
         # 2. Direct URL provided
         if url:
             log(f"🔍 Sourcing movie scene directly from URL: {url}")
-            out_template = str(output_dir / "cinerush_scene_%(id)s.%(ext)s")
-            cmd = [
-                "yt-dlp",
-                "-f", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-                "--merge-output-format", "mp4",
-                "-o", out_template,
-                "--no-playlist",
-                "--print-json",
-                *extra_args,
-                url,
-            ]
-            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
-            if proc.returncode != 0:
-                raise RuntimeError(f"yt-dlp failed to download URL {url}: {proc.stderr[:300]}")
-
-            # Parse metadata
-            meta = {}
-            for line in proc.stdout.splitlines():
-                if line.startswith("{") and "id" in line:
-                    try:
-                        meta = json.loads(line)
-                        break
-                    except Exception:
-                        pass
-            video_id = meta.get("id", "scene")
-            dest = output_dir / f"cinerush_scene_{video_id}.mp4"
-            if not dest.exists():
-                matches = list(output_dir.glob(f"cinerush_scene_{video_id}.*"))
-                if matches:
-                    dest = matches[0]
-
+            video_id = "direct_scene"
+            if "v=" in url:
+                video_id = url.split("v=")[1].split("&")[0]
+            dest = download_candidate_video(url, video_id, output_dir, pot_url, cookies_file)
+            if not dest:
+                raise RuntimeError(f"yt-dlp failed to download URL {url} across all player clients")
             info = resolve_media_info(dest)
             return dest, {
                 "id": video_id,
-                "title": meta.get("title", video_id),
-                "duration": info["duration"] or meta.get("duration", 0.0),
-                "width": info["width"] or meta.get("width", 1920),
-                "height": info["height"] or meta.get("height", 1080),
+                "title": video_id,
+                "duration": info["duration"],
+                "width": info["width"],
+                "height": info["height"],
                 "url": url,
             }
 
         # 3. Search query
-        search_query = query or "Just Mercy courtroom cross examination scene"
+        search_query = query or "The Dark Knight interrogation scene"
         yt_search = build_cinerush_search_query(search_query)
         log(f"🔍 Searching YouTube for single-scene clips: {yt_search}")
 
@@ -189,9 +213,15 @@ def download_movie_scene(
             "yt-dlp",
             "--flat-playlist",
             "--dump-json",
-            *extra_args,
-            yt_search,
+            "--no-warnings",
         ]
+        if pot_url:
+            dump_cmd.extend(["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url}"])
+        dump_cmd.extend(["--extractor-args", "youtube:player_client=tv"])
+        if cookies_file:
+            dump_cmd.extend(["--cookies", cookies_file])
+        dump_cmd.append(yt_search)
+
         dump_proc = subprocess.run(dump_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
         candidates = []
         if dump_proc.returncode == 0:
@@ -202,61 +232,69 @@ def download_movie_scene(
                     except Exception:
                         pass
 
-        selected_id = None
-        selected_meta = None
-
         def score_candidate(c: dict) -> int:
             t = (c.get("title") or "").lower()
             u = (c.get("uploader") or c.get("channel") or "").lower()
             score = 0
-            if any(trusted in u for trusted in ["movieclips", "binge society", "scene city", "universal", "warner", "paramount", "sony"]):
-                score += 10
-            if "movie clip" in t or "scene" in t:
+            if any(trusted in u for trusted in ["movieclips", "binge society", "scene city", "universal", "warner", "paramount", "sony", "featurefilm", "boxoffice"]):
+                score += 25
+            if "movie clip" in t or "official clip" in t:
+                score += 15
+            elif "scene" in t:
                 score += 5
             return score
 
         # Filter candidates: duration 120s - 420s (2 to 7 mins) and eliminate non-movie spam
         valid_candidates = []
+        BAD_KEYWORDS = [
+            "trailer", "review", "teaser", "court cam", "interview", "podcast",
+            "reaction", "recap", "news", "reenactment", "parody", "fan made",
+            "fan-made", "remake", "recreation", "tribute", "cover", "spoof",
+            "breakdown", "analysis", "easter egg"
+        ]
         for cand in candidates:
             dur = cand.get("duration") or 0.0
             title = (cand.get("title") or "").lower()
             uploader = (cand.get("uploader") or cand.get("channel") or "").lower()
-            if any(bad in title for bad in ["trailer", "review", "teaser", "court cam", "interview", "podcast", "reaction", "recap", "news"]):
+            if any(bad in title for bad in BAD_KEYWORDS):
                 continue
-            if any(bad in uploader for bad in ["news", "court", "react"]):
+            if any(bad in uploader for bad in ["news", "court", "react", "parody"]):
                 continue
             if min_duration <= dur <= max_duration:
                 valid_candidates.append(cand)
 
-        # Sort valid candidates by movie credibility score descending
-        if valid_candidates:
-            valid_candidates.sort(key=score_candidate, reverse=True)
-            selected_meta = valid_candidates[0]
-            selected_id = selected_meta.get("id")
-            log(f"🎯 Selected candidate: '{selected_meta.get('title')}' by '{selected_meta.get('channel', 'unknown')}' ({selected_meta.get('duration', 0):.1f}s)")
-
         # Relax filter if no candidate in 120-420s range: accept 80s to 600s
-        if not selected_id and candidates:
-            relaxed = []
-            for cand in candidates:
-                dur = cand.get("duration") or 0.0
-                title = (cand.get("title") or "").lower()
-                uploader = (cand.get("uploader") or cand.get("channel") or "").lower()
-                if any(bad in title for bad in ["trailer", "review", "teaser", "court cam", "interview", "podcast", "reaction", "recap", "news"]):
-                    continue
-                if 80.0 <= dur <= 600.0:
-                    relaxed.append(cand)
-            if relaxed:
-                relaxed.sort(key=score_candidate, reverse=True)
-                selected_meta = relaxed[0]
-                selected_id = selected_meta.get("id")
-                log(f"🎯 Selected relaxed candidate: '{selected_meta.get('title')}' by '{selected_meta.get('channel', 'unknown')}' ({selected_meta.get('duration', 0):.1f}s)")
+        relaxed = []
+        for cand in candidates:
+            dur = cand.get("duration") or 0.0
+            title = (cand.get("title") or "").lower()
+            uploader = (cand.get("uploader") or cand.get("channel") or "").lower()
+            if any(bad in title for bad in BAD_KEYWORDS):
+                continue
+            if 80.0 <= dur <= 600.0:
+                relaxed.append(cand)
 
-        if not selected_id and candidates:
-            selected_id = candidates[0].get("id")
-            selected_meta = candidates[0]
+        pool = valid_candidates if valid_candidates else (relaxed if relaxed else candidates)
 
-        if not selected_id:
+        dest = None
+        selected_id = None
+        selected_meta = None
+
+        if pool:
+            pool.sort(key=score_candidate, reverse=True)
+            for cand in pool[:5]:
+                cid = cand.get("id")
+                ctitle = cand.get("title")
+                target_url = f"https://www.youtube.com/watch?v={cid}"
+                log(f"📥 Attempting candidate: '{ctitle}' ({cid})...")
+                dest = download_candidate_video(target_url, cid, output_dir, pot_url, cookies_file)
+                if dest:
+                    selected_id = cid
+                    selected_meta = cand
+                    log(f"🎯 Selected candidate: '{ctitle}' ({cid})")
+                    break
+
+        if not dest:
             if test_mode:
                 log(f"ℹ️ Test mode enabled: generating synthetic test scene for query '{search_query}'...")
                 test_file = output_dir / "cinerush_scene_test.mp4"
@@ -270,42 +308,7 @@ def download_movie_scene(
                     "height": info["height"],
                     "url": "local://test_scene.mp4",
                 }
-            raise RuntimeError(f"No suitable scene found for query: '{search_query}'")
-
-        target_url = f"https://www.youtube.com/watch?v={selected_id}"
-        out_template = str(output_dir / "cinerush_scene_%(id)s.%(ext)s")
-        dl_cmd = [
-            "yt-dlp",
-            "-f", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-            "--merge-output-format", "mp4",
-            "-o", out_template,
-            "--no-playlist",
-            *extra_args,
-            target_url,
-        ]
-        log(f"📥 Downloading scene from {target_url}...")
-        dl_proc = subprocess.run(dl_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
-        if dl_proc.returncode != 0:
-            if test_mode:
-                log(f"⚠️ Warning: yt-dlp failed in test mode ({dl_proc.stderr[:120]}). Using synthetic test scene.")
-                test_file = output_dir / "cinerush_scene_test.mp4"
-                generate_test_scene(test_file, duration=95.0)
-                info = resolve_media_info(test_file)
-                return test_file, {
-                    "id": "test_scene",
-                    "title": f"{search_query.title()} Test Scene",
-                    "duration": info["duration"],
-                    "width": info["width"],
-                    "height": info["height"],
-                    "url": "local://test_scene.mp4",
-                }
-            raise RuntimeError(f"yt-dlp download failed: {dl_proc.stderr[:300]}")
-
-        dest = output_dir / f"cinerush_scene_{selected_id}.mp4"
-        if not dest.exists():
-            matches = list(output_dir.glob(f"cinerush_scene_{selected_id}.*"))
-            if matches:
-                dest = matches[0]
+            raise RuntimeError(f"No suitable scene could be downloaded for query: '{search_query}'")
 
         info = resolve_media_info(dest)
         return dest, {
@@ -314,7 +317,7 @@ def download_movie_scene(
             "duration": info["duration"] or (selected_meta or {}).get("duration", 0.0),
             "width": info["width"],
             "height": info["height"],
-            "url": target_url,
+            "url": f"https://www.youtube.com/watch?v={selected_id}",
         }
 
     finally:
