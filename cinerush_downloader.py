@@ -25,10 +25,10 @@ def log(msg: str) -> None:
 
 
 def build_cinerush_search_query(topic_or_movie: str) -> str:
-    """Builds a high-intent scene search query that filters out trailers and reviews."""
+    """Builds a high-intent scene search query targeting movie clip channels and rejecting reality TV / trailers."""
     clean = re.sub(r"[^\w\s-]", "", topic_or_movie).strip()
-    # Add scene keywords and negative terms
-    return f'ytsearch10:"{clean}" full scene HD -trailer -review -shorts -teaser -ost'
+    # Add scene keywords and negative terms to avoid reality TV, news, and trailers
+    return f'ytsearch12:{clean} Movieclips full scene HD -trailer -review -shorts -teaser -ost -court -cam -news -interview -reaction -recap -podcast'
 
 
 def resolve_media_info(video_path: Path) -> dict[str, Any]:
@@ -205,27 +205,52 @@ def download_movie_scene(
         selected_id = None
         selected_meta = None
 
-        # Filter candidates: duration 120s - 420s (2 to 7 mins)
+        def score_candidate(c: dict) -> int:
+            t = (c.get("title") or "").lower()
+            u = (c.get("uploader") or c.get("channel") or "").lower()
+            score = 0
+            if any(trusted in u for trusted in ["movieclips", "binge society", "scene city", "universal", "warner", "paramount", "sony"]):
+                score += 10
+            if "movie clip" in t or "scene" in t:
+                score += 5
+            return score
+
+        # Filter candidates: duration 120s - 420s (2 to 7 mins) and eliminate non-movie spam
+        valid_candidates = []
         for cand in candidates:
             dur = cand.get("duration") or 0.0
             title = (cand.get("title") or "").lower()
-            if "trailer" in title or "review" in title or "teaser" in title:
+            uploader = (cand.get("uploader") or cand.get("channel") or "").lower()
+            if any(bad in title for bad in ["trailer", "review", "teaser", "court cam", "interview", "podcast", "reaction", "recap", "news"]):
+                continue
+            if any(bad in uploader for bad in ["news", "court", "react"]):
                 continue
             if min_duration <= dur <= max_duration:
-                selected_id = cand.get("id")
-                selected_meta = cand
-                log(f"🎯 Selected candidate: '{cand.get('title')}' ({dur:.1f}s)")
-                break
+                valid_candidates.append(cand)
+
+        # Sort valid candidates by movie credibility score descending
+        if valid_candidates:
+            valid_candidates.sort(key=score_candidate, reverse=True)
+            selected_meta = valid_candidates[0]
+            selected_id = selected_meta.get("id")
+            log(f"🎯 Selected candidate: '{selected_meta.get('title')}' by '{selected_meta.get('channel', 'unknown')}' ({selected_meta.get('duration', 0):.1f}s)")
 
         # Relax filter if no candidate in 120-420s range: accept 80s to 600s
         if not selected_id and candidates:
+            relaxed = []
             for cand in candidates:
                 dur = cand.get("duration") or 0.0
+                title = (cand.get("title") or "").lower()
+                uploader = (cand.get("uploader") or cand.get("channel") or "").lower()
+                if any(bad in title for bad in ["trailer", "review", "teaser", "court cam", "interview", "podcast", "reaction", "recap", "news"]):
+                    continue
                 if 80.0 <= dur <= 600.0:
-                    selected_id = cand.get("id")
-                    selected_meta = cand
-                    log(f"🎯 Selected relaxed candidate: '{cand.get('title')}' ({dur:.1f}s)")
-                    break
+                    relaxed.append(cand)
+            if relaxed:
+                relaxed.sort(key=score_candidate, reverse=True)
+                selected_meta = relaxed[0]
+                selected_id = selected_meta.get("id")
+                log(f"🎯 Selected relaxed candidate: '{selected_meta.get('title')}' by '{selected_meta.get('channel', 'unknown')}' ({selected_meta.get('duration', 0):.1f}s)")
 
         if not selected_id and candidates:
             selected_id = candidates[0].get("id")
