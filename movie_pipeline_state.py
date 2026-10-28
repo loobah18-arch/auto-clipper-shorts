@@ -273,7 +273,11 @@ def uploaded_movie_ids(history: dict[str, JsonValue]) -> set[str]:
     }
 
 
-def append_history_entry(history: dict[str, JsonValue], entry: dict[str, JsonValue]) -> None:
+def append_history_entry(
+    history: dict[str, JsonValue],
+    entry: dict[str, JsonValue],
+    allow_duplicate: bool = False,
+) -> None:
     """Append a run event unless the episode is already confirmed uploaded."""
     entries_value = history.get("uploaded_movies", [])
     if not isinstance(entries_value, list):
@@ -292,17 +296,18 @@ def append_history_entry(history: dict[str, JsonValue], entry: dict[str, JsonVal
         history["uploaded_movies"] = [*entries_value, dict(entry)]
         return
 
-    for existing in entries_value:
-        existing_record = _as_dict(existing)
-        if existing_record is None or not entry_is_uploaded(existing):
-            continue
-        existing_key = episode_key(
-            str(existing_record.get("movie_id", "")),
-            existing_record.get("part_number") if isinstance(existing_record.get("part_number"), int) else None,
-            is_full_video=bool(existing_record.get("is_full_video", False)),
-        )
-        if existing_key == key:
-            raise DuplicateEpisodeError(key)
+    if not allow_duplicate:
+        for existing in entries_value:
+            existing_record = _as_dict(existing)
+            if existing_record is None or not entry_is_uploaded(existing):
+                continue
+            existing_key = episode_key(
+                str(existing_record.get("movie_id", "")),
+                existing_record.get("part_number") if isinstance(existing_record.get("part_number"), int) else None,
+                is_full_video=bool(existing_record.get("is_full_video", False)),
+            )
+            if existing_key == key:
+                raise DuplicateEpisodeError(key)
 
     history["uploaded_movies"] = [*entries_value, dict(entry)]
 

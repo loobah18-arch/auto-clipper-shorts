@@ -45,6 +45,11 @@ on:
         required: false
         default: true
         type: boolean
+      allow_duplicate:
+        description: 'Allow re-running/regenerating an episode even if previously recorded in upload history'
+        required: false
+        default: false
+        type: boolean
       set_visibility:
         description: 'Optional: comma-separated video IDs to change visibility (skips the normal pipeline)'
         required: false
@@ -264,6 +269,7 @@ jobs:
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
           INPUT_PROFILE: ${{ inputs.profile }}
           INPUT_ALLOW_UNREVIEWED_RIGHTS: ${{ inputs.allow_unreviewed_rights }}
+          INPUT_ALLOW_DUPLICATE: ${{ inputs.allow_duplicate }}
         run: |
           set -euo pipefail
           echo "🎬 Running Movie Explanation Shorts Generator (Cinematic Story Style)..."
@@ -274,6 +280,7 @@ jobs:
           if [ -n "$INPUT_VOICE" ]; then ARGS+=(--voice "$INPUT_VOICE"); fi
           if [ -n "${INPUT_PROFILE:-}" ]; then ARGS+=(--profile "$INPUT_PROFILE"); fi
           if [ "${INPUT_ALLOW_UNREVIEWED_RIGHTS:-true}" = "true" ]; then ARGS+=(--allow-unreviewed-rights); fi
+          if [ "${INPUT_ALLOW_DUPLICATE:-false}" = "true" ]; then ARGS+=(--allow-duplicate); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
           python generate_movie_short.py "${ARGS[@]}" 2>&1 | tee pipeline_debug.log
 

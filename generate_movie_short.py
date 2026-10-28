@@ -412,6 +412,7 @@ def run_pipeline(
     max_duration: float | None = None,
     profile: str = "cinerush_style",
     allow_unreviewed_rights: bool = False,
+    allow_duplicate: bool = False,
 ) -> Path:
     """Execute the cloud movie Short pipeline and persist its outcome."""
     log("=" * 65)
@@ -468,7 +469,7 @@ def run_pipeline(
     upload_requested = force_upload or not dry_run
     history = load_movie_history(HISTORY_FILE)
 
-    if upload_requested:
+    if upload_requested and not allow_duplicate:
         if part_number is not None and part_number in uploaded_part_numbers(history, movie_id):
             raise DuplicateEpisodeError(episode_key(movie_id, part_number))
         if part_number is None and movie_id in uploaded_movie_ids(history):
@@ -956,7 +957,7 @@ def run_pipeline(
         "content_hash": video_hash,
         "source_type": source_type,
     }
-    append_history_entry(history, history_entry)
+    append_history_entry(history, history_entry, allow_duplicate=allow_duplicate)
     if status == RunStatus.UPLOADED.value and part_number is not None and total_parts is not None:
         update_series_progress(
             history,
@@ -1118,6 +1119,7 @@ def main():
     parser.add_argument("--max-duration", type=float, default=None, help="Maximum allowed video duration (default: 58.0s for Shorts)")
     parser.add_argument("--profile", type=str, choices=["shorts", "shorts_9x16", "cinerush", "cinerush_style", "square", "landscape", "long_form", "long_video"], default="cinerush_style", help="Video profile ('cinerush_style', 'shorts_9x16', 'landscape')")
     parser.add_argument("--allow-unreviewed-rights", action="store_true", help="Allow upload of assets with unverified rights without manual review gate")
+    parser.add_argument("--allow-duplicate", action="store_true", help="Allow regenerating or re-uploading an episode already marked in history")
     parser.add_argument("--stitch-series", type=str, default=None, help="Movie ID to stitch all cached parts into a Full Long Video")
     args = parser.parse_args()
 
@@ -1174,6 +1176,7 @@ def main():
         max_duration=args.max_duration,
         profile=args.profile,
         allow_unreviewed_rights=args.allow_unreviewed_rights,
+        allow_duplicate=args.allow_duplicate,
     )
 
 
