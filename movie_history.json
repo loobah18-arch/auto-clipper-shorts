@@ -1107,15 +1107,28 @@
       "status": "uploaded",
       "content_hash": "7fae9a3c6073a40917a766b19ca78bb77e9c68965641cb5c12201e2152ffe36f",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "venom_the_last_dance",
+      "title": "Venom The Last Dance - Part 6/6 Ending Explained Part 6 #Shorts #MovieExplained",
+      "part_number": 6,
+      "total_parts": 6,
+      "youtube_id": "Nn8ef28Ws1E",
+      "timestamp": "2026-10-28T06:28:31.563265+00:00",
+      "video_path": "movie_short_venom_the_last_dance_20261028_062731.mp4",
+      "duration_sec": 47.62,
+      "status": "uploaded",
+      "content_hash": "aa08b7acca6f0386c7209145db84b100da0ad2c32edf4a6815450f560f52f42d",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
-    "movie_id": "just_mercy",
-    "movie_title": "Just Mercy",
-    "current_part": 2,
+    "movie_id": "venom_the_last_dance",
+    "movie_title": "Venom The Last Dance",
+    "current_part": 6,
     "total_parts": 6,
-    "completed": false,
-    "last_updated": "2026-10-28T05:54:55.054108+00:00"
+    "completed": true,
+    "last_updated": "2026-10-28T06:28:31.563293+00:00"
   },
   "superseded_uploads": [
     {
