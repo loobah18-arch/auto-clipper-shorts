@@ -434,6 +434,7 @@ def create_word_timestamps_from_sentences(sentences: list) -> list:
                 if cleaned:
                     words.append({
                         "word": cleaned.upper(),
+                        "raw_word": cleaned,
                         "start": round(float(word["start"]), 2),
                         "end": round(float(word["end"]), 2),
                     })
@@ -451,6 +452,7 @@ def create_word_timestamps_from_sentences(sentences: list) -> list:
             start = sentence["start"] + (index * step)
             words.append({
                 "word": cleaned.upper(),
+                "raw_word": cleaned,
                 "start": round(start, 2),
                 "end": round(start + step, 2),
             })
@@ -1603,16 +1605,12 @@ def render_movie_explanation_short(
 
     flip_filter = "hflip," if mirror else ""
 
-    # Dynamic Filter Graph based on Profile
+    # Dynamic Filter Graph based on Profile (Full-bleed cinematic framing, zero amateur box bars)
     if active_profile.profile_type == ProfileType.CINERUSH_STYLE:
-        # CINERUSH_STYLE: 1920x1920 (1:1 square), movie footage dominates frame
+        # CINERUSH_STYLE: 1920x1920 (1:1 square), movie footage dominates 100% of frame
         video_filters = (
             f"[0:v]{flip_filter}scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},"
-            f"eq=contrast=1.06:brightness=-0.02:saturation=1.08,"
-            f"drawbox=x=60:y=100:w={width-120}:h=90:color=black@0.80:t=fill,"
-            f"drawbox=x=60:y=100:w={width-120}:h=90:color=white@0.22:t=2,"
-            f"drawtext=text='{badge_display}':fontsize=38:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=125"
-            f"{hook_overlay_filter}"
+            f"eq=contrast=1.06:brightness=-0.02:saturation=1.08"
             f"{watermark_filter},"
             f"ass='{ass_esc}'[vfinal]"
         )
@@ -1625,15 +1623,10 @@ def render_movie_explanation_short(
             f"ass='{ass_esc}'[vfinal]"
         )
     else:
-        # SHORTS_9X16: 1080x1920 (9:16 portrait), movie footage dominates frame
+        # SHORTS_9X16: 1080x1920 (9:16 portrait), movie footage fills 100% of frame without blurry letterbox bars
         video_filters = (
-            f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},boxblur=24:6,eq=brightness=-0.16:contrast=1.05[bg];"
-            f"[0:v]{flip_filter}scale={width}:-2,eq=contrast=1.08:brightness=-0.02:saturation=1.10[fg];"
-            f"[bg][fg]overlay=(W-w)/2:(H-h)/2[comp];"
-            f"[comp]drawbox=x=80:y=120:w=920:h=82:color=black@0.80:t=fill,"
-            f"drawbox=x=80:y=120:w=920:h=82:color=white@0.22:t=2,"
-            f"drawtext=text='{badge_display}':fontsize=34:fontcolor=white:{font_opt}:x=(w-text_w)/2:y=145"
-            f"{hook_overlay_filter}"
+            f"[0:v]{flip_filter}scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},"
+            f"eq=contrast=1.06:brightness=-0.02:saturation=1.08"
             f"{watermark_filter},"
             f"ass='{ass_esc}'[vfinal]"
         )

@@ -311,6 +311,64 @@ class StoryBeatAnalyzer:
         return StoryRole.SETUP.value
 
     @classmethod
+    def split_into_clauses(cls, text: str) -> list[str]:
+        """Splits sentence or paragraph text into narrative-sized clauses (3-8 words each)."""
+        text = text.strip()
+        if not text:
+            return []
+
+        # 1. Primary sentence boundaries (. ! ? ; \n —)
+        raw_sentences = [s.strip() for s in re.split(r"(?<=[.!?;\n—])\s+", text) if s.strip()]
+        if not raw_sentences:
+            raw_sentences = [text]
+
+        clauses = []
+        for s in raw_sentences:
+            words = s.split()
+            if len(words) <= 7:
+                clauses.append(s)
+                continue
+
+            # Split on commas or conjunction pauses (, and, , but, , so, etc.)
+            sub_parts = re.split(
+                r"(?<=,)\s+|\s+(?:and|but|so|as|while|when|where|until|after|before|which|then)\s+",
+                s,
+                flags=re.IGNORECASE,
+            )
+            sub_parts = [p.strip() for p in sub_parts if p.strip()]
+
+            if len(sub_parts) <= 1:
+                # Chunk by 5-7 words
+                chunk = []
+                for w in words:
+                    chunk.append(w)
+                    if len(chunk) >= 6:
+                        clauses.append(" ".join(chunk))
+                        chunk = []
+                if chunk:
+                    if clauses and len(chunk) <= 2:
+                        clauses[-1] = f"{clauses[-1]} {' '.join(chunk)}"
+                    else:
+                        clauses.append(" ".join(chunk))
+            else:
+                # Merge tiny fragments (< 3 words) with adjacent
+                curr = []
+                for p in sub_parts:
+                    p_words = p.split()
+                    if not p_words:
+                        continue
+                    if len(curr) > 0 and (len(p_words) <= 2 or len(curr) + len(p_words) <= 7):
+                        curr.extend(p_words)
+                    else:
+                        if curr:
+                            clauses.append(" ".join(curr))
+                        curr = list(p_words)
+                if curr:
+                    clauses.append(" ".join(curr))
+
+        return clauses if clauses else [text]
+
+    @classmethod
     def analyze_script(
         cls,
         script_text: str,
@@ -321,31 +379,39 @@ class StoryBeatAnalyzer:
         if not script_text.strip():
             return []
 
+        raw_units: list[tuple[str, float, float]] = []
+
         if sentences and len(sentences) > 0 and "text" in sentences[0]:
-            raw_units = []
             for s in sentences:
                 t = s.get("text", "").strip()
                 if not t:
                     continue
                 start_t = float(s.get("start", 0.0))
                 end_t = float(s.get("end", start_t + 3.0))
-                raw_units.append((t, start_t, end_t))
+                s_dur = max(0.8, end_t - start_t)
+                sub_clauses = cls.split_into_clauses(t)
+                total_words = sum(len(c.split()) for c in sub_clauses) or 1
+                curr_t = start_t
+                for c_idx, clause in enumerate(sub_clauses):
+                    c_words = len(clause.split())
+                    c_dur = round(s_dur * (c_words / total_words), 2)
+                    c_dur = max(0.8, c_dur)
+                    c_end = round(min(end_t, curr_t + c_dur) if c_idx < len(sub_clauses) - 1 else end_t, 2)
+                    raw_units.append((clause, round(curr_t, 2), c_end))
+                    curr_t = c_end
         else:
-            raw_sentences = [
-                s.strip() for s in re.split(r"(?<=[.!?])\s+", script_text) if s.strip()
-            ]
-            if not raw_sentences:
-                raw_sentences = [script_text.strip()]
-
-            total_words = sum(len(s.split()) for s in raw_sentences) or 1
-            cur_time = 0.0
-            raw_units = []
-            for s in raw_sentences:
-                w_count = len(s.split())
+            sub_clauses = cls.split_into_clauses(script_text)
+            total_words = sum(len(c.split()) for c in sub_clauses) or 1
+            curr_time = 0.0
+            for c_idx, clause in enumerate(sub_clauses):
+                w_count = len(clause.split())
                 dur = round(total_duration * (w_count / total_words), 2)
-                dur = max(1.2, dur)
-                raw_units.append((s, round(cur_time, 2), round(cur_time + dur, 2)))
-                cur_time += dur
+                dur = max(1.0, dur)
+                c_end = round(curr_time + dur, 2)
+                if c_idx == len(sub_clauses) - 1:
+                    c_end = round(total_duration, 2)
+                raw_units.append((clause, round(curr_time, 2), c_end))
+                curr_time = c_end
 
         beats: list[StoryBeat] = []
         total_units = len(raw_units)
@@ -546,7 +612,7 @@ class SceneIndexManager:
         movie_id: str,
         start_sec: float = 0.0,
         end_sec: float = 600.0,
-        target_scene_count: int = 24,
+        target_scene_count: int = 36,
     ) -> list[SceneCandidate]:
         """
         Loads cached scene index or extracts candidate scenes from the authorized video.
@@ -1298,34 +1364,31 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if not chunk:
             continue
 
-        for active_idx, target in enumerate(chunk):
-            t_start = target["start"]
-            t_end = target["end"]
-            if active_idx < len(chunk) - 1:
-                t_end = min(t_end, chunk[active_idx + 1]["start"])
+        t_start = chunk[0]["start"]
+        t_end = max(chunk[-1]["end"], t_start + 0.8)
 
-            if max_duration is not None and max_duration > 0:
-                if t_start >= max_duration:
-                    continue
-                t_end = min(t_end, max_duration)
+        if max_duration is not None and max_duration > 0:
+            if t_start >= max_duration:
+                continue
+            t_end = min(t_end, max_duration)
 
-            line_parts = []
-            for j, w in enumerate(chunk):
-                raw_word = str(w.get("word", "")).strip()
-                is_emphasis = raw_word.upper() in emphasis_set or re.search(r"\b\d+\b", raw_word)
+        line_parts = []
+        for w in chunk:
+            raw_word = str(w.get("raw_word", w.get("word", ""))).strip()
+            if not raw_word:
+                continue
+            clean_token = re.sub(r"[^\w]", "", raw_word).upper()
+            is_emphasis = clean_token in emphasis_set or re.search(r"\b\d+\b", raw_word)
 
-                if j == active_idx:
-                    # Active spoken word with subtle warm gold highlight & punch
-                    line_parts.append(r"{\c" + style.highlight_color_primary + r"\b1}" + raw_word + r"{\r}")
-                elif is_emphasis:
-                    # Emphasized keyword in electric accent
-                    line_parts.append(r"{\c" + style.highlight_color_accent + r"\b1}" + raw_word + r"{\r}")
-                else:
-                    line_parts.append(r"{\c" + style.fill_color + r"}" + raw_word + r"{\r}")
+            if is_emphasis:
+                # Key narrative focus word in warm gold with bold
+                line_parts.append(r"{\c" + style.highlight_color_primary + r"\b1}" + raw_word + r"{\r}")
+            else:
+                line_parts.append(r"{\c" + style.fill_color + r"}" + raw_word + r"{\r}")
 
-            # Subtle fade-in entrance and fade-out exit
-            text_line = r"{\fad(140,90)}" + " ".join(line_parts)
-            events.append(f"Dialogue: 0,{format_time(t_start)},{format_time(t_end)},Default,,0,0,0,,{text_line}\n")
+        # Subtle fade-in entrance and fade-out exit
+        text_line = r"{\fad(140,90)}" + " ".join(line_parts)
+        events.append(f"Dialogue: 0,{format_time(t_start)},{format_time(t_end)},Default,,0,0,0,,{text_line}\n")
 
     with open(output_ass_path, "w", encoding="utf-8") as f:
         f.write(ass_content + "".join(events))

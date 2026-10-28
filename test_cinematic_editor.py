@@ -48,12 +48,13 @@ class TestCinematicEditorProfiles(unittest.TestCase):
     """Test the profile registry, dimensions, aspect ratios, and defaults."""
 
     def test_resolve_profile_aliases(self):
-        # Default fallback on None or empty string
+        # Default fallback on None or empty string (CINERUSH_STYLE 1:1 square)
         p_default = resolve_profile(None)
-        self.assertEqual(p_default.profile_type, ProfileType.SHORTS_9X16)
-        self.assertEqual(p_default.width, 1080)
+        self.assertEqual(p_default.profile_type, ProfileType.CINERUSH_STYLE)
+        self.assertEqual(p_default.width, 1920)
         self.assertEqual(p_default.height, 1920)
-        self.assertTrue(p_default.is_vertical)
+        self.assertTrue(p_default.is_square)
+        self.assertFalse(p_default.is_vertical)
 
         # CineRush 1:1 square
         for alias in ["cinerush", "cinerush_style", "square", "1:1"]:

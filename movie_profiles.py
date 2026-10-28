@@ -186,13 +186,13 @@ _ALIASES = {
 
 
 def resolve_profile(name_or_alias: str | None) -> ProfileConfig:
-    """Resolves a profile name or alias to its full ProfileConfig, defaulting to SHORTS_9X16."""
+    """Resolves a profile name or alias to its full ProfileConfig, defaulting to CINERUSH_STYLE."""
     if not name_or_alias:
-        return PROFILES[ProfileType.SHORTS_9X16.value]
+        return PROFILES[ProfileType.CINERUSH_STYLE.value]
 
     key = str(name_or_alias).strip().lower()
     canonical = _ALIASES.get(key, key)
     if canonical in PROFILES:
         return PROFILES[canonical]
     # Default fallback
-    return PROFILES[ProfileType.SHORTS_9X16.value]
+    return PROFILES[ProfileType.CINERUSH_STYLE.value]

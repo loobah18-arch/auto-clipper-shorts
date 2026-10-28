@@ -410,7 +410,7 @@ def run_pipeline(
     audio_file: str | None = None,
     watermark: str | None = None,
     max_duration: float | None = None,
-    profile: str = "shorts",
+    profile: str = "cinerush_style",
     allow_unreviewed_rights: bool = False,
 ) -> Path:
     """Execute the cloud movie Short pipeline and persist its outcome."""
@@ -844,6 +844,7 @@ def run_pipeline(
                 mirror=True,
                 hook_text=movie_data.get("hook", ""),
                 max_duration=target_max_duration,
+                profile=profile,
             )
 
     if not candidate_passed and not dry_run:
@@ -1095,7 +1096,7 @@ def main():
     parser.add_argument("--audio-file", type=str, default=None, help="Path to custom human-recorded voiceover MP3/WAV")
     parser.add_argument("--watermark", type=str, default=None, help="Channel watermark text (e.g. '@CinemaInsights')")
     parser.add_argument("--max-duration", type=float, default=None, help="Maximum allowed video duration (default: 58.0s for Shorts)")
-    parser.add_argument("--profile", type=str, choices=["shorts", "shorts_9x16", "cinerush", "cinerush_style", "square", "landscape", "long_form", "long_video"], default="shorts", help="Video profile ('shorts_9x16', 'cinerush_style', 'landscape')")
+    parser.add_argument("--profile", type=str, choices=["shorts", "shorts_9x16", "cinerush", "cinerush_style", "square", "landscape", "long_form", "long_video"], default="cinerush_style", help="Video profile ('cinerush_style', 'shorts_9x16', 'landscape')")
     parser.add_argument("--allow-unreviewed-rights", action="store_true", help="Allow upload of assets with unverified rights without manual review gate")
     parser.add_argument("--stitch-series", type=str, default=None, help="Movie ID to stitch all cached parts into a Full Long Video")
     args = parser.parse_args()

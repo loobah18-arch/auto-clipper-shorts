@@ -32,13 +32,13 @@ on:
         default: false
         type: boolean
       profile:
-        description: 'Output layout profile (shorts_9x16 [9:16 vertical], cinerush_style [1:1 square], or landscape [16:9 widescreen])'
+        description: 'Output layout profile (cinerush_style [1:1 square], shorts_9x16 [9:16 vertical], or landscape [16:9 widescreen])'
         required: false
-        default: 'shorts_9x16'
+        default: 'cinerush_style'
         type: choice
         options:
-          - 'shorts_9x16'
           - 'cinerush_style'
+          - 'shorts_9x16'
           - 'landscape'
       allow_unreviewed_rights:
         description: 'Allow publishing of unreviewed movie assets without manual review gate'
