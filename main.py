@@ -27,18 +27,18 @@ HISTORY_PATH = WORKSPACE_DIR / "clip_history.json"
 CATALOG_PATH = WORKSPACE_DIR / "movie_catalog_auto.json"
 
 CURATED_CINERUSH_SCENES = [
-    "Just Mercy courtroom cross examination scene",
     "The Dark Knight interrogation scene",
     "Good Will Hunting park bench scene",
-    "Inglourious Basterds tavern scene",
     "Whiplash final drum solo scene",
-    "Interstellar docking scene",
-    "The Social Network lawyer deposition scene",
+    "Inglourious Basterds tavern scene",
     "A Few Good Men courtroom you cant handle the truth scene",
+    "The Social Network lawyer deposition scene",
+    "Interstellar docking scene",
     "No Country For Old Men gas station coin toss scene",
     "Training Day king kong aint got nothing on me scene",
     "The Godfather cannoli scene",
     "Glengarry Glen Ross always be closing scene",
+    "Just Mercy Bryan speech courtroom scene",
 ]
 
 
