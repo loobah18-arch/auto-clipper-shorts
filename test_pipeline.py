@@ -14,7 +14,7 @@ from pathlib import Path
 # Add current workspace to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from main import (
+from legacy_tech_clipper import (
     parse_vtt_subtitles,
     parse_json3_subtitles,
     create_word_timestamps_from_segment,
@@ -278,7 +278,7 @@ is setting clear non-negotiable boundaries.
             test_out.unlink()
 
     def test_compute_intelligent_shock_condition(self):
-        from main import compute_intelligent_shock_condition
+        from legacy_tech_clipper import compute_intelligent_shock_condition
         
         sample_segments = [
             {
@@ -336,7 +336,7 @@ is setting clear non-negotiable boundaries.
         self.assertEqual(calm_shock, "0")
 
     def test_topic_documentary_visuals_generation(self):
-        from main import fetch_topic_documentary_visuals
+        from legacy_tech_clipper import fetch_topic_documentary_visuals
         sample_segments = [
             {"id": 0, "start": 0.0, "end": 5.0, "text": "Scientists discover quantum computing scaling law."}
         ]

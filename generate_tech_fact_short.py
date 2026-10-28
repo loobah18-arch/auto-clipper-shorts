@@ -23,7 +23,7 @@ try:
 except ImportError:
     edge_tts = None
 
-from main import (
+from legacy_tech_clipper import (
     create_word_timestamps_from_segment,
     generate_karaoke_ass_subtitles,
     render_studio_visualizer_short,
@@ -427,7 +427,7 @@ def query_opencode_deepseek(system_prompt: str, user_prompt: str, max_tokens: in
     """
     import subprocess
     import shutil
-    from main import parse_llm_json
+    from legacy_tech_clipper import parse_llm_json
 
     # 1. Try local OpenCode CLI if available
     opencode_bin = shutil.which("opencode") or str(Path.home() / ".opencode/bin/opencode")
@@ -520,7 +520,7 @@ def query_groq_fallback(system_prompt: str, user_prompt: str) -> dict:
 
     try:
         from groq import Groq
-        from main import parse_llm_json
+        from legacy_tech_clipper import parse_llm_json
         client = Groq(api_key=groq_api_key)
         
         # Priority 2: Llama-3.3-70B | Priority 3: GPT OSS 20B
@@ -767,7 +767,7 @@ JSON Output Schema:
     log("🧠 Generating fresh viral tech topic with Groq Llama-3.3-70B...")
     try:
         from groq import Groq
-        from main import parse_llm_json
+        from legacy_tech_clipper import parse_llm_json
         client = Groq(api_key=groq_api_key)
         for model_name in ["llama-3.3-70b-versatile", "openai/gpt-oss-20b", "openai/gpt-oss-20b:free", "gpt-oss-20b"]:
             try:
