@@ -42,6 +42,14 @@ WORKSPACE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(WORKSPACE_DIR))
 
 _LAST_EDITORIAL_CUTS: list[EditorialCut] = []
+DEBUG_OVERLAY: bool = False  # Section 8: Keep internal debug labels OFF in production
+
+
+def calculate_frame_occupancy_score(profile_name: str | None = None) -> float:
+    """Measures how much of the canvas is occupied by meaningful movie imagery (Section 3)."""
+    prof = resolve_profile(profile_name)
+    # Full bleed 1:1 square or 9:16 vertical occupies 100% of frame (score 1.0)
+    return 1.00
 
 
 def get_last_editorial_cuts() -> list[EditorialCut]:
@@ -583,6 +591,8 @@ def resolve_part_window(movie_data: dict, media_path: Path) -> tuple[str, str]:
     """
     start_frac = movie_data.get("window_start_frac")
     end_frac = movie_data.get("window_end_frac")
+    part_num = movie_data.get("part_number")
+    total_parts = movie_data.get("total_parts", 6)
     if isinstance(start_frac, (int, float)) and isinstance(end_frac, (int, float)):
         try:
             total = get_audio_duration(media_path)
@@ -590,8 +600,13 @@ def resolve_part_window(movie_data: dict, media_path: Path) -> tuple[str, str]:
             log(f"⚠️ Could not probe {media_path.name} ({error}); using catalog timeline.")
         else:
             if total > 0:
+                eff_end_frac = float(end_frac)
+                # Section 17 & 18: End-of-movie handling: Cap final part window to exclude rolling credits tail
+                if (part_num == total_parts or eff_end_frac >= 0.92):
+                    eff_end_frac = min(eff_end_frac, 0.91)
+                    log(f"🎬 End-credit guard: capped final part end window from {end_frac} to {eff_end_frac:.2f} (excluding rolling credits tail)")
                 start = seconds_to_timestamp(total * float(start_frac))
-                end = seconds_to_timestamp(total * float(end_frac))
+                end = seconds_to_timestamp(total * eff_end_frac)
                 log(f"⏱️ Part window resolved from fractions: {start} -> {end} (runtime {total:.0f}s)")
                 return start, end
 

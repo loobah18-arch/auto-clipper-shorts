@@ -681,6 +681,19 @@ def run_pipeline(
             f"(continuous across {len(prior)} confirmed part(s))."
         )
 
+    # Refresh subtitles with actual scene cuts for face-safe dynamic positioning
+    last_cuts = get_last_editorial_cuts()
+    if last_cuts:
+        format_cinematic_subtitles(
+            words=words,
+            output_ass_path=subtitles_path,
+            profile=active_profile,
+            language=lang,
+            emphasis_keywords=emphasis_keywords,
+            max_duration=target_max_duration,
+            cuts=last_cuts,
+        )
+
     render_movie_explanation_short(
         sliced_video_path=sliced_video_path,
         narration_audio_path=audio_path,
@@ -748,13 +761,20 @@ def run_pipeline(
     log(
         f"🏆 Editorial Quality Score: {quality_report.total_score:.1f}/100 "
         f"[Hook: {quality_report.hook_score:.1f}/20, "
-        f"Relevance: {quality_report.visual_relevance_score:.1f}/20, "
+        f"Alignment: {quality_report.visual_narration_alignment_score:.1f}/25, "
         f"Clarity: {quality_report.story_clarity_score:.1f}/15, "
         f"Pacing: {quality_report.pacing_score:.1f}/15, "
-        f"Captions: {quality_report.captions_score:.1f}/10, "
-        f"Audio: {quality_report.audio_score:.1f}/10, "
-        f"Emotion: {quality_report.emotional_impact_score:.1f}/5, "
+        f"Visual Quality: {quality_report.visual_variety_score:.1f}/10, "
+        f"Captions: {quality_report.captions_score:.1f}/5, "
+        f"Audio: {quality_report.audio_score:.1f}/5, "
         f"Ending: {quality_report.ending_score:.1f}/5]"
+    )
+    log(
+        f"   ↳ Section 32 QC Metrics: Occupancy={quality_report.frame_occupancy_score:.2f}, "
+        f"Clarity={quality_report.visual_clarity_score:.2f}, "
+        f"Credits={quality_report.credit_score:.2f}, "
+        f"SafeZone={quality_report.caption_safe_zone_score:.2f}, "
+        f"EffectDensity={quality_report.effect_density_score:.2f}"
     )
     if quality_report.recommendations:
         for rec in quality_report.recommendations:

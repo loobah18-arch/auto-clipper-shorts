@@ -428,5 +428,131 @@ class TestEditingManifest(unittest.TestCase):
                 out_path.unlink()
 
 
+class TestCriticalVisualUpgrades(unittest.TestCase):
+    """Test critical visual upgrades: credit detection, visual clarity, highlight restraint, and manifest schema."""
+
+    def test_end_credit_detection_and_rejection(self):
+        """End credits must receive high credit score and be penalized/rejected from timeline."""
+        # Rolling credit scene at end of movie with low motion
+        credit_score, is_cred = SceneIndexManager.evaluate_credit_score(
+            c_start=6800.0, end_sec=7000.0, brightness=0.18, motion=0.10, idx=34, total_scenes=36
+        )
+        self.assertGreaterEqual(credit_score, 0.70)
+        self.assertTrue(is_cred)
+
+        # Non-credit climactic scene
+        action_score, is_act_cred = SceneIndexManager.evaluate_credit_score(
+            c_start=5500.0, end_sec=7000.0, brightness=0.55, motion=0.75, idx=25, total_scenes=36
+        )
+        self.assertLess(action_score, 0.20)
+        self.assertFalse(is_act_cred)
+
+    def test_visual_clarity_scoring(self):
+        """Dark, muddy frames must receive low visual clarity score."""
+        dark_clarity = SceneIndexManager.evaluate_visual_clarity(brightness=0.10, motion=0.20)
+        self.assertLessEqual(dark_clarity, 0.30)
+
+        bright_clarity = SceneIndexManager.evaluate_visual_clarity(brightness=0.55, motion=0.60)
+        self.assertGreaterEqual(bright_clarity, 0.80)
+
+    def test_caption_highlight_restraint(self):
+        """Captions must limit yellow/accent highlighting to maximum 2 words per card."""
+        words = [
+            {"word": "EDDIE", "raw_word": "Eddie", "start": 0.0, "end": 0.4},
+            {"word": "DISCOVERS", "raw_word": "discovers", "start": 0.4, "end": 0.8},
+            {"word": "THE", "raw_word": "the", "start": 0.8, "end": 1.1},
+            {"word": "DEADLY", "raw_word": "deadly", "start": 1.1, "end": 1.5},
+            {"word": "SECRET", "raw_word": "secret", "start": 1.5, "end": 1.9},
+            {"word": "INSIDE", "raw_word": "inside", "start": 1.9, "end": 2.3},
+        ]
+        emphasis_all = {"EDDIE", "DISCOVERS", "DEADLY", "SECRET", "INSIDE"}
+        profile = resolve_profile("cinerush_style")
+
+        with tempfile.NamedTemporaryFile(suffix=".ass", delete=False) as f:
+            out_path = Path(f.name)
+
+        try:
+            format_cinematic_subtitles(
+                words=words,
+                output_ass_path=out_path,
+                profile=profile,
+                emphasis_keywords=emphasis_all,
+            )
+            content = out_path.read_text(encoding="utf-8")
+            dialogue_lines = [l for l in content.splitlines() if l.startswith("Dialogue:")]
+            self.assertTrue(len(dialogue_lines) >= 1)
+
+            for line in dialogue_lines:
+                # Count occurrences of gold highlight tag \c&H0000D4FF& in line
+                gold_count = line.count(profile.caption_style.highlight_color_primary)
+                self.assertLessEqual(gold_count, 2, "A single caption card must not have more than 2 highlighted words")
+        finally:
+            if out_path.exists():
+                out_path.unlink()
+
+    def test_editorial_cut_manifest_schema(self):
+        """EditorialCut to_dict must output all Section 30 manifest fields."""
+        cut = EditorialCut(
+            cut_id=1,
+            beat_id=1,
+            scene_id="scene_001",
+            source_start=12.5,
+            duration=2.4,
+            target_start=0.0,
+            target_end=2.4,
+            relevance_score=0.91,
+            shot_type="close_up",
+            semantic_score=0.92,
+            character_score=0.88,
+            action_score=0.75,
+            emotion_score=0.80,
+            visual_clarity_score=0.89,
+            credit_score=0.0,
+            crop={"mode": "cinematic_fill", "bias": "center", "zoom": 1.05},
+            caption_position="LOWER_CENTER",
+            caption_style="cinematic_subtitles",
+            effect="cut",
+            selection_reason="Opening hook with high visual clarity and protagonist focus.",
+        )
+        data = cut.to_dict()
+        self.assertEqual(data["shot_id"], "shot_001")
+        self.assertEqual(data["start"], 0.0)
+        self.assertEqual(data["end"], 2.4)
+        self.assertEqual(data["source_timestamp"], "12.50s")
+        self.assertIn("Opening hook", data["selection_reason"])
+        self.assertEqual(data["visual_clarity_score"], 0.89)
+        self.assertEqual(data["credit_score"], 0.0)
+        self.assertEqual(data["caption_position"], "LOWER_CENTER")
+        self.assertEqual(data["effect"], "cut")
+
+    def test_qc_specific_metrics(self):
+        """QualityScoreReport must include all 8 Section 32 QC metrics."""
+        beats = StoryBeatAnalyzer.analyze_script("A scientist discovers a breach.", total_duration=45.0)
+        cuts = [
+            EditorialCut(
+                cut_id=1,
+                beat_id=1,
+                scene_id="scene_01",
+                source_start=10.0,
+                duration=3.0,
+                target_start=0.0,
+                target_end=3.0,
+                relevance_score=0.90,
+                shot_type="close_up",
+                visual_clarity_score=0.88,
+                credit_score=0.0,
+            )
+        ]
+        report = QualityScorer.evaluate(cuts, beats, has_bgm=True, has_subtitles=True)
+        self.assertGreaterEqual(report.frame_occupancy_score, 0.90)
+        self.assertGreaterEqual(report.visual_clarity_score, 0.70)
+        self.assertLessEqual(report.credit_score, 0.10)
+        self.assertGreaterEqual(report.caption_safe_zone_score, 0.80)
+        self.assertGreaterEqual(report.hook_score, 14.0)
+        self.assertGreaterEqual(report.visual_narration_alignment_score, 15.0)
+        self.assertLessEqual(report.effect_density_score, 0.50)
+        self.assertGreaterEqual(report.ending_score, 3.0)
+
+
 if __name__ == "__main__":
     unittest.main()
