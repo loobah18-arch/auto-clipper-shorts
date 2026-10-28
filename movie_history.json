@@ -1094,15 +1094,28 @@
       "status": "uploaded",
       "content_hash": "84479ff963d1015556220c82bb83d2d7f21b94b041d56fc203b73eff81bb0611",
       "source_type": "private_media"
+    },
+    {
+      "movie_id": "just_mercy",
+      "title": "Just Mercy - Part 2/6 Ending Explained Part 2 #Shorts #MovieExplained",
+      "part_number": 2,
+      "total_parts": 6,
+      "youtube_id": "wZquDTjhNnA",
+      "timestamp": "2026-10-28T05:54:55.054023+00:00",
+      "video_path": "movie_short_just_mercy_20261028_055403.mp4",
+      "duration_sec": 46.1,
+      "status": "uploaded",
+      "content_hash": "7fae9a3c6073a40917a766b19ca78bb77e9c68965641cb5c12201e2152ffe36f",
+      "source_type": "private_media"
     }
   ],
   "current_series": {
     "movie_id": "just_mercy",
     "movie_title": "Just Mercy",
-    "current_part": 1,
+    "current_part": 2,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-27T23:50:14.791277+00:00"
+    "last_updated": "2026-10-28T05:54:55.054108+00:00"
   },
   "superseded_uploads": [
     {
