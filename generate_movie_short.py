@@ -414,7 +414,17 @@ def run_pipeline(
     allow_unreviewed_rights: bool = False,
     allow_duplicate: bool = False,
 ) -> Path:
-    """Execute the cloud movie Short pipeline and persist its outcome."""
+    """Execute the Cinerush movie scene Short pipeline and persist its outcome."""
+    if os.environ.get("CINERUSH_MODE", "true").lower() == "true":
+        from cinerush_pipeline import run_cinerush_pipeline
+        query = movie_name or "Just Mercy courtroom cross examination scene"
+        manifest = run_cinerush_pipeline(
+            query=query,
+            video_file=video_file,
+            dry_run=dry_run and not force_upload,
+        )
+        return Path(manifest["output_file"])
+
     log("=" * 65)
     log("🎬 STARTING MOVIE EXPLANATION SHORTS GENERATOR (MovieGyan Style)")
     log("=" * 65)

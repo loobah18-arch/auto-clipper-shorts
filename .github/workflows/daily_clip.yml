@@ -153,7 +153,7 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           export NEEDRESTART_MODE=a
           sudo -E apt-get update -qq
-          sudo -E apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core fonts-liberation fonts-noto-core aria2
+          sudo -E apt-get install -y --no-install-recommends ffmpeg libass-dev fonts-montserrat fonts-dejavu-core fonts-liberation fonts-noto-core aria2
 
 
 

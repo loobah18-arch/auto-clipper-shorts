@@ -359,5 +359,28 @@
       "total_parts": 3,
       "completed_at": "2026-09-14T15:06:55.307050+00:00"
     }
-  ]
+  ],
+  "processed_queries": [
+    "Just Mercy courtroom scene"
+  ],
+  "cinerush_shorts": [
+    {
+      "title": "He knew the truth before anyone spoke 🎬🔥 #film #movie #shorts",
+      "scene_title": "Court Cam: Crowd Cheers for Wrongfully Convicted Man Found NOT Guilty (Season 1) | A&E",
+      "clip_start": 5.0,
+      "clip_end": 17.0,
+      "trimmed_duration": 12.0,
+      "keep_intervals": [
+        [
+          5.0,
+          17.0
+        ]
+      ],
+      "words_count": 24,
+      "output_file": "/data/data/com.termux/files/home/antigravity/auto-clipper-shorts/output/cinerush_short_20261028_073502.mp4",
+      "youtube_id": null,
+      "generated_at": "2026-10-28T07:36:17.426031+00:00"
+    }
+  ],
+  "last_updated": "2026-10-28T07:36:17.439560+00:00"
 }
