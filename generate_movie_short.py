@@ -417,7 +417,8 @@ def run_pipeline(
     """Execute the Cinerush movie scene Short pipeline and persist its outcome."""
     if os.environ.get("CINERUSH_MODE", "true").lower() == "true":
         from cinerush_pipeline import run_cinerush_pipeline
-        query = movie_name or "Just Mercy courtroom cross examination scene"
+        from main import get_next_curated_scene
+        query = movie_name or get_next_curated_scene()
         manifest = run_cinerush_pipeline(
             query=query,
             video_file=video_file,
