@@ -295,6 +295,35 @@ def download_movie_scene(
                     break
 
         if not dest:
+            # Fallback: check if genuine cached movie files exist in cache/ or clips/
+            for folder in ["cache", "raw_clips", "clips"]:
+                c_dir = Path(folder)
+                if c_dir.exists():
+                    for movie_file in list(c_dir.glob("*.mp4")) + list(c_dir.glob("*.mkv")):
+                        if movie_file.stat().st_size > 20_000_000:
+                            log(f"🎬 Sourcing continuous 180s scene from genuine cached movie: {movie_file.name}...")
+                            dest = output_dir / f"cinerush_scene_{movie_file.stem}.mp4"
+                            slice_cmd = [
+                                "ffmpeg", "-y",
+                                "-ss", "00:12:00",
+                                "-i", str(movie_file),
+                                "-t", "180",
+                                "-c:v", "libx264", "-preset", "ultrafast",
+                                "-c:a", "aac",
+                                str(dest),
+                            ]
+                            subprocess.run(slice_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+                            if dest.exists() and dest.stat().st_size > 500_000:
+                                selected_id = movie_file.stem
+                                selected_meta = {
+                                    "id": selected_id,
+                                    "title": movie_file.stem.replace("_", " ").title(),
+                                }
+                                break
+                    if dest and dest.exists():
+                        break
+
+        if not dest:
             if test_mode:
                 log(f"ℹ️ Test mode enabled: generating synthetic test scene for query '{search_query}'...")
                 test_file = output_dir / "cinerush_scene_test.mp4"
