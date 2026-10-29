@@ -287,13 +287,47 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
         phrases = group_words_into_cinerush_phrases(words, max_words_per_phrase=4)
 
         # First phrase must end at 'him?' (4 words)
+        self.assertEqual(len(phrases), 2)
         self.assertEqual(len(phrases[0]), 4)
         self.assertEqual(phrases[0][-1]["word"], "him?")
 
-        # Second phrase capped at 4 words: ['I', 'did', 'not', 'do']
-        self.assertEqual(len(phrases[1]), 4)
-        # Third phrase has remaining ['it.']
-        self.assertEqual(len(phrases[2]), 1)
+        # Second phrase has 5 words: ['I', 'did', 'not', 'do', 'it.'] (anti-orphan lookahead prevents 1-word 'it.')
+        self.assertEqual(len(phrases[1]), 5)
+        self.assertEqual(phrases[1][-1]["word"], "it.")
+
+    def test_no_orphan_phrases_on_short_sentences_and_fillers(self):
+        # 5-word sentence kept as a single card instead of 4 + 1
+        s5 = [
+            {"word": "I", "start": 0.0, "end": 0.2},
+            {"word": "did", "start": 0.2, "end": 0.4},
+            {"word": "not", "start": 0.4, "end": 0.6},
+            {"word": "do", "start": 0.6, "end": 0.8},
+            {"word": "it.", "start": 0.8, "end": 1.0},
+        ]
+        p5 = group_words_into_cinerush_phrases(s5)
+        self.assertEqual(len(p5), 1)
+        self.assertEqual(len(p5[0]), 5)
+
+        # 4-word sentence with mid comma not split into 3 + 1
+        s4 = [
+            {"word": "Look", "start": 0.0, "end": 0.2},
+            {"word": "at", "start": 0.2, "end": 0.4},
+            {"word": "that,", "start": 0.4, "end": 0.6},
+            {"word": "man.", "start": 0.6, "end": 0.8},
+        ]
+        p4 = group_words_into_cinerush_phrases(s4)
+        self.assertEqual(len(p4), 1)
+        self.assertEqual(len(p4[0]), 4)
+
+        # Standalone filler tokens ('Um,', 'uh') stripped to prevent visual clutter
+        s_filler = [
+            {"word": "Um,", "start": 0.0, "end": 0.2},
+            {"word": "look", "start": 0.3, "end": 0.5},
+            {"word": "here.", "start": 0.5, "end": 0.8},
+        ]
+        pf = group_words_into_cinerush_phrases(s_filler)
+        self.assertEqual(len(pf), 1)
+        self.assertEqual([w["word"] for w in pf[0]], ["look", "here."])
 
     def test_ass_file_generation_karaoke_highlight(self):
         words = [
@@ -311,23 +345,23 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             # Verify ASS headers
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1920", content)
-            self.assertIn(",40,40,280,1", content)
+            self.assertIn(",40,40,680,1", content)  # MarginV: 680 for vertical 9:16
             self.assertIn("Style: Cinerush", content)
+            self.assertIn("-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,680,1", content)  # Bold -1, Italic -1
 
-            # Verify active word is highlighted yellow and inactive words white
+            # Verify active word is highlighted magenta and inactive words golden yellow, all uppercase
             dialogue_lines = [l for l in content.splitlines() if l.startswith("Dialogue:")]
             self.assertEqual(len(dialogue_lines), 3)
 
-            # Event 1: 'Look' is active (yellow \c&H00FFFF&), 'at' and 'me.' are white (\c&HFFFFFF&)
-            self.assertIn(r"{\c&H00FFFF&\fscx108\fscy108}Look{\r}", dialogue_lines[0])
-            self.assertIn(r"{\c&HFFFFFF&\fscx100\fscy100}at{\r}", dialogue_lines[0])
+            # Event 1: 'LOOK' is active (magenta \\c&H00FF00FF&), 'AT' and 'ME.' are golden yellow (\\c&H0000FFFF&)
+            self.assertIn(r"{\c&H00FF00FF&\fscx106\fscy106\blur1.2}LOOK{\r}", dialogue_lines[0])
+            self.assertIn(r"{\c&H0000FFFF&\fscx100\fscy100}AT{\r}", dialogue_lines[0])
 
-            # Event 2: 'at' is active (yellow)
-            self.assertIn(r"{\c&H00FFFF&\fscx108\fscy108}at{\r}", dialogue_lines[1])
+            # Event 2: 'AT' is active (magenta)
+            self.assertIn(r"{\c&H00FF00FF&\fscx106\fscy106\blur1.2}AT{\r}", dialogue_lines[1])
         finally:
             if ass_path.exists():
                 ass_path.unlink()
-
 
     def test_ass_file_generation_square_profile(self):
         words = [
@@ -341,10 +375,12 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             generate_cinerush_karaoke_ass(words, ass_path, profile="cinerush_style")
             content = ass_path.read_text(encoding="utf-8")
 
-            # 1:1 square headers
+            # 1:1 square headers with MarginV 380
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1080", content)
-            self.assertIn(",40,40,120,1", content)
+            self.assertIn(",40,40,380,1", content)
+            self.assertIn(r"STAND{\r}", content)
+            self.assertIn(r"UP.{\r}", content)
         finally:
             if ass_path.exists():
                 ass_path.unlink()
