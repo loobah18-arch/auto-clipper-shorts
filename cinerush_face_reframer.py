@@ -471,8 +471,8 @@ def render_shot_locked_cinerush_video(
                 cmd = [
                     "ffmpeg", "-y",
                     "-ss", f"{shot_start:.3f}",
-                    "-to", f"{shot_end:.3f}",
                     "-i", str(source_video),
+                    "-t", f"{shot_dur:.3f}",
                     "-vf", vf,
                     "-af", af,
                     "-c:v", "libx264",
@@ -489,7 +489,9 @@ def render_shot_locked_cinerush_video(
                     segment_files.append(seg_out)
                     seg_idx += 1
                 else:
-                    log(f"⚠️ Warning: Segment {shot_start:.2f}-{shot_end:.2f} failed: {proc.stderr[:150]}")
+                    err_lines = [l.strip() for l in proc.stderr.splitlines() if l.strip() and not l.startswith("configuration:") and not l.startswith("ffmpeg version")]
+                    err_msg = err_lines[-1] if err_lines else proc.stderr[:120]
+                    log(f"⚠️ Warning: Segment {shot_start:.2f}-{shot_end:.2f} failed: {err_msg}")
 
         if not segment_files:
             raise RuntimeError("Failed to render any video segments during face-tracking reframing.")

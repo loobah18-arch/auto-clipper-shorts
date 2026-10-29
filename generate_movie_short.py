@@ -509,7 +509,7 @@ def run_pipeline(
             "status": "uploaded" if manifest.get("youtube_id") else "rendered",
             "source_type": "private_media" if target_movie_path else "youtube_scene",
         }, allow_duplicate=allow_duplicate)
-        save_movie_history(history, HISTORY_FILE)
+        save_movie_history(HISTORY_FILE, history)
 
         # Cleanup intermediate slice file
         if candidate_scene and candidate_scene.exists():
