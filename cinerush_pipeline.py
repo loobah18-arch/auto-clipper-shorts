@@ -140,12 +140,14 @@ def run_cinerush_pipeline(
     dry_run: bool = False,
     test_mode: bool = False,
     output_dir: Path = Path("output"),
+    profile: str = "cinerush_style",
+    movie_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Executes the full end-to-end Cinerush pipeline.
+    Executes the full end-to-end Cinerush pipeline with active face-tracking reframer and karaoke subtitles.
     """
     log("=" * 65)
-    log("🎬 STARTING CINERUSH RAW MOVIE SCENE CLIPPER")
+    log(f"🎬 STARTING CINERUSH RAW MOVIE SCENE CLIPPER (profile={profile})")
     log("=" * 65)
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -160,7 +162,7 @@ def run_cinerush_pipeline(
         test_mode=test_mode,
     )
     total_dur = scene_meta.get("duration", 0.0)
-    scene_title = scene_meta.get("title", "Movie Scene")
+    scene_title = (movie_meta or {}).get("title") or scene_meta.get("title", "Movie Scene")
     log(f"📀 Sourced Scene: '{scene_title}' ({total_dur:.1f}s)")
 
     # Step 2: Transcribe original movie dialogue
@@ -187,17 +189,18 @@ def run_cinerush_pipeline(
         clip_end=clip_end,
     )
 
-    # Step 4: Shot-based Face-Tracking 9:16 Reframer
+    # Step 4: Active Face-Tracking Reframer (1:1 square for cinerush_style, 9:16 for shorts_9x16)
     reframed_path = output_dir / f"cinerush_reframed_{timestamp_str}.mp4"
     render_shot_locked_cinerush_video(
         source_video=source_video,
         keep_intervals=keep_intervals,
         output_path=reframed_path,
+        profile=profile,
     )
 
     # Step 5: Dynamic Karaoke Word-Highlighted Subtitles
     ass_path = output_dir / f"cinerush_subtitles_{timestamp_str}.ass"
-    generate_cinerush_karaoke_ass(shifted_words, ass_path)
+    generate_cinerush_karaoke_ass(shifted_words, ass_path, profile=profile)
 
     final_short_path = output_dir / f"cinerush_short_{timestamp_str}.mp4"
     burn_karaoke_subtitles(reframed_path, ass_path, final_short_path)
@@ -209,6 +212,12 @@ def run_cinerush_pipeline(
     # Step 7: YouTube Upload
     youtube_id = None
     if not dry_run and not test_mode:
+        if movie_meta and movie_meta.get("part_number"):
+            viral_data.setdefault("tags", []).extend([
+                f"part{movie_meta['part_number']}",
+                str(movie_meta.get("id", "")),
+                "cinema",
+            ])
         youtube_id = upload_cinerush_to_youtube(
             video_path=final_short_path,
             thumb_path=thumb_path,
@@ -220,6 +229,9 @@ def run_cinerush_pipeline(
     manifest = {
         "title": viral_data["title"],
         "scene_title": scene_title,
+        "movie_id": (movie_meta or {}).get("id"),
+        "part_number": (movie_meta or {}).get("part_number"),
+        "total_parts": (movie_meta or {}).get("total_parts"),
         "clip_start": clip_start,
         "clip_end": clip_end,
         "trimmed_duration": trimmed_dur,
@@ -227,6 +239,7 @@ def run_cinerush_pipeline(
         "words_count": len(shifted_words),
         "output_file": str(final_short_path.resolve()),
         "youtube_id": youtube_id,
+        "profile": profile,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     manifest_path = output_dir / f"render_manifest_cinerush_{timestamp_str}.json"

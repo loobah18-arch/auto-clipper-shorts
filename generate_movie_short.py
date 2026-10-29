@@ -417,13 +417,107 @@ def run_pipeline(
     """Execute the Cinerush movie scene Short pipeline and persist its outcome."""
     if os.environ.get("CINERUSH_MODE", "true").lower() == "true":
         from cinerush_pipeline import run_cinerush_pipeline
-        from main import get_next_curated_scene
-        query = movie_name or get_next_curated_scene()
+        from movie_video_engine import parse_timestamp_to_seconds, resolve_part_window
+
+        # Step 1: Select next movie and episodic part in sequence from Drive catalog & history
+        movie_data = select_next_movie(movie_name, requested_part=part, lang=lang)
+        movie_id = str(movie_data.get("id", re.sub(r"[^\w]", "_", str(movie_data.get("title", "movie"))).lower()))
+        title = str(movie_data.get("title", "Movie Explained"))
+        part_number = movie_data.get("part_number") if isinstance(movie_data.get("part_number"), int) else 1
+        total_parts = movie_data.get("total_parts") if isinstance(movie_data.get("total_parts"), int) else 6
+
+        log(f"🎬 [Cinerush Mode] Active title: '{title}' (Part {part_number}/{total_parts})")
+
+        # Step 2: Resolve Google Drive media source or local cache
+        cache_dir = WORKSPACE_DIR / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        target_movie_path = None
+        candidate_scene = None
+
+        if video_file and Path(video_file).exists():
+            target_movie_path = Path(video_file)
+            log(f"🎞️ Using explicitly provided video file: {target_movie_path}")
+        else:
+            private_allowed = os.environ.get("ALLOW_PRIVATE_MEDIA_SOURCES", "false").lower() == "true"
+            gdrive_source = resolve_gdrive_source(movie_id, movie_data)
+            if gdrive_source:
+                candidate_movie = cache_dir / Path(gdrive_source["file_name"]).name
+                if candidate_movie.exists() and candidate_movie.stat().st_size > 20_000_000:
+                    target_movie_path = candidate_movie
+                    log(f"📀 Found cached Google Drive movie: {target_movie_path.name}")
+                elif private_allowed:
+                    log(f"📀 Downloading movie from Google Drive: {gdrive_source['file_name']}...")
+                    gdrive_ok = download_movie_from_gdrive(gdrive_source["file_id"], candidate_movie)
+                    if gdrive_ok and candidate_movie.exists():
+                        target_movie_path = candidate_movie
+
+            # Fallback: scan cache/ for any genuine movie file matching movie_id or title
+            if not target_movie_path:
+                for f in cache_dir.glob("*"):
+                    if f.is_file() and f.stat().st_size > 20_000_000:
+                        if movie_id in f.stem.lower() or f.stem.lower() in movie_id:
+                            target_movie_path = f
+                            log(f"📀 Found matching movie in cache: {target_movie_path.name}")
+                            break
+
+        # Step 3: Slice continuous candidate scene from this part's timeline window
+        if target_movie_path and target_movie_path.exists():
+            timeline_start, timeline_end = resolve_part_window(movie_data, target_movie_path)
+            start_sec = parse_timestamp_to_seconds(timeline_start)
+            timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            candidate_scene = cache_dir / f"cinerush_scene_{movie_id}_p{part_number}_{timestamp_str}.mp4"
+            log(f"🎬 Slicing continuous candidate scene for Part {part_number} at {timeline_start} ({start_sec:.1f}s)...")
+            slice_cmd = [
+                "ffmpeg", "-y",
+                "-ss", f"{start_sec:.2f}",
+                "-i", str(target_movie_path),
+                "-t", "240",
+                "-c:v", "libx264", "-preset", "ultrafast",
+                "-c:a", "aac",
+                str(candidate_scene),
+            ]
+            subprocess.run(slice_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            if not (candidate_scene.exists() and candidate_scene.stat().st_size > 500_000):
+                candidate_scene = None
+
+        query = f"{title} movie scene" if not candidate_scene else None
+
+        # Step 4: Run Cinerush Pipeline
         manifest = run_cinerush_pipeline(
             query=query,
-            video_file=video_file,
+            video_file=candidate_scene or video_file,
             dry_run=dry_run and not force_upload,
+            profile=profile,
+            movie_meta=movie_data,
         )
+
+        # Step 5: Update Series Sequence Progression & Upload History
+        history = load_movie_history(HISTORY_FILE)
+        if part_number is not None and total_parts is not None:
+            update_series_progress(history, movie_id, title, part_number, total_parts)
+            log(f"📈 Series progression advanced: {title} (Part {part_number}/{total_parts})")
+
+        append_history_entry(history, {
+            "movie_id": movie_id,
+            "title": manifest.get("title", title),
+            "part_number": part_number,
+            "total_parts": total_parts,
+            "youtube_id": manifest.get("youtube_id"),
+            "timestamp": utc_now(),
+            "video_path": Path(manifest["output_file"]).name,
+            "duration_sec": manifest.get("trimmed_duration", 0.0),
+            "status": "uploaded" if manifest.get("youtube_id") else "rendered",
+            "source_type": "private_media" if target_movie_path else "youtube_scene",
+        }, allow_duplicate=allow_duplicate)
+        save_movie_history(history, HISTORY_FILE)
+
+        # Cleanup intermediate slice file
+        if candidate_scene and candidate_scene.exists():
+            try:
+                candidate_scene.unlink()
+            except Exception:
+                pass
+
         return Path(manifest["output_file"])
 
     log("=" * 65)

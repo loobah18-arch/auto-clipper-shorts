@@ -29,6 +29,7 @@ from cinerush_viral_selector import (
 from cinerush_face_reframer import (
     CinerushFaceDetector,
     calculate_shot_crop_x,
+    calculate_shot_tracking,
     detect_camera_shots,
 )
 from cinerush_subtitles import (
@@ -178,7 +179,96 @@ class TestCinerushFaceReframer(unittest.TestCase):
             crop_x = calculate_shot_crop_x(Path("dummy.mp4"), 0.0, 2.0, frame_w, frame_h, crop_w, detector)
 
             expected_center_x = (1920 - 606) // 2
+            expected_center_x = expected_center_x - (expected_center_x % 2)
             self.assertEqual(crop_x, expected_center_x)
+
+    def test_dynamic_face_tracking_panning_when_actor_moves(self):
+        frame_w = 1920
+        frame_h = 1080
+        crop_w = 606
+        crop_h = 1080
+
+        detector = MagicMock(spec=CinerushFaceDetector)
+        # Actor walks from left (center=300) to right (center=900) across 5 sampled frames
+        detector.detect_faces.side_effect = [
+            [(250, 200, 100, 100)], # center = 300
+            [(400, 200, 100, 100)], # center = 450
+            [(600, 200, 100, 100)], # center = 650
+            [(800, 200, 100, 100)], # center = 850
+            [(850, 200, 100, 100)], # center = 900
+        ]
+
+        with patch("cv2.VideoCapture") as mock_cap:
+            instance = MagicMock()
+            instance.isOpened.return_value = True
+            instance.read.return_value = (True, np.zeros((1080, 1920, 3), dtype=np.uint8))
+            mock_cap.return_value = instance
+
+            x_start, x_end, is_wide = calculate_shot_tracking(
+                Path("dummy.mp4"), 0.0, 2.0, frame_w, frame_h, crop_w, crop_h, detector
+            )
+
+            # Actor moved > 5% of frame -> camera smoothly pans: x_start != x_end
+            self.assertNotEqual(x_start, x_end)
+            self.assertLess(x_start, x_end)
+            self.assertEqual(x_start % 2, 0)
+            self.assertEqual(x_end % 2, 0)
+            self.assertFalse(is_wide)
+
+    def test_dynamic_face_tracking_deadband_when_stationary(self):
+        frame_w = 1920
+        frame_h = 1080
+        crop_w = 1080  # 1:1 square crop width
+        crop_h = 1080
+
+        detector = MagicMock(spec=CinerushFaceDetector)
+        # Actor stays near center with minimal head motion (< 5% shift)
+        detector.detect_faces.side_effect = [
+            [(920, 200, 100, 100)], # center = 970
+            [(925, 200, 100, 100)], # center = 975
+            [(920, 200, 100, 100)], # center = 970
+            [(930, 200, 100, 100)], # center = 980
+            [(925, 200, 100, 100)], # center = 975
+        ]
+
+        with patch("cv2.VideoCapture") as mock_cap:
+            instance = MagicMock()
+            instance.isOpened.return_value = True
+            instance.read.return_value = (True, np.zeros((1080, 1920, 3), dtype=np.uint8))
+            mock_cap.return_value = instance
+
+            x_start, x_end, is_wide = calculate_shot_tracking(
+                Path("dummy.mp4"), 0.0, 2.0, frame_w, frame_h, crop_w, crop_h, detector
+            )
+
+            # Stationary actor -> deadband keeps camera locked: x_start == x_end
+            self.assertEqual(x_start, x_end)
+            self.assertEqual(x_start % 2, 0)
+
+    def test_wide_shot_flagging_when_subjects_spread_apart(self):
+        frame_w = 1920
+        frame_h = 1080
+        crop_w = 606  # narrow 9:16
+        crop_h = 1080
+
+        detector = MagicMock(spec=CinerushFaceDetector)
+        # Two actors at opposite ends of room (x=100 and x=1800, span=1700 > crop_w * 0.88)
+        detector.detect_faces.return_value = [
+            (50, 200, 100, 100),   # center = 100
+            (1750, 200, 100, 100), # center = 1800
+        ]
+
+        with patch("cv2.VideoCapture") as mock_cap:
+            instance = MagicMock()
+            instance.isOpened.return_value = True
+            instance.read.return_value = (True, np.zeros((1080, 1920, 3), dtype=np.uint8))
+            mock_cap.return_value = instance
+
+            x_start, x_end, is_wide = calculate_shot_tracking(
+                Path("dummy.mp4"), 0.0, 2.0, frame_w, frame_h, crop_w, crop_h, detector
+            )
+
+            self.assertTrue(is_wide, "Should detect wide shot to trigger blurred background composite")
 
 
 class TestCinerushKaraokeSubtitles(unittest.TestCase):
@@ -237,6 +327,56 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
         finally:
             if ass_path.exists():
                 ass_path.unlink()
+
+
+    def test_ass_file_generation_square_profile(self):
+        words = [
+            {"word": "Stand", "start": 0.0, "end": 0.5},
+            {"word": "up.", "start": 0.5, "end": 0.9},
+        ]
+        with tempfile.NamedTemporaryFile(suffix=".ass", delete=False) as tmp:
+            ass_path = Path(tmp.name)
+
+        try:
+            generate_cinerush_karaoke_ass(words, ass_path, profile="cinerush_style")
+            content = ass_path.read_text(encoding="utf-8")
+
+            # 1:1 square headers
+            self.assertIn("PlayResX: 1080", content)
+            self.assertIn("PlayResY: 1080", content)
+            self.assertIn(",40,40,120,1", content)
+        finally:
+            if ass_path.exists():
+                ass_path.unlink()
+
+
+class TestCinerushSeriesProgression(unittest.TestCase):
+    def test_select_next_movie_advances_series(self):
+        from generate_movie_short import select_next_movie
+        movie_data = select_next_movie()
+        self.assertIsNotNone(movie_data.get("id"))
+        self.assertIsNotNone(movie_data.get("title"))
+        self.assertGreaterEqual(movie_data.get("part_number", 1), 1)
+
+    def test_update_series_progress_advances_part(self):
+        from movie_pipeline_state import update_series_progress
+        history = {
+            "current_series": {
+                "movie_id": "just_mercy",
+                "movie_title": "Just Mercy",
+                "current_part": 3,
+                "total_parts": 6,
+                "completed": False,
+            }
+        }
+        update_series_progress(history, "just_mercy", "Just Mercy", 4, 6)
+        self.assertEqual(history["current_series"]["current_part"], 4)
+        self.assertFalse(history["current_series"]["completed"])
+
+        # When reaching final part
+        update_series_progress(history, "just_mercy", "Just Mercy", 6, 6)
+        self.assertEqual(history["current_series"]["current_part"], 6)
+        self.assertTrue(history["current_series"]["completed"])
 
 
 if __name__ == "__main__":

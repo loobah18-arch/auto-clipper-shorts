@@ -296,32 +296,50 @@ def download_movie_scene(
 
         if not dest:
             # Fallback: check if genuine cached movie files exist in cache/ or clips/
+            cached_files: list[Path] = []
             for folder in ["cache", "raw_clips", "clips"]:
                 c_dir = Path(folder)
                 if c_dir.exists():
-                    for movie_file in list(c_dir.glob("*.mp4")) + list(c_dir.glob("*.mkv")):
-                        if movie_file.stat().st_size > 20_000_000:
-                            log(f"🎬 Sourcing continuous 180s scene from genuine cached movie: {movie_file.name}...")
-                            dest = output_dir / f"cinerush_scene_{movie_file.stem}.mp4"
-                            slice_cmd = [
-                                "ffmpeg", "-y",
-                                "-ss", "00:12:00",
-                                "-i", str(movie_file),
-                                "-t", "180",
-                                "-c:v", "libx264", "-preset", "ultrafast",
-                                "-c:a", "aac",
-                                str(dest),
-                            ]
-                            subprocess.run(slice_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-                            if dest.exists() and dest.stat().st_size > 500_000:
-                                selected_id = movie_file.stem
-                                selected_meta = {
-                                    "id": selected_id,
-                                    "title": movie_file.stem.replace("_", " ").title(),
-                                }
-                                break
-                    if dest and dest.exists():
-                        break
+                    for f in list(c_dir.glob("*.mp4")) + list(c_dir.glob("*.mkv")):
+                        if f.is_file() and f.stat().st_size > 20_000_000:
+                            cached_files.append(f)
+
+            if cached_files:
+                # Prefer movie matching search query tokens, otherwise rotate via query seed
+                matched = [
+                    f for f in cached_files
+                    if any(tok in f.stem.lower() for tok in search_query.lower().split() if len(tok) >= 4)
+                ]
+                selected_file = matched[0] if matched else cached_files[abs(hash(search_query)) % len(cached_files)]
+                m_info = resolve_media_info(selected_file)
+                m_dur = m_info.get("duration", 0.0)
+
+                # Compute dynamic start offset so we never slice the exact same timestamp repeatedly
+                if m_dur > 300.0:
+                    seed_val = abs(hash(f"{search_query}_{selected_file.stem}")) % 1000
+                    # Sample between 10% and 80% of movie runtime (skipping intro/credits)
+                    start_sec = max(60.0, (0.10 + (seed_val / 1000.0) * 0.70) * m_dur)
+                else:
+                    start_sec = 15.0
+
+                log(f"🎬 Sourcing continuous 200s scene from cached movie: {selected_file.name} at {start_sec:.1f}s...")
+                dest = output_dir / f"cinerush_scene_{selected_file.stem}_{int(start_sec)}.mp4"
+                slice_cmd = [
+                    "ffmpeg", "-y",
+                    "-ss", f"{start_sec:.2f}",
+                    "-i", str(selected_file),
+                    "-t", "200",
+                    "-c:v", "libx264", "-preset", "ultrafast",
+                    "-c:a", "aac",
+                    str(dest),
+                ]
+                subprocess.run(slice_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+                if dest.exists() and dest.stat().st_size > 500_000:
+                    selected_id = selected_file.stem
+                    selected_meta = {
+                        "id": selected_id,
+                        "title": selected_file.stem.replace("_", " ").title(),
+                    }
 
         if not dest:
             if test_mode:

@@ -85,26 +85,43 @@ def generate_cinerush_karaoke_ass(
     words: list[dict[str, Any]],
     output_ass_path: Path,
     font_name: str = "Montserrat ExtraBold",
+    play_res_x: int = 1080,
+    play_res_y: int = 1920,
+    margin_v: int = 280,
+    profile: str | None = None,
 ) -> Path:
     """
     Generates ASS subtitle file with word-by-word karaoke highlighting.
     Active word is bright yellow (\\c&H00FFFF&\\fscx108\\fscy108), others white.
+    Supports both 1:1 square (1080x1080, margin_v=120) and 9:16 vertical (1080x1920, margin_v=280).
     """
     output_ass_path.parent.mkdir(parents=True, exist_ok=True)
     phrases = group_words_into_cinerush_phrases(words, max_words_per_phrase=4)
+
+    # Adapt resolution & vertical margin for layout profile
+    if profile == "cinerush_style" or profile == "square":
+        play_res_x = 1080
+        play_res_y = 1080
+        if margin_v == 280:
+            margin_v = 120
+    elif profile == "landscape":
+        play_res_x = 1920
+        play_res_y = 1080
+        if margin_v == 280:
+            margin_v = 100
 
     # PrimaryColour: &H00FFFFFF (White)
     # Highlight / Active: &H0000FFFF or &H00FFFF (Yellow in ASS BGR syntax: Blue=00, Green=FF, Red=FF)
     # OutlineColour: &H00000000 (Black)
     ass_header = f"""[Script Info]
 ScriptType: v4.00+
-PlayResX: 1080
-PlayResY: 1920
+PlayResX: {play_res_x}
+PlayResY: {play_res_y}
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cinerush,{font_name},70,&H00FFFFFF&,&H0000FFFF&,&H00000000&,&H80000000,-1,0,0,0,100,100,1,0,1,5,2,2,40,40,280,1
+Style: Cinerush,{font_name},70,&H00FFFFFF&,&H0000FFFF&,&H00000000&,&H80000000,-1,0,0,0,100,100,1,0,1,5,2,2,40,40,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

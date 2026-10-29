@@ -46,7 +46,7 @@ class CinerushFaceDetector:
         try:
             import mediapipe as mp
             self._mp_detector = mp.solutions.face_detection.FaceDetection(
-                model_selection=1, min_detection_confidence=0.5
+                model_selection=1, min_detection_confidence=0.4
             )
             self.backend = "mediapipe"
             log("👤 Face Detection backend initialized: MediaPipe")
@@ -58,7 +58,7 @@ class CinerushFaceDetector:
         if YUNET_MODEL_PATH.exists() and hasattr(cv2, "FaceDetectorYN"):
             try:
                 self._yunet_detector = cv2.FaceDetectorYN.create(
-                    str(YUNET_MODEL_PATH), "", (320, 320), score_threshold=0.6, nms_threshold=0.3
+                    str(YUNET_MODEL_PATH), "", (320, 320), score_threshold=0.35, nms_threshold=0.3
                 )
                 self.backend = "yunet"
                 log("👤 Face Detection backend initialized: OpenCV YuNet (ONNX)")
@@ -234,6 +234,96 @@ def _opencv_detect_shots(video_path: Path, start_sec: float, end_sec: float) -> 
     return shots
 
 
+def calculate_shot_tracking(
+    video_path: Path,
+    shot_start: float,
+    shot_end: float,
+    frame_w: int,
+    frame_h: int,
+    crop_w: int,
+    crop_h: int,
+    detector: CinerushFaceDetector,
+) -> tuple[int, int, bool]:
+    """
+    Samples frames across the shot and determines:
+    - x_start: horizontal crop starting position
+    - x_end: horizontal crop ending position
+    - is_wide_shot: True if multiple subjects are spaced wide apart (> crop_w * 0.88)
+
+    If the subject moves significantly across the shot (> 5% of width),
+    x_start != x_end enables a smooth cinematic camera pan that keeps
+    the subject continuously framed without cutting them off!
+    If the subject is mostly stationary, x_start == x_end holds the shot steady.
+    """
+    cap = cv2.VideoCapture(str(video_path))
+    default_x = (frame_w - crop_w) // 2
+    default_x = default_x - (default_x % 2)
+
+    if not cap.isOpened():
+        return default_x, default_x, False
+
+    dur = max(0.1, shot_end - shot_start)
+    num_samples = max(3, min(7, int(dur / 0.45) + 1))
+    sample_timestamps = [shot_start + dur * (i + 0.5) / num_samples for i in range(num_samples)]
+
+    sampled_centers: list[float] = []
+    is_wide_shot = False
+
+    for ts in sample_timestamps:
+        cap.set(cv2.CAP_PROP_POS_MSEC, ts * 1000.0)
+        ret, frame = cap.read()
+        if not ret or frame is None:
+            continue
+        faces = detector.detect_faces(frame)
+        if not faces:
+            continue
+
+        if len(faces) >= 2:
+            centers = sorted([bx + bw / 2.0 for bx, by, bw, bh in faces])
+            min_c = centers[0]
+            max_c = centers[-1]
+            span = max_c - min_c
+            if span <= (crop_w * 0.88):
+                # Both faces fit comfortably inside the crop window
+                sampled_centers.append((min_c + max_c) / 2.0)
+            else:
+                # Wide shot: actors are spread apart
+                is_wide_shot = True
+                largest = max(faces, key=lambda f: f[2] * f[3])
+                sampled_centers.append(largest[0] + largest[2] / 2.0)
+        else:
+            sampled_centers.append(faces[0][0] + faces[0][2] / 2.0)
+
+    cap.release()
+
+    if not sampled_centers:
+        return default_x, default_x, is_wide_shot
+
+    # Average start and end centers
+    cx_start = sum(sampled_centers[:2]) / len(sampled_centers[:2])
+    cx_end = sum(sampled_centers[-2:]) / len(sampled_centers[-2:])
+    shift = abs(cx_end - cx_start)
+
+    # Deadband threshold: if shift < 5% of width, lock camera to prevent jitter
+    if shift < (frame_w * 0.05):
+        mean_cx = sum(sampled_centers) / len(sampled_centers)
+        x_fixed = int(round(mean_cx - crop_w / 2.0))
+        x_fixed = max(0, min(frame_w - crop_w, x_fixed))
+        x_fixed = x_fixed - (x_fixed % 2)
+        return x_fixed, x_fixed, is_wide_shot
+
+    # Smooth tracking pan
+    x_start = int(round(cx_start - crop_w / 2.0))
+    x_end = int(round(cx_end - crop_w / 2.0))
+
+    x_start = max(0, min(frame_w - crop_w, x_start))
+    x_end = max(0, min(frame_w - crop_w, x_end))
+    x_start = x_start - (x_start % 2)
+    x_end = x_end - (x_end % 2)
+
+    return x_start, x_end, is_wide_shot
+
+
 def calculate_shot_crop_x(
     video_path: Path,
     shot_start: float,
@@ -244,70 +334,38 @@ def calculate_shot_crop_x(
     detector: CinerushFaceDetector,
 ) -> int:
     """
-    Samples 3 frames (at 15%, 50%, 85%) in the shot and calculates horizontal crop x1.
-    Locks x1 statically for the entire shot so there is zero jitter.
+    Samples frames in the shot and calculates horizontal crop x1.
+    Maintains backward compatibility with unit tests and returns static/start crop.
     """
-    cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        return (frame_w - crop_w) // 2
-
-    dur = max(0.1, shot_end - shot_start)
-    sample_timestamps = [
-        shot_start + 0.15 * dur,
-        shot_start + 0.50 * dur,
-        shot_start + 0.85 * dur,
-    ]
-
-    all_faces: list[tuple[int, int, int, int]] = []
-    for ts in sample_timestamps:
-        cap.set(cv2.CAP_PROP_POS_MSEC, ts * 1000.0)
-        ret, frame = cap.read()
-        if ret and frame is not None:
-            detected = detector.detect_faces(frame)
-            all_faces.extend(detected)
-
-    cap.release()
-
-    default_x = (frame_w - crop_w) // 2
-    if not all_faces:
-        return default_x
-
-    # If multiple faces detected across the shot, find if two distinct faces fit within crop_w
-    if len(all_faces) >= 2:
-        # Sort faces by horizontal center
-        centers = sorted([bx + bw / 2 for bx, by, bw, bh in all_faces])
-        min_center = centers[0]
-        max_center = centers[-1]
-        span = max_center - min_center
-
-        # If two actors fit comfortably inside 9:16 crop window (with margin)
-        if span <= (crop_w * 0.75):
-            mid_center = (min_center + max_center) / 2
-            x1 = int(round(mid_center - crop_w / 2))
-            x1 = max(0, min(frame_w - crop_w, x1))
-            return x1 - (x1 % 2)
-
-    # Otherwise, center on the most dominant / largest face
-    largest_face = max(all_faces, key=lambda f: f[2] * f[3])
-    face_cx = largest_face[0] + largest_face[2] / 2
-
-    x1 = int(round(face_cx - crop_w / 2))
-    x1 = max(0, min(frame_w - crop_w, x1))
-    return x1 - (x1 % 2)
+    x_start, _, _ = calculate_shot_tracking(
+        video_path=video_path,
+        shot_start=shot_start,
+        shot_end=shot_end,
+        frame_w=frame_w,
+        frame_h=frame_h,
+        crop_w=crop_w,
+        crop_h=frame_h,
+        detector=detector,
+    )
+    return x_start
 
 
 def render_shot_locked_cinerush_video(
     source_video: Path,
     keep_intervals: list[tuple[float, float]],
     output_path: Path,
+    profile: str = "cinerush_style",
+    aspect_ratio: str | None = None,
 ) -> Path:
     """
-    Renders 9:16 vertical short with shot-locked face reframing:
-    - Slices keep intervals
-    - Detects shots and determines static crop for each shot
+    Renders Cinerush short with active face-tracking & adaptive framing:
+    - profile 'cinerush_style': 1:1 square (1080x1080), visible width = 1080px (+78% over 9:16)
+    - profile 'shorts_9x16': 9:16 vertical (1080x1920) with blurred background fallback for wide shots
+    - Smooth camera panning when actors move across frame (> 5% shift)
+    - Deadband locked camera when stationary to prevent jitter
     - Preserves 100% original movie dialogue audio
     - Adds 30ms audio fades at interval boundaries to prevent clicks
-    - Renders final CFR 30fps 1080x1920 MP4 via FFmpeg
+    - Renders final CFR 30fps MP4 via FFmpeg
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -317,8 +375,33 @@ def render_shot_locked_cinerush_video(
     frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 1080)
     cap.release()
 
-    crop_w = int(frame_h * 9 / 16)
+    # Determine layout geometry
+    is_square = (aspect_ratio == "1:1") or (profile == "cinerush_style")
+    is_landscape = (aspect_ratio == "16:9") or (profile == "landscape")
+
+    if is_square:
+        out_w = 1080
+        out_h = 1080
+        crop_w = min(frame_w, frame_h)
+        crop_h = min(frame_w, frame_h)
+        target_mode = "square_1x1"
+    elif is_landscape:
+        out_w = 1920
+        out_h = 1080
+        crop_w = frame_w
+        crop_h = frame_h
+        target_mode = "landscape_16x9"
+    else:
+        out_w = 1080
+        out_h = 1920
+        crop_w = int(frame_h * 9 / 16)
+        crop_h = frame_h
+        target_mode = "shorts_9x16"
+
     crop_w = crop_w - (crop_w % 2)
+    crop_h = crop_h - (crop_h % 2)
+
+    log(f"📐 Layout mode: {target_mode} -> Crop: {crop_w}x{crop_h}, Output: {out_w}x{out_h}")
 
     detector = CinerushFaceDetector()
     temp_dir = Path(tempfile.mkdtemp(prefix="cinerush_render_"))
@@ -334,32 +417,56 @@ def render_shot_locked_cinerush_video(
             # Detect shots within this keep interval
             shots = detect_camera_shots(source_video, start_sec, end_sec)
 
-            # Merge contiguous shots with identical crop position
-            merged_shots: list[dict[str, Any]] = []
+            # Analyze face tracking for each shot
+            shot_plans: list[dict[str, Any]] = []
             for shot_start, shot_end in shots:
                 if shot_end - shot_start <= 0.05:
                     continue
-                crop_x1 = calculate_shot_crop_x(source_video, shot_start, shot_end, frame_w, frame_h, crop_w, detector)
-                if merged_shots and abs(merged_shots[-1]["crop_x1"] - crop_x1) < 8:
-                    merged_shots[-1]["end"] = shot_end
-                else:
-                    merged_shots.append({"start": shot_start, "end": shot_end, "crop_x1": crop_x1})
+                x_start, x_end, is_wide = calculate_shot_tracking(
+                    source_video, shot_start, shot_end, frame_w, frame_h, crop_w, crop_h, detector
+                )
+                shot_plans.append({
+                    "start": shot_start,
+                    "end": shot_end,
+                    "x_start": x_start,
+                    "x_end": x_end,
+                    "is_wide": is_wide,
+                })
 
-            for m_shot in merged_shots:
-                shot_start = m_shot["start"]
-                shot_end = m_shot["end"]
-                crop_x1 = m_shot["crop_x1"]
-                shot_dur = shot_end - shot_start
+            for plan in shot_plans:
+                shot_start = plan["start"]
+                shot_end = plan["end"]
+                x_start = plan["x_start"]
+                x_end = plan["x_end"]
+                is_wide = plan["is_wide"]
+                shot_dur = max(0.05, shot_end - shot_start)
                 seg_out = temp_dir / f"seg_{seg_idx:04d}.mp4"
 
-                # Filter graph: crop shot-locked window, scale to 1080x1920, add de-clicking audio fades
-                # Audio fade: 30ms in, 30ms out
+                # Audio fade: 30ms in, 30ms out to prevent clicks
                 fade_dur = min(0.03, shot_dur / 4.0)
-                vf = (
-                    f"crop={crop_w}:{frame_h}:{crop_x1}:0,"
-                    f"scale=1080:1920:flags=lanczos,setsar=1,fps=30"
-                )
                 af = f"afade=t=in:st=0:d={fade_dur:.3f},afade=t=out:st={max(0, shot_dur - fade_dur):.3f}:d={fade_dur:.3f}"
+
+                # Video filter:
+                # 1. Wide shot in 9:16 -> blurred background composite to prevent cutting actors
+                if is_wide and target_mode == "shorts_9x16":
+                    vf = (
+                        f"[0:v]scale={out_w}:{out_h}:force_original_aspect_ratio=increase,"
+                        f"crop={out_w}:{out_h},boxblur=20:5,eq=brightness=-0.15[bg];"
+                        f"[0:v]scale={out_w}:-2[fg];"
+                        f"[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=30"
+                    )
+                # 2. Moving subject -> smooth camera pan tracking
+                elif x_start != x_end and target_mode != "landscape_16x9":
+                    vf = (
+                        f"crop={crop_w}:{crop_h}:x='clip({x_start}+({x_end}-{x_start})*t/{shot_dur:.3f},0,in_w-out_w)':0,"
+                        f"scale={out_w}:{out_h}:flags=lanczos,setsar=1,fps=30"
+                    )
+                # 3. Static centered crop
+                else:
+                    vf = (
+                        f"crop={crop_w}:{crop_h}:{x_start}:0,"
+                        f"scale={out_w}:{out_h}:flags=lanczos,setsar=1,fps=30"
+                    )
 
                 cmd = [
                     "ffmpeg", "-y",
@@ -393,7 +500,7 @@ def render_shot_locked_cinerush_video(
             for sf in segment_files:
                 f.write(f"file '{sf.resolve()}'\n")
 
-        log(f"🎬 Stitching {len(segment_files)} shot-locked segments into 1080x1920 short...")
+        log(f"🎬 Stitching {len(segment_files)} face-tracked segments into {out_w}x{out_h} short...")
         concat_cmd = [
             "ffmpeg", "-y",
             "-f", "concat",
@@ -410,7 +517,7 @@ def render_shot_locked_cinerush_video(
         if res.returncode != 0:
             raise RuntimeError(f"FFmpeg segment concatenation failed: {res.stderr[:300]}")
 
-        log(f"✅ Shot-locked reframed video successfully generated: {output_path}")
+        log(f"✅ Reframed video successfully generated: {output_path} ({out_w}x{out_h})")
         return output_path
 
     finally:

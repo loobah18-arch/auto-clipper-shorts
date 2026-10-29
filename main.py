@@ -139,6 +139,12 @@ def main():
         help="Render pipeline without publishing to YouTube",
     )
     parser.add_argument(
+        "--profile",
+        type=str,
+        default="cinerush_style",
+        help="Layout profile: cinerush_style (1:1 square), shorts_9x16 (9:16 vertical), or landscape",
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default="output",
@@ -161,6 +167,7 @@ def main():
         video_file=args.video_file,
         dry_run=is_dry_run,
         test_mode=args.test,
+        profile=args.profile,
         output_dir=out_dir,
     )
 
