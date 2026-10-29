@@ -1157,15 +1157,27 @@
       "duration_sec": 41.16,
       "status": "uploaded",
       "source_type": "youtube_scene"
+    },
+    {
+      "movie_id": "just_mercy",
+      "title": "He knew the truth before anyone spoke 🎬🔥 #film #movie #shorts",
+      "part_number": 6,
+      "total_parts": 6,
+      "youtube_id": "4gLdceCRsXc",
+      "timestamp": "2026-10-29T15:17:11.104672+00:00",
+      "video_path": "cinerush_short_20261029_151538.mp4",
+      "duration_sec": 41.22,
+      "status": "uploaded",
+      "source_type": "youtube_scene"
     }
   ],
   "current_series": {
     "movie_id": "just_mercy",
-    "movie_title": "Just Mercy - Part 5/6",
-    "current_part": 5,
+    "movie_title": "Just Mercy - Part 6/6",
+    "current_part": 6,
     "total_parts": 6,
-    "completed": false,
-    "last_updated": "2026-10-29T06:06:57.205571+00:00"
+    "completed": true,
+    "last_updated": "2026-10-29T15:17:11.104652+00:00"
   },
   "superseded_uploads": [
     {
