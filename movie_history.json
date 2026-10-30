@@ -1181,15 +1181,33 @@
       "duration_sec": 31.27,
       "status": "uploaded",
       "source_type": "youtube_scene"
+    },
+    {
+      "movie_id": "avengers_infinity_war",
+      "title": "He knew the truth before anyone spoke 🎬🔥 #film #movie #shorts",
+      "part_number": 1,
+      "total_parts": 6,
+      "youtube_id": null,
+      "normal_video_id": null,
+      "upload_group_id": "avengers_infinity_war:p1",
+      "timestamp": "2026-10-30T08:07:51.529777+00:00",
+      "uploaded_at": null,
+      "video_path": "cinerush_short_20261030_080642.mp4",
+      "duration_sec": 39.74,
+      "status": "rendered",
+      "source_type": "private_media",
+      "source_provider": "google_drive",
+      "gdrive_file_id": "1lBOdtZD0zExmMFY75fAToDlF06iIXf4c",
+      "gdrive_file_name": "Avengers - Infinity War (720p).mp4"
     }
   ],
   "current_series": {
-    "movie_id": "the_day_of_the_jackal",
-    "movie_title": "The Day Of The Jackal - Season 1 Episode 1",
+    "movie_id": "avengers_infinity_war",
+    "movie_title": "Avengers Infinity War - Part 1/6",
     "current_part": 1,
-    "total_parts": 10,
+    "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-10-30T00:00:28.410325+00:00"
+    "last_updated": "2026-10-30T08:07:51.529745+00:00"
   },
   "superseded_uploads": [
     {
