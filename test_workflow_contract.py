@@ -33,11 +33,17 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIn("MOVIE_BGM_PATH", orchestrator)
         self.assertIn("ALLOW_PRIVATE_MEDIA_SOURCES", orchestrator)
 
-    def test_schedule_runs_twice_daily(self):
-        """One part per run, twice a day, as requested."""
+    def test_schedule_runs_three_times_weekly(self):
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
         self.assertIn("\n  schedule:\n", workflow)
-        self.assertIn("- cron: '15 8,20 * * *'", workflow)
+        self.assertIn("- cron: '15 8 * * 1,3,5'", workflow)
+        self.assertNotIn("15 8,20", workflow)
+
+    def test_workflow_requires_drive_map_and_has_no_ytdlp_setup(self):
+        workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
+        self.assertIn("GDRIVE_MAP_B64 secret is required", workflow)
+        self.assertNotIn("bgutil-provider", workflow)
+        self.assertNotIn("YT_DLP_POT_PROVIDER_URL", workflow)
 
     def test_scheduled_runs_publish_publicly_but_still_fail_closed(self):
         """Publishing is public by operator choice; the safety gates stay on."""
@@ -74,9 +80,10 @@ class TestWorkflowContract(unittest.TestCase):
         """A running PO Token server is useless without the yt-dlp plugin."""
         requirements = (WORKSPACE_DIR / "requirements.txt").read_text(encoding="utf-8")
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
-        self.assertIn("bgutil-ytdlp-pot-provider", requirements)
-        self.assertIn("pip show bgutil-ytdlp-pot-provider", workflow)
+        self.assertNotIn("bgutil-ytdlp-pot-provider", requirements)
+        self.assertNotIn("pip show bgutil-ytdlp-pot-provider", workflow)
 
+    @unittest.skip("YouTube PO-token setup was removed for Drive-only sourcing")
     def test_po_token_plugin_version_matches_service_image(self):
         """Version skew between plugin and server breaks token negotiation."""
         requirements = (WORKSPACE_DIR / "requirements.txt").read_text(encoding="utf-8")
@@ -100,6 +107,7 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIsNotNone(image_version, "service image must be version-pinned in the workflow")
         self.assertEqual(plugin_version, image_version)
 
+    @unittest.skip("YouTube PO-token setup was removed for Drive-only sourcing")
     def test_pot_provider_url_is_exported_to_the_pipeline(self):
         """The plugin needs the provider address; the engine turns it into an extractor arg."""
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
@@ -144,6 +152,7 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIn("ALLOW_PRIVATE_MEDIA_SOURCES", orchestrator)
         self.assertIn("resolve_gdrive_source", orchestrator)
 
+    @unittest.skip("Trailer/YouTube sourcing was removed for Drive-only sourcing")
     def test_trailer_sourcing_tries_multiple_player_clients(self):
         """GitHub runner IPs are bot-gated by YouTube's default web client."""
         engine = (WORKSPACE_DIR / "movie_video_engine.py").read_text(encoding="utf-8")
@@ -151,6 +160,7 @@ class TestWorkflowContract(unittest.TestCase):
             self.assertIn(f"youtube:player_client={client}", engine)
         self.assertIn("--extractor-args", engine)
 
+    @unittest.skip("Trailer/YouTube sourcing was removed for Drive-only sourcing")
     def test_trailer_sourcing_keeps_safety_boundaries(self):
         """Client fallback must not reintroduce cert bypasses or cookie scraping."""
         engine = (WORKSPACE_DIR / "movie_video_engine.py").read_text(encoding="utf-8")

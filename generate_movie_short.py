@@ -53,6 +53,7 @@ from movie_pipeline_state import (
     uploaded_part_numbers,
     confirmed_part_durations,
     entry_is_uploaded,
+    assert_upload_cadence_allowed,
     write_manifest,
 )
 from movie_quality import (
@@ -428,37 +429,28 @@ def run_pipeline(
 
         log(f"🎬 [Cinerush Mode] Active title: '{title}' (Part {part_number}/{total_parts})")
 
-        # Step 2: Resolve Google Drive media source or local cache
+        # Step 2: Resolve the only permitted raw source: authorized Google Drive media.
         cache_dir = WORKSPACE_DIR / "cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
         target_movie_path = None
         candidate_scene = None
-
-        if video_file and Path(video_file).exists():
-            target_movie_path = Path(video_file)
-            log(f"🎞️ Using explicitly provided video file: {target_movie_path}")
-        else:
-            private_allowed = os.environ.get("ALLOW_PRIVATE_MEDIA_SOURCES", "false").lower() == "true"
-            gdrive_source = resolve_gdrive_source(movie_id, movie_data)
-            if gdrive_source:
-                candidate_movie = cache_dir / Path(gdrive_source["file_name"]).name
-                if candidate_movie.exists() and candidate_movie.stat().st_size > 20_000_000:
-                    target_movie_path = candidate_movie
-                    log(f"📀 Found cached Google Drive movie: {target_movie_path.name}")
-                elif private_allowed:
-                    log(f"📀 Downloading movie from Google Drive: {gdrive_source['file_name']}...")
-                    gdrive_ok = download_movie_from_gdrive(gdrive_source["file_id"], candidate_movie)
-                    if gdrive_ok and candidate_movie.exists():
-                        target_movie_path = candidate_movie
-
-            # Fallback: scan cache/ for any genuine movie file matching movie_id or title
-            if not target_movie_path:
-                for f in cache_dir.glob("*"):
-                    if f.is_file() and f.stat().st_size > 20_000_000:
-                        if movie_id in f.stem.lower() or f.stem.lower() in movie_id:
-                            target_movie_path = f
-                            log(f"📀 Found matching movie in cache: {target_movie_path.name}")
-                            break
+        gdrive_source = resolve_gdrive_source(movie_id, movie_data)
+        if not gdrive_source:
+            raise RuntimeError(f"No Google Drive source configured for '{movie_id}'; refusing non-Drive media")
+        if video_file:
+            raise RuntimeError("Local video_file overrides are disabled; raw clips must come from Google Drive")
+        private_allowed = os.environ.get("ALLOW_PRIVATE_MEDIA_SOURCES", "false").lower() == "true"
+        if not private_allowed and not dry_run:
+            raise RuntimeError("ALLOW_PRIVATE_MEDIA_SOURCES=true is required for production Drive sourcing")
+        candidate_movie = cache_dir / Path(gdrive_source["file_name"]).name
+        if candidate_movie.exists() and candidate_movie.stat().st_size > 20_000_000:
+            target_movie_path = candidate_movie
+            log(f"📀 Found cached Google Drive movie: {target_movie_path.name}")
+        elif private_allowed or dry_run:
+            log(f"📀 Downloading movie from Google Drive: {gdrive_source['file_name']}...")
+            gdrive_ok = download_movie_from_gdrive(gdrive_source["file_id"], candidate_movie)
+            if gdrive_ok and candidate_movie.exists():
+                target_movie_path = candidate_movie
 
         # Step 3: Slice continuous candidate scene from this part's timeline window
         if target_movie_path and target_movie_path.exists():
@@ -480,12 +472,21 @@ def run_pipeline(
             if not (candidate_scene.exists() and candidate_scene.stat().st_size > 500_000):
                 candidate_scene = None
 
-        query = f"{title} movie scene" if not candidate_scene else None
+        if not candidate_scene:
+            raise RuntimeError(f"Unable to create a scene from the authorized Google Drive source for '{title}'")
 
         # Step 4: Run Cinerush Pipeline
         manifest = run_cinerush_pipeline(
-            query=query,
-            video_file=candidate_scene or video_file,
+            query=None,
+            video_file=candidate_scene,
+            gdrive_file_id=gdrive_source["file_id"],
+            gdrive_file_name=gdrive_source["file_name"],
+            source_meta={
+                "source_type": "private_media",
+                "source_provider": "google_drive",
+                "gdrive_file_id": gdrive_source["file_id"],
+                "gdrive_file_name": gdrive_source["file_name"],
+            },
             dry_run=dry_run and not force_upload,
             profile=profile,
             movie_meta=movie_data,
@@ -497,17 +498,26 @@ def run_pipeline(
             update_series_progress(history, movie_id, title, part_number, total_parts)
             log(f"📈 Series progression advanced: {title} (Part {part_number}/{total_parts})")
 
+        short_id = manifest.get("youtube_id")
+        normal_id = manifest.get("normal_video_id")
+        pair_uploaded = bool(short_id and normal_id)
         append_history_entry(history, {
             "movie_id": movie_id,
             "title": manifest.get("title", title),
             "part_number": part_number,
             "total_parts": total_parts,
-            "youtube_id": manifest.get("youtube_id"),
+            "youtube_id": short_id,
+            "normal_video_id": normal_id,
+            "upload_group_id": manifest.get("upload_group_id"),
             "timestamp": utc_now(),
+            "uploaded_at": utc_now() if pair_uploaded else None,
             "video_path": Path(manifest["output_file"]).name,
             "duration_sec": manifest.get("trimmed_duration", 0.0),
-            "status": "uploaded" if manifest.get("youtube_id") else "rendered",
-            "source_type": "private_media" if target_movie_path else "youtube_scene",
+            "status": "uploaded" if pair_uploaded else "rendered",
+            "source_type": "private_media",
+            "source_provider": "google_drive",
+            "gdrive_file_id": gdrive_source["file_id"],
+            "gdrive_file_name": gdrive_source["file_name"],
         }, allow_duplicate=allow_duplicate)
         save_movie_history(HISTORY_FILE, history)
 
@@ -978,10 +988,16 @@ def run_pipeline(
         upload_requested = False
 
     youtube_id = None
+    normal_video_id = None
+    upload_group_id = episode_key(movie_id, part_number)
     if upload_requested and current_state == RunStatus.PUBLISH_READY:
+        assert_upload_cadence_allowed(history)
         youtube_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=True)
+        if youtube_id:
+            normal_video_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=False)
 
-    status = RunStatus.UPLOADED.value if youtube_id else current_state.value
+    pair_uploaded = bool(youtube_id and normal_video_id)
+    status = RunStatus.UPLOADED.value if pair_uploaded else current_state.value
     video_hash = sha256_file(final_short_path) if final_short_path.exists() else None
 
     # 4. WRITE COMPREHENSIVE MACHINE-READABLE RENDER REPORT
@@ -1055,6 +1071,9 @@ def run_pipeline(
         "part_number": part_number,
         "total_parts": total_parts,
         "youtube_id": youtube_id,
+        "normal_video_id": normal_video_id,
+        "upload_group_id": upload_group_id,
+        "uploaded_at": utc_now() if pair_uploaded else None,
         "timestamp": utc_now(),
         "video_path": final_short_path.name,
         "duration_sec": round(duration, 2),

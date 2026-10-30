@@ -14,6 +14,7 @@ Burns punchy, synced subtitles of actual movie dialogue matching viral Cinerush 
 
 from __future__ import annotations
 
+import math
 import os
 import re
 import subprocess
@@ -38,10 +39,33 @@ def format_ass_time(seconds: float) -> str:
     h = int(seconds // 3600)
     m = int((seconds % 3600) // 60)
     s = int(seconds % 60)
-    cs = int(round((seconds - int(seconds)) * 100))
-    if cs >= 100:
-        cs = 99
+    total_cs = int(round(seconds * 100))
+    h, remainder = divmod(total_cs, 360000)
+    m, remainder = divmod(remainder, 6000)
+    s, cs = divmod(remainder, 100)
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def normalize_word_timings(raw_words: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Normalize Whisper timings so ASS events are ordered, finite, and non-overlapping."""
+    normalized: list[dict[str, Any]] = []
+    for raw in raw_words:
+        text = str(raw.get("word", "")).strip()
+        try:
+            start = float(raw.get("start"))
+            end = float(raw.get("end"))
+        except (TypeError, ValueError):
+            continue
+        if not text or not math.isfinite(start) or not math.isfinite(end):
+            continue
+        start = max(0.0, start)
+        end = max(start, end)
+        normalized.append({**raw, "word": text, "start": start, "end": end})
+    normalized.sort(key=lambda word: (word["start"], word["end"]))
+    for index in range(1, len(normalized)):
+        normalized[index]["start"] = max(normalized[index]["start"], normalized[index - 1]["start"])
+        normalized[index - 1]["end"] = min(normalized[index - 1]["end"], normalized[index]["start"]) if normalized[index]["start"] < normalized[index - 1]["end"] else normalized[index - 1]["end"]
+    return [word for word in normalized if word["end"] > word["start"] or word["word"]]
 
 
 def _clean_word_tokens(raw_words: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -108,7 +132,7 @@ def group_words_into_cinerush_phrases(
     - Breaks on dialogue pauses (> pause_threshold) and terminal sentence marks (. ? ! --)
     - Enforces lookahead anti-orphan balancing: never leaves a single trailing word
     """
-    cleaned = _clean_word_tokens(words)
+    cleaned = _clean_word_tokens(normalize_word_timings(words))
     if not cleaned:
         return []
 
@@ -195,7 +219,7 @@ def generate_cinerush_karaoke_ass(
         play_res_x = 1080
         play_res_y = 1920
         if margin_v == 280:
-            margin_v = 680
+            margin_v = 560
 
     # ASS Header with Bold -1, Italic -1, Fontsize 64, Outline 3.5, Shadow 1.5
     ass_header = f"""[Script Info]
@@ -220,16 +244,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         for active_idx, active_word in enumerate(phrase):
             w_start_sec = max(0.0, float(active_word.get("start", 0.0)))
-            w_end_sec = max(w_start_sec + 0.14, float(active_word.get("end", 0.0)))
+            w_end_sec = max(w_start_sec + 0.08, float(active_word.get("end", 0.0)))
 
             # Seamless within-phrase continuity to eliminate micro-flicker between words
             if active_idx < len(phrase) - 1:
                 next_start = float(phrase[active_idx + 1].get("start", 0.0))
-                if next_start > w_start_sec and (next_start - w_end_sec) <= 0.35:
-                    w_end_sec = max(w_end_sec, next_start)
+                if next_start > w_start_sec and w_end_sec < next_start and (next_start - w_end_sec) <= 0.12:
+                    w_end_sec = next_start
             else:
-                # Hold last word for a minimum readable window (0.25s)
-                w_end_sec = max(w_end_sec, w_start_sec + 0.25)
+                # Keep the final word readable without extending far beyond speech.
+                w_end_sec = max(w_end_sec, w_start_sec + 0.12)
                 # If next phrase starts very soon (<= 0.25s), extend to avoid a 50ms dark blink
                 if phrase_idx < len(phrases) - 1 and phrases[phrase_idx + 1]:
                     next_phrase_start = float(phrases[phrase_idx + 1][0].get("start", 0.0))

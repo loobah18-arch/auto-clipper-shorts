@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import TypeAlias
@@ -188,6 +188,59 @@ def save_history(path: Path, history: dict[str, JsonValue]) -> None:
     except OSError as error:
         temporary_path.unlink(missing_ok=True)
         raise HistoryWriteError(f"Unable to save movie history at {path}") from error
+
+
+def _parse_utc_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.replace(tzinfo=parsed.tzinfo or timezone.utc).astimezone(timezone.utc)
+
+
+def upload_group_key(entry: JsonValue) -> str | None:
+    record = _as_dict(entry)
+    if record is None:
+        return None
+    group = record.get("upload_group_id")
+    if isinstance(group, str) and group.strip():
+        return group.strip()
+    movie_id = record.get("movie_id")
+    part = record.get("part_number")
+    if isinstance(movie_id, str) and movie_id:
+        return episode_key(movie_id, part if isinstance(part, int) else None)
+    return None
+
+
+def completed_upload_groups(history: dict[str, JsonValue], now: datetime | None = None) -> list[tuple[str, datetime]]:
+    """Return distinct completed Shorts/normal pairs in the rolling seven-day window."""
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    cutoff = now - timedelta(days=7)
+    groups: dict[str, datetime] = {}
+    entries = history.get("uploaded_movies", [])
+    if not isinstance(entries, list):
+        return []
+    for entry in entries:
+        record = _as_dict(entry)
+        if record is None or not entry_is_uploaded(entry) or not record.get("normal_video_id"):
+            continue
+        uploaded_at = _parse_utc_timestamp(record.get("uploaded_at") or record.get("timestamp"))
+        group = upload_group_key(entry)
+        if uploaded_at and group and uploaded_at >= cutoff:
+            groups[group] = max(groups.get(group, uploaded_at), uploaded_at)
+    return sorted(groups.items(), key=lambda item: item[1])
+
+
+def assert_upload_cadence_allowed(history: dict[str, JsonValue], now: datetime | None = None) -> None:
+    """Fail closed at three clip groups/week or less than 24 hours apart."""
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    groups = completed_upload_groups(history, now)
+    if len(groups) >= 3:
+        raise HistoryError("Weekly upload limit reached: three completed clip groups are already recorded")
+    if groups and now - groups[-1][1] < timedelta(hours=24):
+        raise HistoryError("Upload cadence blocked: the previous clip group is less than 24 hours old")
 
 
 def entry_is_uploaded(entry: JsonValue) -> bool:

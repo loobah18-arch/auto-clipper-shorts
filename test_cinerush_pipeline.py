@@ -15,12 +15,14 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import numpy as np
 
-from cinerush_downloader import build_cinerush_search_query
+from cinerush_downloader import download_movie_scene
+from movie_pipeline_state import HistoryError, assert_upload_cadence_allowed, completed_upload_groups
 from cinerush_viral_selector import (
     format_cinerush_title,
     build_trimmed_timeline,
@@ -39,15 +41,55 @@ from cinerush_subtitles import (
 )
 
 
+class TestUploadCadence(unittest.TestCase):
+    def _entry(self, group: str, uploaded_at: datetime, short_id: str = "short", normal_id: str | None = "normal"):
+        return {
+            "movie_id": group,
+            "part_number": 1,
+            "upload_group_id": group,
+            "status": "uploaded",
+            "youtube_id": short_id,
+            "normal_video_id": normal_id,
+            "uploaded_at": uploaded_at.isoformat(),
+        }
+
+    def test_pair_counts_as_one_group_and_requires_24_hours(self):
+        now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
+        history = {"uploaded_movies": [self._entry("one", now - timedelta(hours=25))]}
+        self.assertEqual(len(completed_upload_groups(history, now)), 1)
+        assert_upload_cadence_allowed(history, now)
+        too_soon = {"uploaded_movies": [self._entry("one", now - timedelta(hours=23, minutes=59))]}
+        with self.assertRaisesRegex(HistoryError, "24 hours"):
+            assert_upload_cadence_allowed(too_soon, now)
+
+    def test_three_completed_groups_block_even_when_pairs_duplicate(self):
+        now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
+        entries = []
+        for index, hours in enumerate((72, 48, 25), start=1):
+            entries.extend([
+                self._entry(f"group-{index}", now - timedelta(hours=hours), short_id=f"s{index}", normal_id=f"n{index}"),
+                self._entry(f"group-{index}", now - timedelta(hours=hours), short_id=f"s{index}", normal_id=f"n{index}"),
+            ])
+        history = {"uploaded_movies": entries}
+        self.assertEqual(len(completed_upload_groups(history, now)), 3)
+        with self.assertRaisesRegex(HistoryError, "three completed"):
+            assert_upload_cadence_allowed(history, now)
+
+    def test_missing_normal_upload_does_not_consume_completed_group(self):
+        now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
+        history = {"uploaded_movies": [self._entry("pending", now - timedelta(hours=1), normal_id=None)]}
+        self.assertEqual(completed_upload_groups(history, now), [])
+        assert_upload_cadence_allowed(history, now)
+
+
 class TestCinerushDownloader(unittest.TestCase):
-    def test_search_query_excludes_trailers_and_reviews(self):
-        query = build_cinerush_search_query("Just Mercy courtroom scene")
-        self.assertIn("full scene HD", query)
-        self.assertIn("-trailer", query)
-        self.assertIn("-review", query)
-        self.assertIn("-shorts", query)
-        self.assertIn("-teaser", query)
-        self.assertNotIn("trailer", query.lower().split("-")[0])
+    def test_download_requires_drive_id(self):
+        with self.assertRaisesRegex(RuntimeError, "Google Drive file ID"):
+            download_movie_scene(output_dir=Path(tempfile.mkdtemp()))
+
+    def test_download_never_accepts_youtube_url_without_drive_id(self):
+        with self.assertRaisesRegex(RuntimeError, "Google Drive file ID"):
+            download_movie_scene(url="https://youtube.com/watch?v=example", output_dir=Path(tempfile.mkdtemp()))
 
 
 class TestCinerushViralSelector(unittest.TestCase):
@@ -329,6 +371,15 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
         self.assertEqual(len(pf), 1)
         self.assertEqual([w["word"] for w in pf[0]], ["look", "here."])
 
+    def test_invalid_word_timings_are_ignored(self):
+        words = [
+            {"word": "ok", "start": 0.0, "end": 0.3},
+            {"word": "bad", "start": "nan", "end": 0.5},
+            {"word": "late", "start": 0.4, "end": 0.8},
+        ]
+        phrases = group_words_into_cinerush_phrases(words)
+        self.assertEqual([word["word"] for phrase in phrases for word in phrase], ["ok", "late"])
+
     def test_ass_file_generation_karaoke_highlight(self):
         words = [
             {"word": "Look", "start": 0.0, "end": 0.4},
@@ -345,9 +396,9 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             # Verify ASS headers
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1920", content)
-            self.assertIn(",40,40,680,1", content)  # MarginV: 680 for vertical 9:16
+            self.assertIn(",40,40,560,1", content)  # MarginV: 560 for vertical 9:16
             self.assertIn("Style: Cinerush", content)
-            self.assertIn("-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,680,1", content)  # Bold -1, Italic -1
+            self.assertIn("-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,560,1", content)  # Bold -1, Italic -1
 
             # Verify active word is highlighted magenta and inactive words golden yellow, all uppercase
             dialogue_lines = [l for l in content.splitlines() if l.startswith("Dialogue:")]
@@ -362,6 +413,9 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
         finally:
             if ass_path.exists():
                 ass_path.unlink()
+
+    def test_ass_time_rolls_over_centisecond_boundary(self):
+        self.assertEqual(format_ass_time(1.999), "0:00:02.00")
 
     def test_ass_file_generation_square_profile(self):
         words = [

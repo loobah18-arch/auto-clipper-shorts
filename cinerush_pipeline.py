@@ -25,6 +25,7 @@ from cinerush_transcriber import transcribe_scene
 from cinerush_viral_selector import select_viral_segment, build_trimmed_timeline
 from cinerush_face_reframer import render_shot_locked_cinerush_video
 from cinerush_subtitles import generate_cinerush_karaoke_ass, burn_karaoke_subtitles
+from movie_pipeline_state import assert_upload_cadence_allowed, load_history
 
 try:
     from google.oauth2.credentials import Credentials
@@ -61,8 +62,9 @@ def upload_cinerush_to_youtube(
     thumb_path: Path,
     meta: dict[str, Any],
     dry_run: bool = False,
+    is_short: bool = True,
 ) -> str | None:
-    """Uploads the Cinerush Short to YouTube channel."""
+    """Upload one rendered clip using Shorts or ordinary-video metadata."""
     if dry_run:
         log("ℹ️ Dry-run mode enabled: Skipping YouTube upload.")
         return None
@@ -90,8 +92,14 @@ def upload_cinerush_to_youtube(
         youtube = build("youtube", "v3", credentials=creds)
 
         title = meta.get("title", "Insane Movie Scene 🎬🔥 #film #movie #shorts")[:100]
+        if not is_short:
+            title = meta.get("normal_title", f"{title} | Full Scene")[:100]
         desc = meta.get("description", f"{title}\n\n#film #movie #shorts")
+        if not is_short:
+            desc = meta.get("normal_description", f"{title}\n\nFull movie scene commentary.")
         tags = meta.get("tags", ["film", "movie", "shorts", "cinerush", "cinema"])
+        if not is_short:
+            tags = [tag for tag in tags if tag != "shorts"] + ["movie scene", "full scene"]
 
         body = {
             "snippet": {
@@ -106,7 +114,8 @@ def upload_cinerush_to_youtube(
             },
         }
 
-        log(f"🚀 Uploading Short (9:16) to YouTube: '{title}'...")
+        upload_kind = "Short (9:16)" if is_short else "normal video"
+        log(f"🚀 Uploading {upload_kind} to YouTube: '{title}'...")
         media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
         req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
 
@@ -117,7 +126,8 @@ def upload_cinerush_to_youtube(
                 log(f"   ↳ Upload progress: {int(status.progress() * 100)}%")
 
         youtube_id = resp.get("id")
-        log(f"🎉 Successfully uploaded Cinerush Short! URL: https://youtube.com/shorts/{youtube_id}")
+        upload_url = f"https://youtube.com/shorts/{youtube_id}" if is_short else f"https://youtube.com/watch?v={youtube_id}"
+        log(f"🎉 Successfully uploaded Cinerush {upload_kind}! URL: {upload_url}")
 
         # Upload thumbnail if available
         if thumb_path and thumb_path.exists() and youtube_id:
@@ -133,6 +143,28 @@ def upload_cinerush_to_youtube(
         return None
 
 
+def _pending_short_id(history_path: Path, movie_meta: dict[str, Any] | None, upload_group_id: str) -> str | None:
+    """Return an existing Short ID when a paired normal upload needs retrying."""
+    if not movie_meta:
+        return None
+    try:
+        history = load_history(history_path)
+    except Exception as error:  # noqa: BLE001
+        log(f"⚠️ Could not inspect upload history for retry recovery: {error}")
+        return None
+    entries = history.get("uploaded_movies", [])
+    if not isinstance(entries, list):
+        return None
+    for entry in reversed(entries):
+        if not isinstance(entry, dict) or entry.get("upload_group_id") != upload_group_id:
+            continue
+        short_id = entry.get("youtube_id")
+        normal_id = entry.get("normal_video_id")
+        if isinstance(short_id, str) and short_id and not normal_id:
+            return short_id
+    return None
+
+
 def run_cinerush_pipeline(
     query: str | None = None,
     url: str | None = None,
@@ -142,6 +174,9 @@ def run_cinerush_pipeline(
     output_dir: Path = Path("output"),
     profile: str = "cinerush_style",
     movie_meta: dict[str, Any] | None = None,
+    gdrive_file_id: str | None = None,
+    gdrive_file_name: str | None = None,
+    source_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Executes the full end-to-end Cinerush pipeline with active face-tracking reframer and karaoke subtitles.
@@ -160,6 +195,8 @@ def run_cinerush_pipeline(
         video_path=video_file,
         output_dir=output_dir,
         test_mode=test_mode,
+        gdrive_file_id=gdrive_file_id,
+        gdrive_file_name=gdrive_file_name,
     )
     total_dur = scene_meta.get("duration", 0.0)
     scene_title = (movie_meta or {}).get("title") or scene_meta.get("title", "Movie Scene")
@@ -210,20 +247,37 @@ def run_cinerush_pipeline(
     generate_thumbnail(final_short_path, thumb_path, timestamp=min(1.5, trimmed_dur / 2.0))
 
     # Step 7: YouTube Upload
+    upload_group_id = f"{(movie_meta or {}).get('id', scene_meta.get('gdrive_file_id', 'scene'))}:p{(movie_meta or {}).get('part_number', 'standalone')}"
     youtube_id = None
+    normal_video_id = None
     if not dry_run and not test_mode:
+        history_path = Path(__file__).resolve().parent / "movie_history.json"
+        assert_upload_cadence_allowed(load_history(history_path))
         if movie_meta and movie_meta.get("part_number"):
             viral_data.setdefault("tags", []).extend([
                 f"part{movie_meta['part_number']}",
                 str(movie_meta.get("id", "")),
                 "cinema",
             ])
-        youtube_id = upload_cinerush_to_youtube(
-            video_path=final_short_path,
-            thumb_path=thumb_path,
-            meta=viral_data,
-            dry_run=dry_run,
-        )
+        youtube_id = _pending_short_id(history_path, movie_meta, upload_group_id)
+        if youtube_id:
+            log(f"♻️ Retrying the missing normal-video upload for group {upload_group_id}; keeping Short {youtube_id}.")
+        else:
+            youtube_id = upload_cinerush_to_youtube(
+                video_path=final_short_path,
+                thumb_path=thumb_path,
+                meta=viral_data,
+                dry_run=dry_run,
+                is_short=True,
+            )
+        if youtube_id:
+            normal_video_id = upload_cinerush_to_youtube(
+                video_path=final_short_path,
+                thumb_path=thumb_path,
+                meta=viral_data,
+                dry_run=dry_run,
+                is_short=False,
+            )
 
     # Save manifest
     manifest = {
@@ -239,6 +293,12 @@ def run_cinerush_pipeline(
         "words_count": len(shifted_words),
         "output_file": str(final_short_path.resolve()),
         "youtube_id": youtube_id,
+        "normal_video_id": normal_video_id,
+        "upload_group_id": upload_group_id,
+        "source_type": (source_meta or scene_meta).get("source_type", "private_media"),
+        "source_provider": (source_meta or scene_meta).get("source_provider", "google_drive"),
+        "gdrive_file_id": (source_meta or scene_meta).get("gdrive_file_id", gdrive_file_id),
+        "gdrive_file_name": (source_meta or scene_meta).get("gdrive_file_name", gdrive_file_name),
         "profile": profile,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
