@@ -557,6 +557,33 @@ class TestCinerushBGM(unittest.TestCase):
         res = apply_cinerush_bgm(dummy_v, out)
         self.assertEqual(res, dummy_v)
 
+    def test_generate_speech_key_signal(self):
+        import tempfile
+        import wave
+        from cinerush_bgm import generate_speech_key_signal
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
+            wav_path = Path(tf.name)
+
+        try:
+            intervals = [(0.5, 1.5), (2.0, 3.0)]
+            generate_speech_key_signal(wav_path, duration_sec=4.0, speech_intervals=intervals, sample_rate=8000)
+            self.assertTrue(wav_path.exists())
+            with wave.open(str(wav_path), "rb") as wf:
+                self.assertEqual(wf.getnchannels(), 1)
+                self.assertEqual(wf.getframerate(), 8000)
+                # 4.0 seconds at 8000 Hz = 32000 frames
+                self.assertEqual(wf.getnframes(), 32000)
+        finally:
+            wav_path.unlink(missing_ok=True)
+
+    def test_apply_cinerush_bgm_with_intervals_missing_video_falls_back(self):
+        from cinerush_bgm import apply_cinerush_bgm
+        dummy_v = Path("non_existent_video_456.mp4")
+        out = Path("non_existent_out_456.mp4")
+        res = apply_cinerush_bgm(dummy_v, out, speech_intervals=[(1.0, 2.0)])
+        self.assertEqual(res, dummy_v)
+
 
 if __name__ == "__main__":
     unittest.main()

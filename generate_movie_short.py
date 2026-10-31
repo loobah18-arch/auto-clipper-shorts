@@ -532,7 +532,7 @@ def run_pipeline(
             "source_provider": "google_drive",
             "gdrive_file_id": gdrive_source["file_id"],
             "gdrive_file_name": gdrive_source["file_name"],
-        }, allow_duplicate=allow_duplicate)
+        }, allow_duplicate=allow_duplicate or bool(short_id))
         save_movie_history(HISTORY_FILE, history)
 
         # Cleanup intermediate slice file

@@ -277,12 +277,22 @@ def run_cinerush_pipeline(
             reframed_path.unlink(missing_ok=True)
             reframed_path = reframed_with_sfx
 
-    # Step 4.6: Mix Rayalo / Rayelo background music under dialogue
+    # Step 4.6: Mix Rayalo / Rayelo background music under dialogue with intelligent auto-ducking
     reframed_with_bgm = output_dir / f"cinerush_reframed_bgm_{timestamp_str}.mp4"
+    speech_intervals: list[tuple[float, float]] = []
+    for w in shifted_words:
+        s = max(0.0, float(w.get("start", 0.0)))
+        e = max(s + 0.08, float(w.get("end", 0.0)))
+        if speech_intervals and s - speech_intervals[-1][1] <= 0.35:
+            speech_intervals[-1] = (speech_intervals[-1][0], max(speech_intervals[-1][1], e))
+        else:
+            speech_intervals.append((s, e))
+
     bgm_result = apply_cinerush_bgm(
         video_path=reframed_path,
         output_path=reframed_with_bgm,
-        bgm_volume=float(os.environ.get("BGM_VOLUME", "0.12")),
+        bgm_volume=float(os.environ.get("CINERUSH_BGM_VOLUME", "0.26")),
+        speech_intervals=speech_intervals,
     )
     if bgm_result != reframed_path and reframed_with_bgm.exists():
         reframed_path.unlink(missing_ok=True)

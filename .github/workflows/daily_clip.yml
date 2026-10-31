@@ -52,7 +52,7 @@ on:
       allow_duplicate:
         description: 'Allow re-running/regenerating an episode even if previously recorded in upload history'
         required: false
-        default: false
+        default: true
         type: boolean
       set_visibility:
         description: 'Optional: comma-separated video IDs to change visibility (skips the normal pipeline)'
@@ -208,6 +208,7 @@ jobs:
           GDRIVE_FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
           GDRIVE_FILE_NAME: ${{ secrets.GDRIVE_FILE_NAME }}
           MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH || 'assets/bgm/rayelo_ultraslowed.mp3' }}
+          CINERUSH_BGM_VOLUME: '0.26'
           BGM_VOLUME: '0.12'
           DEFAULT_VOICE: 'en-US-ChristopherNeural'
           ALLOW_TRAILER_SEARCH: 'false'
