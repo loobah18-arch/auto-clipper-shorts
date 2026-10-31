@@ -409,9 +409,9 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             # Verify ASS headers
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1920", content)
-            self.assertIn(",40,40,560,1", content)  # MarginV: 560 for vertical 9:16
+            self.assertIn(",40,40,420,1", content)  # MarginV: 420 for vertical 9:16
             self.assertIn("Style: Cinerush", content)
-            self.assertIn("-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,560,1", content)  # Bold -1, Italic -1
+            self.assertIn("-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,420,1", content)  # Bold -1, Italic -1
 
             # Verify active word is highlighted magenta and inactive words golden yellow, all uppercase
             dialogue_lines = [l for l in content.splitlines() if l.startswith("Dialogue:")]
@@ -442,10 +442,10 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             generate_cinerush_karaoke_ass(words, ass_path, profile="cinerush_style")
             content = ass_path.read_text(encoding="utf-8")
 
-            # 1:1 square headers with MarginV 380
+            # 1:1 square headers with MarginV 240
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1080", content)
-            self.assertIn(",40,40,380,1", content)
+            self.assertIn(",40,40,240,1", content)
             self.assertIn(r"STAND{\r}", content)
             self.assertIn(r"UP.{\r}", content)
         finally:

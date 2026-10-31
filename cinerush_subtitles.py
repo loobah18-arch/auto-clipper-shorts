@@ -5,8 +5,8 @@ Burns punchy, synced subtitles of actual movie dialogue matching viral Cinerush 
 - Short readable chunks of 3 to 5 words (natural phrasing, lookahead anti-orphan protection)
 - Typography: Bold Italic display font (Montserrat ExtraBold / DejaVu Serif, Bold -1, Italic -1)
 - Casing: High-impact ALL CAPS dialogue
-- Vertical Lift: MarginV 380 for 1:1 square (chest-height ~65%, completely clear of YouTube mobile UI),
-  MarginV 680 for 9:16 vertical, MarginV 120 for landscape
+- Vertical Lift: MarginV 240 for 1:1 square (lower third ~78%, completely clear of faces/action),
+  MarginV 420 for 9:16 vertical, MarginV 120 for landscape
 - Color Palette: Cinematic Golden Yellow base (&H0000FFFF&) with Vibrant Magenta/Pink active spoken
   word highlight (&H00FF00FF&) with subtle anti-aliased edge glow (\\blur1.2) and punchy scale (\\fscx106\\fscy106)
 - Outline: 3.5 (Deep Black), Shadow: 1.5, BorderStyle: 1
@@ -185,7 +185,7 @@ def generate_cinerush_karaoke_ass(
     font_name: str = "Montserrat ExtraBold",
     play_res_x: int = 1080,
     play_res_y: int = 1920,
-    margin_v: int = 280,
+    margin_v: int = 240,
     profile: str | None = None,
     highlight_color: str = "&H00FF00FF&",  # Vibrant Magenta / Pink active spoken word
     base_color: str = "&H0000FFFF&",       # Golden Yellow base text
@@ -195,9 +195,9 @@ def generate_cinerush_karaoke_ass(
     - Uppercase bold italic typography
     - Active word is vibrant magenta/pink (\\c&H00FF00FF&\\fscx106\\fscy106\\blur1.2)
     - Inactive base words are golden yellow (\\c&H0000FFFF&)
-    - MarginV is adapted to elevate subtitles above mobile YouTube Shorts UI:
-        - 1:1 square profile: MarginV 380 (~65% frame height, chest level)
-        - 9:16 vertical profile: MarginV 680 (~65% frame height)
+    - MarginV is placed in the lower third to keep video action and faces completely visible:
+        - 1:1 square profile: MarginV 240 (~22% from bottom, baseline at y=840)
+        - 9:16 vertical profile: MarginV 420 (~22% from bottom, baseline at y=1500)
         - Landscape profile: MarginV 120
     """
     output_ass_path.parent.mkdir(parents=True, exist_ok=True)
@@ -207,19 +207,19 @@ def generate_cinerush_karaoke_ass(
     if profile == "cinerush_style" or profile == "square":
         play_res_x = 1080
         play_res_y = 1080
-        if margin_v == 280:
-            margin_v = 380
+        if margin_v == 240:
+            margin_v = 240
     elif profile == "landscape":
         play_res_x = 1920
         play_res_y = 1080
-        if margin_v == 280:
+        if margin_v == 240:
             margin_v = 120
     else:
         # 9:16 vertical (1080x1920)
         play_res_x = 1080
         play_res_y = 1920
-        if margin_v == 280:
-            margin_v = 560
+        if margin_v == 240:
+            margin_v = 420
 
     # ASS Header with Bold -1, Italic -1, Fontsize 64, Outline 3.5, Shadow 1.5
     ass_header = f"""[Script Info]
