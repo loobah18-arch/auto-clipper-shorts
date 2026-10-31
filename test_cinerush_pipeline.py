@@ -416,7 +416,7 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             self.assertIn("PlayResY: 1920", content)
             self.assertIn(",40,40,260,1", content)  # MarginV: 260 for vertical 9:16
             self.assertIn("Style: Cinerush", content)
-            self.assertIn("-1,0,0,0,100,100,1,0,1,3.5,1.5,2,40,40,260,1", content)  # Bold -1, Italic 0
+            self.assertIn("-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,260,1", content)  # Bold -1, Italic -1
 
             # Verify active word is highlighted magenta and inactive words golden yellow, all uppercase
             dialogue_lines = [l for l in content.splitlines() if l.startswith("Dialogue:")]
@@ -451,7 +451,8 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1080", content)
             self.assertIn(",40,40,140,1", content)
-            self.assertIn("STAND UP.", content)
+            self.assertIn("STAND{\\r}", content)
+            self.assertIn("UP.{\\r}", content)
         finally:
             if ass_path.exists():
                 ass_path.unlink()
@@ -477,7 +478,8 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
         try:
             generate_cinerush_karaoke_ass(words, ass_path, profile="cinerush_style")
             content = ass_path.read_text(encoding="utf-8")
-            self.assertIn("SERIAL K*LLER, ARE YOU?", content)
+            self.assertIn("SERIAL{\\r}", content)
+            self.assertIn("K*LLER,{\\r}", content)
             self.assertIn(",40,40,140,1", content)
         finally:
             if ass_path.exists():

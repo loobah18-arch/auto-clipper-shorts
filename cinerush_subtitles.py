@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Cinerush Subtitles Generator (.ass)
-Burns punchy, clean synced subtitles of actual movie dialogue matching viral CineRush Shorts:
+Cinerush Karaoke Subtitles Generator (.ass)
+Burns punchy, synced subtitles of actual movie dialogue matching viral Cinerush Shorts:
 - Short readable chunks of 3 to 5 words (natural phrasing, lookahead anti-orphan protection)
-- Typography: Clean upright bold sans-serif display font (Montserrat ExtraBold / DejaVu Sans, Bold -1, Italic 0)
+- Typography: Bold Italic display font (Montserrat ExtraBold / DejaVu Serif, Bold -1, Italic -1)
 - Casing: High-impact ALL CAPS dialogue
 - Low-profile placement: MarginV 140 for 1:1 square (lower ~87% of frame, keeping actors/action completely unobstructed),
   MarginV 260 for 9:16 vertical, MarginV 80 for landscape
-- Color Palette: Pure Crisp White (&H00FFFFFF&) with deep black outline (3.5) and subtle shadow (1.5)
-- Automated Censorship: Sensitive / profanity words are asterisk-masked (e.g. 'K*LLER', 'M*RDER', 'F*CK', 'D*AD')
+- Color Palette: Cinematic Golden Yellow base (&H0000FFFF&) with Vibrant Magenta/Pink active spoken
+  word highlight (&H00FF00FF&) with subtle anti-aliased edge glow (\\blur1.2) and punchy scale (\\fscx106\\fscy106)
+- Outline: 3.5 (Deep Black), Shadow: 1.5, BorderStyle: 1
 """
 
 from __future__ import annotations
@@ -335,20 +336,18 @@ def generate_cinerush_karaoke_ass(
     play_res_y: int = 1920,
     margin_v: int = 140,
     profile: str | None = None,
-    highlight_color: str = "&H00FFFFFF&",  # Pure Crisp White (clean CineRush style)
-    base_color: str = "&H00FFFFFF&",       # Pure Crisp White
+    highlight_color: str = "&H00FF00FF&",  # Vibrant Magenta / Pink active spoken word
+    base_color: str = "&H0000FFFF&",       # Golden Yellow base text
 ) -> Path:
     """
-    Generates ASS subtitle file matching viral CineRush Shorts style:
-    - Pure crisp white typography with deep black outline (3.5) and subtle shadow (1.5)
-    - All-caps, upright bold sans-serif display font (Montserrat ExtraBold / DejaVu Sans)
-    - Sensitive words are asterisk-censored (e.g. 'K*LLER', 'M*RDER', 'F*CK', 'D*AD')
-    - Low-profile placement keeping actors and action completely visible:
+    Generates ASS subtitle file with cinematic word-by-word karaoke highlighting:
+    - Uppercase bold italic typography
+    - Active word is vibrant magenta/pink (\\c&H00FF00FF&\\fscx106\\fscy106\\blur1.2)
+    - Inactive base words are golden yellow (\\c&H0000FFFF&)
+    - MarginV is placed in the lower third to keep video action and faces completely visible:
         - 1:1 square profile: MarginV 140 (~87% frame height, baseline at y=940)
         - 9:16 vertical profile: MarginV 260 (~86% frame height, baseline at y=1660)
         - Landscape profile: MarginV 80
-    - When base_color == highlight_color (default): emits clean, stable phrase cards
-    - When base_color != highlight_color: emits dynamic active-word karaoke pop
     """
     output_ass_path.parent.mkdir(parents=True, exist_ok=True)
     phrases = group_words_into_cinerush_phrases(words, max_words_per_phrase=4)
@@ -371,7 +370,7 @@ def generate_cinerush_karaoke_ass(
         if margin_v == 140:
             margin_v = 260
 
-    # ASS Header: Bold -1, Italic 0, Fontsize 60, Outline 3.5, Shadow 1.5, Alignment 2 (bottom center)
+    # ASS Header with Bold -1, Italic -1, Fontsize 64, Outline 3.5, Shadow 1.5
     ass_header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {play_res_x}
@@ -380,7 +379,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cinerush,{font_name},60,{base_color},{highlight_color},&H00000000&,&H80000000,-1,0,0,0,100,100,1,0,1,3.5,1.5,2,40,40,{margin_v},1
+Style: Cinerush,{font_name},64,{base_color},{highlight_color},&H00000000&,&H80000000,-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
