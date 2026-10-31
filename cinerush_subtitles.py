@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Cinerush Karaoke Subtitles Generator (.ass)
-Burns punchy, synced subtitles of actual movie dialogue matching viral Cinerush Shorts:
+Cinerush Subtitles Generator (.ass)
+Burns punchy, clean synced subtitles of actual movie dialogue matching viral CineRush Shorts:
 - Short readable chunks of 3 to 5 words (natural phrasing, lookahead anti-orphan protection)
-- Typography: Bold Italic display font (Montserrat ExtraBold / DejaVu Serif, Bold -1, Italic -1)
+- Typography: Clean upright bold sans-serif display font (Montserrat ExtraBold / DejaVu Sans, Bold -1, Italic 0)
 - Casing: High-impact ALL CAPS dialogue
-- Vertical Lift: MarginV 240 for 1:1 square (lower third ~78%, completely clear of faces/action),
-  MarginV 420 for 9:16 vertical, MarginV 120 for landscape
-- Color Palette: Cinematic Golden Yellow base (&H0000FFFF&) with Vibrant Magenta/Pink active spoken
-  word highlight (&H00FF00FF&) with subtle anti-aliased edge glow (\\blur1.2) and punchy scale (\\fscx106\\fscy106)
-- Outline: 3.5 (Deep Black), Shadow: 1.5, BorderStyle: 1
+- Low-profile placement: MarginV 140 for 1:1 square (lower ~87% of frame, keeping actors/action completely unobstructed),
+  MarginV 260 for 9:16 vertical, MarginV 80 for landscape
+- Color Palette: Pure Crisp White (&H00FFFFFF&) with deep black outline (3.5) and subtle shadow (1.5)
+- Automated Censorship: Sensitive / profanity words are asterisk-masked (e.g. 'K*LLER', 'M*RDER', 'F*CK', 'D*AD')
 """
 
 from __future__ import annotations
@@ -31,6 +30,155 @@ FONTS_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
 STRONG_PUNCT = re.compile(r"[\.!\?]$|--$|—$")
 SOFT_PUNCT = re.compile(r"[,;:]$")
 FILLER_WORDS = {"um", "uh", "ah", "er", "mm", "hmm"}
+
+# Words censored with an asterisk '*' to prevent automated platform strikes/demonetization
+CENSORED_WORDS_MAP: dict[str, str] = {
+    # Violence, harm & death
+    "kill": "k*ll",
+    "kills": "k*lls",
+    "killer": "k*ller",
+    "killers": "k*llers",
+    "killed": "k*lled",
+    "killing": "k*lling",
+    "murder": "m*rder",
+    "murders": "m*rders",
+    "murdered": "m*rdered",
+    "murderer": "m*rderer",
+    "murderers": "m*rderers",
+    "murdering": "m*rdering",
+    "suicide": "su*cide",
+    "suicidal": "su*cidal",
+    "die": "d*e",
+    "dies": "d*es",
+    "died": "d*ed",
+    "dying": "dy*ng",
+    "dead": "d*ad",
+    "death": "d*ath",
+    "deaths": "d*aths",
+    "blood": "bl*od",
+    "bloody": "bl*ody",
+    "bleed": "bl*ed",
+    "bleeding": "bl*eding",
+    "shoot": "sh*ot",
+    "shoots": "sh*ots",
+    "shooting": "sh*oting",
+    "shot": "sh*t",
+    "shots": "sh*ts",
+    "gun": "g*n",
+    "guns": "g*ns",
+    "weapon": "w*apon",
+    "weapons": "w*apons",
+    "bullet": "b*llet",
+    "bullets": "b*llets",
+    "bomb": "b*mb",
+    "bombs": "b*mbs",
+    "choke": "ch*ke",
+    "choked": "ch*ked",
+    "choking": "ch*king",
+    "strangle": "str*ngle",
+    "strangled": "str*ngled",
+    "stab": "st*b",
+    "stabbed": "st*bbed",
+    "stabbing": "st*bbing",
+    "poison": "p*ison",
+    "poisoned": "p*isoned",
+    "torture": "t*rture",
+    "tortured": "t*rtured",
+    "slaughter": "sl*ughter",
+    "slaughtered": "sl*ughtered",
+    "corpse": "c*rpse",
+    "corpses": "c*rpses",
+    # Profanity & swearing
+    "fuck": "f*ck",
+    "fucks": "f*cks",
+    "fucked": "f*cked",
+    "fucking": "f*cking",
+    "fuckin": "f*ckin",
+    "fucker": "f*cker",
+    "fuckers": "f*ckers",
+    "motherfucker": "m*therf*cker",
+    "motherfuckers": "m*therf*ckers",
+    "motherfucking": "m*therf*cking",
+    "shit": "sh*t",
+    "shits": "sh*ts",
+    "shitty": "sh*tty",
+    "bullshit": "bullsh*t",
+    "bitch": "b*tch",
+    "bitches": "b*tches",
+    "bitching": "b*tching",
+    "ass": "a*s",
+    "asshole": "assh*le",
+    "assholes": "assh*les",
+    "bastard": "b*stard",
+    "bastards": "b*stards",
+    "damn": "d*mn",
+    "damned": "d*mned",
+    "goddamn": "g*ddamn",
+    "goddamned": "g*ddamned",
+    "hell": "h*ll",
+    "dick": "d*ck",
+    "dicks": "d*cks",
+    "cock": "c*ck",
+    "cocks": "c*cks",
+    "pussy": "p*ssy",
+    "pussies": "p*ssies",
+    "cunt": "c*nt",
+    "cunts": "c*nts",
+    "whore": "wh*re",
+    "whores": "wh*res",
+    "slut": "sl*t",
+    "sluts": "sl*ts",
+    "nigger": "n*gger",
+    "nigga": "n*gga",
+    "faggot": "f*ggot",
+    # Sexual & illicit substances
+    "sex": "s*x",
+    "sexy": "s*xy",
+    "sexual": "s*xual",
+    "porn": "p*rn",
+    "porno": "p*rno",
+    "nude": "n*de",
+    "naked": "n*ked",
+    "rape": "r*pe",
+    "raped": "r*ped",
+    "rapist": "r*pist",
+    "drug": "dr*g",
+    "drugs": "dr*gs",
+    "cocaine": "c*caine",
+    "heroin": "h*roin",
+    "weed": "w*ed",
+    "meth": "m*th",
+    "overdose": "ov*rdose",
+}
+
+
+def censor_word(word: str) -> str:
+    """
+    Replaces sensitive, profanity, or violence-related words with asterisk-censored forms
+    (e.g., 'killer' -> 'k*ller', 'KILLER,' -> 'K*LLER,', 'fucking' -> 'f*cking').
+    Preserves leading/trailing punctuation and casing. Handles hyphenated compounds.
+    """
+    if not word:
+        return ""
+    m = re.match(r"^([^a-zA-Z0-9]*)(.*?)([^a-zA-Z0-9]*)$", word)
+    if not m:
+        return word
+    prefix, body, suffix = m.groups()
+    if not body:
+        return word
+    if "-" in body:
+        sub_tokens = [censor_word(st) for st in body.split("-")]
+        joined = "-".join(sub_tokens)
+        return f"{prefix}{joined}{suffix}"
+    body_lower = body.lower()
+    if body_lower in CENSORED_WORDS_MAP:
+        rep = CENSORED_WORDS_MAP[body_lower]
+        if body.isupper():
+            rep = rep.upper()
+        elif body.istitle():
+            rep = rep.capitalize()
+        return f"{prefix}{rep}{suffix}"
+    return word
 
 
 def format_ass_time(seconds: float) -> str:
@@ -185,20 +333,22 @@ def generate_cinerush_karaoke_ass(
     font_name: str = "Montserrat ExtraBold",
     play_res_x: int = 1080,
     play_res_y: int = 1920,
-    margin_v: int = 240,
+    margin_v: int = 140,
     profile: str | None = None,
-    highlight_color: str = "&H00FF00FF&",  # Vibrant Magenta / Pink active spoken word
-    base_color: str = "&H0000FFFF&",       # Golden Yellow base text
+    highlight_color: str = "&H00FFFFFF&",  # Pure Crisp White (clean CineRush style)
+    base_color: str = "&H00FFFFFF&",       # Pure Crisp White
 ) -> Path:
     """
-    Generates ASS subtitle file with cinematic word-by-word karaoke highlighting:
-    - Uppercase bold italic typography
-    - Active word is vibrant magenta/pink (\\c&H00FF00FF&\\fscx106\\fscy106\\blur1.2)
-    - Inactive base words are golden yellow (\\c&H0000FFFF&)
-    - MarginV is placed in the lower third to keep video action and faces completely visible:
-        - 1:1 square profile: MarginV 240 (~22% from bottom, baseline at y=840)
-        - 9:16 vertical profile: MarginV 420 (~22% from bottom, baseline at y=1500)
-        - Landscape profile: MarginV 120
+    Generates ASS subtitle file matching viral CineRush Shorts style:
+    - Pure crisp white typography with deep black outline (3.5) and subtle shadow (1.5)
+    - All-caps, upright bold sans-serif display font (Montserrat ExtraBold / DejaVu Sans)
+    - Sensitive words are asterisk-censored (e.g. 'K*LLER', 'M*RDER', 'F*CK', 'D*AD')
+    - Low-profile placement keeping actors and action completely visible:
+        - 1:1 square profile: MarginV 140 (~87% frame height, baseline at y=940)
+        - 9:16 vertical profile: MarginV 260 (~86% frame height, baseline at y=1660)
+        - Landscape profile: MarginV 80
+    - When base_color == highlight_color (default): emits clean, stable phrase cards
+    - When base_color != highlight_color: emits dynamic active-word karaoke pop
     """
     output_ass_path.parent.mkdir(parents=True, exist_ok=True)
     phrases = group_words_into_cinerush_phrases(words, max_words_per_phrase=4)
@@ -207,21 +357,21 @@ def generate_cinerush_karaoke_ass(
     if profile == "cinerush_style" or profile == "square":
         play_res_x = 1080
         play_res_y = 1080
-        if margin_v == 240:
-            margin_v = 240
+        if margin_v == 140:
+            margin_v = 140
     elif profile == "landscape":
         play_res_x = 1920
         play_res_y = 1080
-        if margin_v == 240:
-            margin_v = 120
+        if margin_v == 140:
+            margin_v = 80
     else:
         # 9:16 vertical (1080x1920)
         play_res_x = 1080
         play_res_y = 1920
-        if margin_v == 240:
-            margin_v = 420
+        if margin_v == 140:
+            margin_v = 260
 
-    # ASS Header with Bold -1, Italic -1, Fontsize 64, Outline 3.5, Shadow 1.5
+    # ASS Header: Bold -1, Italic 0, Fontsize 60, Outline 3.5, Shadow 1.5, Alignment 2 (bottom center)
     ass_header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {play_res_x}
@@ -230,55 +380,81 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cinerush,{font_name},64,{base_color},{highlight_color},&H00000000&,&H80000000,-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,{margin_v},1
+Style: Cinerush,{font_name},60,{base_color},{highlight_color},&H00000000&,&H80000000,-1,0,0,0,100,100,1,0,1,3.5,1.5,2,40,40,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
     dialogue_lines: list[str] = []
+    is_simple_mode = (highlight_color == base_color)
 
-    for phrase_idx, phrase in enumerate(phrases):
-        if not phrase:
-            continue
+    if is_simple_mode:
+        for phrase_idx, phrase in enumerate(phrases):
+            if not phrase:
+                continue
 
-        for active_idx, active_word in enumerate(phrase):
-            w_start_sec = max(0.0, float(active_word.get("start", 0.0)))
-            w_end_sec = max(w_start_sec + 0.08, float(active_word.get("end", 0.0)))
+            phrase_start_sec = max(0.0, float(phrase[0].get("start", 0.0)))
+            phrase_end_sec = max(phrase_start_sec + 0.35, float(phrase[-1].get("end", 0.0)))
 
-            # Seamless within-phrase continuity to eliminate micro-flicker between words
-            if active_idx < len(phrase) - 1:
-                next_start = float(phrase[active_idx + 1].get("start", 0.0))
-                if next_start > w_start_sec and w_end_sec < next_start and (next_start - w_end_sec) <= 0.12:
-                    w_end_sec = next_start
-            else:
-                # Keep the final word readable without extending far beyond speech.
-                w_end_sec = max(w_end_sec, w_start_sec + 0.12)
-                # If next phrase starts very soon (<= 0.25s), extend to avoid a 50ms dark blink
-                if phrase_idx < len(phrases) - 1 and phrases[phrase_idx + 1]:
-                    next_phrase_start = float(phrases[phrase_idx + 1][0].get("start", 0.0))
-                    if next_phrase_start > w_start_sec and (next_phrase_start - w_end_sec) <= 0.25:
-                        w_end_sec = max(w_end_sec, next_phrase_start)
+            # If next phrase starts very soon (<= 0.25s), extend to avoid a dark gap/blink
+            if phrase_idx < len(phrases) - 1 and phrases[phrase_idx + 1]:
+                next_phrase_start = float(phrases[phrase_idx + 1][0].get("start", 0.0))
+                if next_phrase_start > phrase_start_sec and (next_phrase_start - phrase_end_sec) <= 0.25:
+                    phrase_end_sec = max(phrase_end_sec, next_phrase_start)
 
-            w_start = format_ass_time(w_start_sec)
-            w_end = format_ass_time(w_end_sec)
+            w_start = format_ass_time(phrase_start_sec)
+            w_end = format_ass_time(phrase_end_sec)
 
-            # Build line text: all uppercase, active word highlighted with scale pop and blur glow
             tokens: list[str] = []
-            for idx, w in enumerate(phrase):
-                clean_w = str(w.get("word", "")).strip().upper()
-                # Sanitize ASS special characters
+            for w in phrase:
+                raw_w = str(w.get("word", "")).strip().upper()
+                clean_w = censor_word(raw_w)
                 clean_w = clean_w.replace("{", "(").replace("}", ")").replace("\\", "/")
-
-                if idx == active_idx:
-                    # Active spoken word: Magenta/Pink highlight with subtle glow and 6% scale
-                    tokens.append(rf"{{\c{highlight_color}\fscx106\fscy106\blur1.2}}{clean_w}{{\r}}")
-                else:
-                    # Inactive words: Golden Yellow base
-                    tokens.append(rf"{{\c{base_color}\fscx100\fscy100}}{clean_w}{{\r}}")
+                tokens.append(clean_w)
 
             card_text = " ".join(tokens)
             dialogue_lines.append(f"Dialogue: 0,{w_start},{w_end},Cinerush,,0,0,0,,{card_text}")
+    else:
+        for phrase_idx, phrase in enumerate(phrases):
+            if not phrase:
+                continue
+
+            for active_idx, active_word in enumerate(phrase):
+                w_start_sec = max(0.0, float(active_word.get("start", 0.0)))
+                w_end_sec = max(w_start_sec + 0.08, float(active_word.get("end", 0.0)))
+
+                # Seamless within-phrase continuity to eliminate micro-flicker between words
+                if active_idx < len(phrase) - 1:
+                    next_start = float(phrase[active_idx + 1].get("start", 0.0))
+                    if next_start > w_start_sec and w_end_sec < next_start and (next_start - w_end_sec) <= 0.12:
+                        w_end_sec = next_start
+                else:
+                    # Keep the final word readable without extending far beyond speech.
+                    w_end_sec = max(w_end_sec, w_start_sec + 0.12)
+                    if phrase_idx < len(phrases) - 1 and phrases[phrase_idx + 1]:
+                        next_phrase_start = float(phrases[phrase_idx + 1][0].get("start", 0.0))
+                        if next_phrase_start > w_start_sec and (next_phrase_start - w_end_sec) <= 0.25:
+                            w_end_sec = max(w_end_sec, next_phrase_start)
+
+                w_start = format_ass_time(w_start_sec)
+                w_end = format_ass_time(w_end_sec)
+
+                # Build line text: all uppercase, active word highlighted with scale pop and blur glow
+                tokens: list[str] = []
+                for idx, w in enumerate(phrase):
+                    raw_w = str(w.get("word", "")).strip().upper()
+                    clean_w = censor_word(raw_w)
+                    clean_w = clean_w.replace("{", "(").replace("}", ")").replace("\\", "/")
+
+                    if idx == active_idx:
+                        # Active spoken word: highlight with subtle glow and 6% scale
+                        tokens.append(rf"{{\c{highlight_color}\fscx106\fscy106\blur1.2}}{clean_w}{{\r}}")
+                    else:
+                        tokens.append(rf"{{\c{base_color}\fscx100\fscy100}}{clean_w}{{\r}}")
+
+                card_text = " ".join(tokens)
+                dialogue_lines.append(f"Dialogue: 0,{w_start},{w_end},Cinerush,,0,0,0,,{card_text}")
 
     full_ass = ass_header + "\n".join(dialogue_lines) + "\n"
     output_ass_path.write_text(full_ass, encoding="utf-8")

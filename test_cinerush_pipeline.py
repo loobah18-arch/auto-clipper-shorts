@@ -403,15 +403,20 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             ass_path = Path(tmp.name)
 
         try:
-            generate_cinerush_karaoke_ass(words, ass_path)
+            generate_cinerush_karaoke_ass(
+                words,
+                ass_path,
+                highlight_color="&H00FF00FF&",
+                base_color="&H0000FFFF&",
+            )
             content = ass_path.read_text(encoding="utf-8")
 
             # Verify ASS headers
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1920", content)
-            self.assertIn(",40,40,420,1", content)  # MarginV: 420 for vertical 9:16
+            self.assertIn(",40,40,260,1", content)  # MarginV: 260 for vertical 9:16
             self.assertIn("Style: Cinerush", content)
-            self.assertIn("-1,-1,0,0,100,100,1,0,1,3.5,1.5,2,40,40,420,1", content)  # Bold -1, Italic -1
+            self.assertIn("-1,0,0,0,100,100,1,0,1,3.5,1.5,2,40,40,260,1", content)  # Bold -1, Italic 0
 
             # Verify active word is highlighted magenta and inactive words golden yellow, all uppercase
             dialogue_lines = [l for l in content.splitlines() if l.startswith("Dialogue:")]
@@ -442,12 +447,38 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
             generate_cinerush_karaoke_ass(words, ass_path, profile="cinerush_style")
             content = ass_path.read_text(encoding="utf-8")
 
-            # 1:1 square headers with MarginV 240
+            # 1:1 square headers with MarginV 140
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1080", content)
-            self.assertIn(",40,40,240,1", content)
-            self.assertIn(r"STAND{\r}", content)
-            self.assertIn(r"UP.{\r}", content)
+            self.assertIn(",40,40,140,1", content)
+            self.assertIn("STAND UP.", content)
+        finally:
+            if ass_path.exists():
+                ass_path.unlink()
+
+    def test_censor_word_and_sensitive_dialogue(self):
+        from cinerush_subtitles import censor_word
+        self.assertEqual(censor_word("KILLER,"), "K*LLER,")
+        self.assertEqual(censor_word("killer"), "k*ller")
+        self.assertEqual(censor_word("him?"), "him?")
+        self.assertEqual(censor_word("fucking"), "f*cking")
+        self.assertEqual(censor_word("DEAD."), "D*AD.")
+        self.assertEqual(censor_word("gun"), "g*n")
+        self.assertEqual(censor_word("murder"), "m*rder")
+
+        words = [
+            {"word": "Serial", "start": 0.0, "end": 0.5},
+            {"word": "killer,", "start": 0.5, "end": 1.0},
+            {"word": "are", "start": 1.0, "end": 1.3},
+            {"word": "you?", "start": 1.3, "end": 1.7},
+        ]
+        with tempfile.NamedTemporaryFile(suffix=".ass", delete=False) as tmp:
+            ass_path = Path(tmp.name)
+        try:
+            generate_cinerush_karaoke_ass(words, ass_path, profile="cinerush_style")
+            content = ass_path.read_text(encoding="utf-8")
+            self.assertIn("SERIAL K*LLER, ARE YOU?", content)
+            self.assertIn(",40,40,140,1", content)
         finally:
             if ass_path.exists():
                 ass_path.unlink()

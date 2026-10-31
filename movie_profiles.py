@@ -132,7 +132,7 @@ PROFILES: dict[str, ProfileConfig] = {
         caption_style=CaptionStyle(
             font_size=52,
             outline_width=3.0,
-            margin_v=240,
+            margin_v=140,
         ),
         default_max_duration=58.0,
         max_zoom_factor=1.06,
