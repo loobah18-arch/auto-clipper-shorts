@@ -39,6 +39,17 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIn("- cron: '15 8 * * 1,3,5'", workflow)
         self.assertNotIn("15 8,20", workflow)
 
+    def test_quick_test_is_explicit_and_dry_run_only(self):
+        workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
+        generator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
+        self.assertIn("quick_test:", workflow)
+        self.assertIn("INPUT_QUICK_TEST", workflow)
+        self.assertIn("ARGS+=(--quick-test)", workflow)
+        self.assertIn("quick_test requires dry_run=true", workflow)
+        self.assertIn("--quick-test", generator)
+        self.assertIn("Dry-Run Duration And Provenance", workflow)
+        self.assertIn("inputs.dry_run != true", workflow)
+
     def test_workflow_requires_drive_map_and_has_no_ytdlp_setup(self):
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
         self.assertIn("GDRIVE_MAP_B64 secret is required", workflow)

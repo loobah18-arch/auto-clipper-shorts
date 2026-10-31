@@ -26,7 +26,12 @@ on:
         default: 'en-US-ChristopherNeural'
         type: string
       dry_run:
-        description: 'Run pipeline without uploading to YouTube'
+        description: 'Run normal 45-58 second pipeline without uploading to YouTube'
+        required: false
+        default: false
+        type: boolean
+      quick_test:
+        description: 'Optional approximately 12-second smoke test; always dry-run'
         required: false
         default: false
         type: boolean
@@ -212,6 +217,7 @@ jobs:
           INPUT_LANG: ${{ inputs.lang }}
           INPUT_VOICE: ${{ inputs.voice }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_QUICK_TEST: ${{ inputs.quick_test }}
           INPUT_PROFILE: ${{ inputs.profile }}
           INPUT_ALLOW_UNREVIEWED_RIGHTS: ${{ inputs.allow_unreviewed_rights }}
           INPUT_ALLOW_DUPLICATE: ${{ inputs.allow_duplicate }}
@@ -227,7 +233,43 @@ jobs:
           if [ "${INPUT_ALLOW_UNREVIEWED_RIGHTS:-true}" = "true" ]; then ARGS+=(--allow-unreviewed-rights); fi
           if [ "${INPUT_ALLOW_DUPLICATE:-false}" = "true" ]; then ARGS+=(--allow-duplicate); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
+          if [ "${INPUT_QUICK_TEST:-false}" = "true" ]; then
+            if [ "$INPUT_DRY_RUN" != "true" ]; then
+              echo "quick_test requires dry_run=true" >&2
+              exit 1
+            fi
+            ARGS+=(--quick-test)
+          fi
           python generate_movie_short.py "${ARGS[@]}" 2>&1 | tee pipeline_debug.log
+
+      - name: 🔍 Verify Cinerush Dry-Run Duration And Provenance
+        if: inputs.dry_run == true && (inputs.set_visibility == '' || inputs.set_visibility == null)
+        run: |
+          set -euo pipefail
+          video=$(find output -maxdepth 1 -type f -name 'cinerush_short_*.mp4' | sort | tail -n 1)
+          [ -n "$video" ] || { echo "No Cinerush MP4 was rendered" >&2; exit 1; }
+          duration=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$video")
+          python - "$duration" "${INPUT_QUICK_TEST:-false}" <<'PY'
+          import sys
+          duration = float(sys.argv[1])
+          quick = sys.argv[2] == "true"
+          low, high = ((1.0, 12.5) if quick else (45.0, 58.0))
+          if not low <= duration <= high:
+              raise SystemExit(f"duration {duration:.2f}s outside {low:.1f}-{high:.1f}s contract")
+          print(f"Verified Cinerush duration: {duration:.2f}s")
+          PY
+          manifest=$(find output -maxdepth 1 -type f -name 'render_manifest_cinerush_*.json' | sort | tail -n 1)
+          [ -n "$manifest" ] || { echo "No Cinerush render manifest was produced" >&2; exit 1; }
+          python - "$manifest" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          if data.get("source_provider") != "google_drive":
+              raise SystemExit("Cinerush source_provider is not google_drive")
+          if data.get("youtube_id") or data.get("normal_video_id"):
+              raise SystemExit("dry-run manifest contains a YouTube ID")
+          print("Verified Drive provenance and no YouTube IDs")
+          PY
+          grep -F "Dry-run mode enabled" pipeline_debug.log
 
       - name: 🛡️ Multi-Agent Anti-Copyright Filter Verification
         if: always()
@@ -274,7 +316,7 @@ jobs:
           if-no-files-found: warn
 
       - name: 💾 Commit Updated History & State
-        if: always()
+        if: always() && inputs.dry_run != true
         run: |
           set -euo pipefail
           git config --global user.name "github-actions[bot]"

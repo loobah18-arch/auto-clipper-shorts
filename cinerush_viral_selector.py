@@ -2,7 +2,7 @@
 """
 Cinerush Viral Segment & Hook Selector
 Uses Groq (llama-3.3-70b-versatile) to:
-1. Select the single most gripping continuous 90-to-175 second window (clip_start to clip_end).
+1. Select the single most gripping continuous 45-to-58 second window (clip_start to clip_end).
 2. Generate a viral Cinerush curiosity-gap title (max 12 words, 2 emojis, ending with #film #movie #shorts).
 3. Identify dead-air gaps (> 2.0s silence) and jump-cut them out while keeping 0.35s speech buffers.
 4. Recalculate shifted word timestamps for 100% synced karaoke subtitles.
@@ -31,27 +31,41 @@ def format_transcript_for_prompt(segments: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+CINERUSH_MIN_DURATION = 45.0
+CINERUSH_TARGET_DURATION = 54.0
+CINERUSH_MAX_DURATION = 58.0
+
+
 def select_viral_segment(
     segments: list[dict[str, Any]],
     total_video_duration: float,
     movie_title: str = "Movie Scene",
     groq_api_key: str | None = None,
+    min_duration: float = CINERUSH_MIN_DURATION,
+    max_duration: float = CINERUSH_MAX_DURATION,
+    target_duration: float = CINERUSH_TARGET_DURATION,
 ) -> dict[str, Any]:
-    """
-    Selects the 90-175 second viral window and generates metadata via Groq.
-    """
+    """Select a gripping source window sized for a safe YouTube Short."""
+    min_duration = max(1.0, float(min_duration))
+    max_duration = max(min_duration, float(max_duration))
+    target_duration = min(max(min_duration, float(target_duration)), max_duration)
     api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
     transcript_text = format_transcript_for_prompt(segments)
 
     # Fallback default window if transcript is empty or LLM fails
     default_start = 0.0
-    default_duration = min(120.0, max(30.0, total_video_duration))
+    default_duration = min(target_duration, max(1.0, total_video_duration))
     default_end = min(total_video_duration, default_start + default_duration)
     default_title = f"{movie_title} Most Intense Scene 🎬🔥 #film #movie #shorts"
 
     if not api_key:
         log("ℹ️ GROQ_API_KEY not set. Using heuristic high-density dialogue window.")
-        return _heuristic_viral_window(segments, total_video_duration, movie_title)
+        return _heuristic_viral_window(
+            segments, total_video_duration, movie_title,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            target_duration=target_duration,
+        )
 
     prompt = f"""You are the senior editor for Cinerush, the premier viral movie clips YouTube Shorts channel.
 Analyze the following timestamped dialogue from the scene '{movie_title}' (Total runtime: {total_video_duration:.1f}s):
@@ -61,8 +75,8 @@ TRANSCRIPT:
 
 OBJECTIVES:
 1. Identify the single most intense, emotional, gripping, or high-stakes continuous window in this scene.
-2. The window MUST be between 90.0 and 175.0 seconds long (clip_end - clip_start must be >= 90.0 and <= 175.0).
-   If the entire video is shorter than 90 seconds, use clip_start=0.0 and clip_end={total_video_duration:.1f}.
+2. Target approximately {target_duration:.1f} seconds and keep the window between {min_duration:.1f} and {max_duration:.1f} seconds when the source is long enough.
+   If the entire video is shorter than {min_duration:.1f} seconds, use the available source duration.
 3. The selected window must start with a compelling hook line and build to an intense confrontation, revelation, or climax.
 4. Generate a Cinerush viral curiosity-gap title:
    - Maximum 12 words
@@ -100,18 +114,17 @@ Return ONLY a valid JSON object matching this schema:
         clip_start = float(data.get("clip_start", default_start))
         clip_end = float(data.get("clip_end", default_end))
 
-        # Clamp and validate 90-175s duration
-        clip_start = max(0.0, min(total_video_duration - 10.0, clip_start))
-        clip_end = max(clip_start + 10.0, min(total_video_duration, clip_end))
-
-        target_dur = clip_end - clip_start
-        if total_video_duration >= 90.0:
-            if target_dur < 90.0:
-                clip_end = min(total_video_duration, clip_start + 90.0)
-                if clip_end - clip_start < 90.0:
-                    clip_start = max(0.0, clip_end - 90.0)
-            elif target_dur > 175.0:
-                clip_end = clip_start + 175.0
+        available_duration = max(0.0, float(total_video_duration))
+        effective_max = min(max_duration, available_duration)
+        if effective_max <= 0:
+            raise ValueError("source video has no usable duration")
+        effective_min = min(min_duration, effective_max)
+        requested_duration = min(max(target_duration, effective_min), effective_max)
+        clip_start = max(0.0, min(max(0.0, available_duration - requested_duration), clip_start))
+        clip_end = min(available_duration, clip_start + requested_duration)
+        if clip_end - clip_start < effective_min:
+            clip_start = max(0.0, available_duration - effective_min)
+            clip_end = available_duration
 
         raw_title = str(data.get("title", default_title)).strip()
         formatted_title = format_cinerush_title(raw_title, movie_title)
@@ -122,13 +135,22 @@ Return ONLY a valid JSON object matching this schema:
         return {
             "clip_start": round(clip_start, 2),
             "clip_end": round(clip_end, 2),
+            "selection_duration": round(clip_end - clip_start, 2),
+            "requested_min_duration": effective_min,
+            "requested_max_duration": effective_max,
+            "target_duration": requested_duration,
             "title": formatted_title,
             "description": str(data.get("description", f"{formatted_title}\n\n#film #movie #shorts")),
             "tags": list(data.get("tags", ["film", "movie", "shorts", "cinerush", "cinema", "scene"])),
         }
     except Exception as e:
         log(f"⚠️ Groq viral segment selection failed: {e}. Falling back to heuristic window.")
-        return _heuristic_viral_window(segments, total_video_duration, movie_title)
+        return _heuristic_viral_window(
+            segments, total_video_duration, movie_title,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            target_duration=target_duration,
+        )
 
 
 def format_cinerush_title(title: str, fallback_topic: str) -> str:
@@ -154,9 +176,15 @@ def _heuristic_viral_window(
     segments: list[dict[str, Any]],
     total_video_duration: float,
     movie_title: str,
+    min_duration: float = CINERUSH_MIN_DURATION,
+    max_duration: float = CINERUSH_MAX_DURATION,
+    target_duration: float = CINERUSH_TARGET_DURATION,
 ) -> dict[str, Any]:
-    """Finds highest dialogue density window between 90 and 175s."""
-    target_len = min(120.0, max(30.0, total_video_duration))
+    """Find the highest dialogue-density window within the Shorts bounds."""
+    available_duration = max(0.0, float(total_video_duration))
+    effective_max = min(float(max_duration), available_duration)
+    effective_min = min(float(min_duration), effective_max)
+    target_len = min(max(float(target_duration), effective_min), effective_max)
     best_start = 0.0
     best_words_count = -1
 
@@ -183,6 +211,10 @@ def _heuristic_viral_window(
     return {
         "clip_start": clip_start,
         "clip_end": clip_end,
+        "selection_duration": round(clip_end - clip_start, 2),
+        "requested_min_duration": round(effective_min, 2),
+        "requested_max_duration": round(effective_max, 2),
+        "target_duration": round(target_len, 2),
         "title": title,
         "description": f"{title}\n\nUnforgettable moment from {movie_title}. Watch until the end.\n\n#film #movie #shorts",
         "tags": ["film", "movie", "shorts", "cinerush", "cinema", "scene", "hollywood"],
@@ -195,6 +227,7 @@ def build_trimmed_timeline(
     clip_end: float,
     silence_threshold: float = 2.0,
     speech_padding: float = 0.35,
+    minimum_duration: float | None = None,
 ) -> tuple[list[tuple[float, float]], list[dict[str, Any]], float]:
     """
     Applies Cinerush fast-paced dead-air trimming (jump cuts):
@@ -256,6 +289,24 @@ def build_trimmed_timeline(
                 merged_intervals[-1] = (prev_s, max(prev_e, intv[1]))
             else:
                 merged_intervals.append((intv[0], intv[1]))
+
+    # Restore enough real footage to meet the normal duration floor without stretching.
+    if minimum_duration is not None:
+        target_minimum = max(0.0, float(minimum_duration))
+        current_duration = sum(e - s for s, e in merged_intervals)
+        if current_duration < target_minimum:
+            gaps: list[tuple[float, int, float, float]] = []
+            for index in range(len(merged_intervals) - 1):
+                left_end = merged_intervals[index][1]
+                right_start = merged_intervals[index + 1][0]
+                if right_start > left_end:
+                    gaps.append((right_start - left_end, index, left_end, right_start))
+            for gap_size, index, left_end, right_start in sorted(gaps):
+                if current_duration >= target_minimum:
+                    break
+                merged_intervals[index] = (merged_intervals[index][0], right_start)
+                merged_intervals[index + 1] = (right_start, merged_intervals[index + 1][1])
+                current_duration += gap_size
 
     # 3. Recalculate shifted word timestamps along the concatenated timeline
     shifted_words: list[dict[str, Any]] = []

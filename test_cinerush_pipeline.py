@@ -102,6 +102,19 @@ class TestCinerushViralSelector(unittest.TestCase):
         # Verify emojis present
         self.assertTrue("🔥" in title or "🎬" in title or "♠️" in title)
 
+    def test_minimum_duration_restores_real_gap_without_changing_words(self):
+        words = [
+            {"word": "First", "start": 0.0, "end": 1.0},
+            {"word": "Second", "start": 5.0, "end": 6.0},
+        ]
+        intervals, shifted, duration = build_trimmed_timeline(
+            words, 0.0, 6.0, minimum_duration=5.0
+        )
+        self.assertGreaterEqual(duration, 5.0)
+        self.assertLessEqual(duration, 6.0)
+        self.assertEqual(len(shifted), 2)
+        self.assertLessEqual(shifted[0]["end"], shifted[1]["start"])
+
     def test_dead_air_trimming_cuts_silence_over_2_seconds(self):
         # 3 speech clusters separated by a 4.0s gap and a 1.0s gap
         words = [
@@ -147,8 +160,8 @@ class TestCinerushViralSelector(unittest.TestCase):
             {"start": 50.0, "end": 180.0, "words": [{"word": f"w{i}", "start": 50.0 + i, "end": 50.5 + i} for i in range(80)]},
         ]
         res = _heuristic_viral_window(segments, total_video_duration=240.0, movie_title="Test Movie")
-        self.assertGreaterEqual(res["clip_end"] - res["clip_start"], 90.0)
-        self.assertLessEqual(res["clip_end"] - res["clip_start"], 175.0)
+        self.assertGreaterEqual(res["clip_end"] - res["clip_start"], 45.0)
+        self.assertLessEqual(res["clip_end"] - res["clip_start"], 58.0)
         self.assertIn("#film #movie #shorts", res["title"])
 
 

@@ -26,6 +26,12 @@ from cinerush_viral_selector import select_viral_segment, build_trimmed_timeline
 from cinerush_face_reframer import render_shot_locked_cinerush_video
 from cinerush_subtitles import generate_cinerush_karaoke_ass, burn_karaoke_subtitles
 from movie_pipeline_state import assert_upload_cadence_allowed, load_history
+from movie_quality import (
+    CINERUSH_QUICK_TEST_DURATION,
+    DEFAULT_CINERUSH_MIN_DURATION,
+    DEFAULT_CINERUSH_TARGET_DURATION,
+    validate_cinerush_duration_policy,
+)
 
 try:
     from google.oauth2.credentials import Credentials
@@ -171,6 +177,8 @@ def run_cinerush_pipeline(
     video_file: str | Path | None = None,
     dry_run: bool = False,
     test_mode: bool = False,
+    quick_test: bool = False,
+    max_duration: float | None = None,
     output_dir: Path = Path("output"),
     profile: str = "cinerush_style",
     movie_meta: dict[str, Any] | None = None,
@@ -181,8 +189,18 @@ def run_cinerush_pipeline(
     """
     Executes the full end-to-end Cinerush pipeline with active face-tracking reframer and karaoke subtitles.
     """
+    quick_test = bool(quick_test or test_mode)
+    min_duration, duration_ceiling = validate_cinerush_duration_policy(
+        max_duration=max_duration,
+        min_duration=DEFAULT_CINERUSH_MIN_DURATION,
+        quick_test=quick_test,
+    )
+    if quick_test:
+        dry_run = True
     log("=" * 65)
-    log(f"🎬 STARTING CINERUSH RAW MOVIE SCENE CLIPPER (profile={profile})")
+    mode_label = "quick-test" if quick_test else "normal"
+    log(f"🎬 STARTING CINERUSH RAW MOVIE SCENE CLIPPER (profile={profile}, mode={mode_label})")
+    log(f"⏱️ Cinerush duration contract: {min_duration:.1f}s minimum, {duration_ceiling:.1f}s maximum")
     log("=" * 65)
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -213,17 +231,21 @@ def run_cinerush_pipeline(
         segments=segments,
         total_video_duration=total_dur,
         movie_title=scene_title,
+        min_duration=min_duration if not quick_test else 1.0,
+        max_duration=duration_ceiling,
+        target_duration=DEFAULT_CINERUSH_TARGET_DURATION if not quick_test else CINERUSH_QUICK_TEST_DURATION,
     )
     clip_start = viral_data["clip_start"]
     clip_end = viral_data["clip_end"]
-    if test_mode:
-        clip_end = min(total_dur, clip_start + 12.0)
-        log(f"⚡ Test mode: capped window to 12.0s ({clip_start:.2f}s -> {clip_end:.2f}s) for rapid local verification.")
+    if quick_test:
+        clip_end = min(total_dur, clip_start + CINERUSH_QUICK_TEST_DURATION)
+        log(f"⚡ Quick-test mode: capped window to {CINERUSH_QUICK_TEST_DURATION:.1f}s ({clip_start:.2f}s -> {clip_end:.2f}s) for rapid verification.")
 
     keep_intervals, shifted_words, trimmed_dur = build_trimmed_timeline(
         all_words=all_words,
         clip_start=clip_start,
         clip_end=clip_end,
+        minimum_duration=min_duration if not quick_test else None,
     )
 
     # Step 4: Active Face-Tracking Reframer (1:1 square for cinerush_style, 9:16 for shorts_9x16)
@@ -241,6 +263,26 @@ def run_cinerush_pipeline(
 
     final_short_path = output_dir / f"cinerush_short_{timestamp_str}.mp4"
     burn_karaoke_subtitles(reframed_path, ass_path, final_short_path)
+
+    # Verify the encoded output before any upload attempt.
+    measured_output_duration = 0.0
+    probe_cmd = [
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "default=nw=1:nk=1", str(final_short_path),
+    ]
+    probe = subprocess.run(probe_cmd, capture_output=True, text=True, check=False)
+    try:
+        measured_output_duration = float(probe.stdout.strip())
+    except (TypeError, ValueError):
+        raise RuntimeError("Unable to measure rendered Cinerush output duration") from None
+    if quick_test:
+        if measured_output_duration <= 0 or measured_output_duration > duration_ceiling + 0.5:
+            raise RuntimeError(f"Quick-test output duration {measured_output_duration:.2f}s exceeds the smoke-test limit")
+    elif measured_output_duration < min_duration - 0.5 or measured_output_duration > duration_ceiling + 0.5:
+        raise RuntimeError(
+            f"Cinerush output duration {measured_output_duration:.2f}s is outside the normal "
+            f"{min_duration:.1f}-{duration_ceiling:.1f}s contract"
+        )
 
     # Step 6: Generate Thumbnail
     thumb_path = output_dir / f"thumb_{timestamp_str}.jpg"
@@ -289,6 +331,11 @@ def run_cinerush_pipeline(
         "clip_start": clip_start,
         "clip_end": clip_end,
         "trimmed_duration": trimmed_dur,
+        "measured_output_duration": round(measured_output_duration, 3),
+        "duration_mode": "quick_test" if quick_test else "normal",
+        "requested_min_duration": min_duration,
+        "requested_target_duration": CINERUSH_QUICK_TEST_DURATION if quick_test else DEFAULT_CINERUSH_TARGET_DURATION,
+        "requested_max_duration": duration_ceiling,
         "keep_intervals": keep_intervals,
         "words_count": len(shifted_words),
         "output_file": str(final_short_path.resolve()),
@@ -315,6 +362,8 @@ def run_cinerush_pipeline(
     log(f"🎬 CINERUSH PIPELINE COMPLETE! Rendered: {final_short_path.name}")
     if youtube_id:
         log(f"🔗 YouTube Short Live: https://youtube.com/shorts/{youtube_id}")
+    elif dry_run:
+        log("ℹ️ Dry-run mode enabled: YouTube upload is disabled.")
     log("=" * 65)
 
     return manifest

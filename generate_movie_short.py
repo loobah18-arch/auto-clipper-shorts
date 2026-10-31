@@ -415,8 +415,13 @@ def run_pipeline(
     profile: str = "cinerush_style",
     allow_unreviewed_rights: bool = False,
     allow_duplicate: bool = False,
+    quick_test: bool = False,
 ) -> Path:
     """Execute the Cinerush movie scene Short pipeline and persist its outcome."""
+    if quick_test:
+        if force_upload:
+            raise ValueError("--quick-test cannot be combined with --upload")
+        dry_run = True
     if os.environ.get("CINERUSH_MODE", "true").lower() == "true":
         from cinerush_pipeline import run_cinerush_pipeline
         from movie_video_engine import parse_timestamp_to_seconds, resolve_part_window
@@ -489,19 +494,27 @@ def run_pipeline(
                 "gdrive_file_name": gdrive_source["file_name"],
             },
             dry_run=dry_run and not force_upload,
+            quick_test=quick_test,
+            max_duration=max_duration,
             profile=profile,
             movie_meta=movie_data,
         )
 
         # Step 5: Update Series Sequence Progression & Upload History
         history = load_movie_history(HISTORY_FILE)
-        if part_number is not None and total_parts is not None:
-            update_series_progress(history, movie_id, title, part_number, total_parts)
-            log(f"📈 Series progression advanced: {title} (Part {part_number}/{total_parts})")
+        if not dry_run:
+            if part_number is not None and total_parts is not None:
+                update_series_progress(history, movie_id, title, part_number, total_parts)
+                log(f"📈 Series progression advanced: {title} (Part {part_number}/{total_parts})")
 
         short_id = manifest.get("youtube_id")
         normal_id = manifest.get("normal_video_id")
         pair_uploaded = bool(short_id and normal_id)
+        if dry_run:
+            if candidate_scene and candidate_scene.exists():
+                candidate_scene.unlink(missing_ok=True)
+            return Path(manifest["output_file"])
+
         append_history_entry(history, {
             "movie_id": movie_id,
             "title": manifest.get("title", title),
@@ -1235,8 +1248,9 @@ def main():
     parser.add_argument("--voice", type=str, default=None, help="Edge-TTS voice (default: en-US-ChristopherNeural RecapKun / Bhaloo Ji signature storyteller voice)")
     parser.add_argument("--lang", type=str, choices=["en", "hi"], default="en", help="Language: 'en' or 'hi'")
     mode_group = parser.add_mutually_exclusive_group()
-    mode_group.add_argument("--dry-run", action="store_true", help="Render in the cloud without uploading to YouTube")
+    mode_group.add_argument("--dry-run", action="store_true", help="Render the normal 45-58 second Short without uploading")
     mode_group.add_argument("--upload", action="store_true", help="Force upload to YouTube")
+    parser.add_argument("--quick-test", action="store_true", help="Render an approximately 12-second smoke test; never upload")
     parser.add_argument("--list", action="store_true", help="List catalog movies, multi-part series, and upload history")
     parser.add_argument("--video-file", type=str, default=None, help="Path to local high-res movie or scene pack MP4/MKV")
     parser.add_argument("--audio-file", type=str, default=None, help="Path to custom human-recorded voiceover MP3/WAV")
@@ -1302,6 +1316,7 @@ def main():
         profile=args.profile,
         allow_unreviewed_rights=args.allow_unreviewed_rights,
         allow_duplicate=args.allow_duplicate,
+        quick_test=args.quick_test,
     )
 
 

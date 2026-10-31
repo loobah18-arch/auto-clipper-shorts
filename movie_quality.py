@@ -10,12 +10,32 @@ from typing import Any
 
 # Default safe duration ceiling for Shorts: 58.0 seconds (leaves a 2.0s buffer below YouTube's 60.0s hard cap)
 DEFAULT_SHORTS_MAX_DURATION = 58.0
+DEFAULT_CINERUSH_MIN_DURATION = 45.0
+DEFAULT_CINERUSH_TARGET_DURATION = 54.0
+CINERUSH_QUICK_TEST_DURATION = 12.0
 SHORTS_HARD_CAP = 60.0
 MIN_SHORT_DURATION = 10.0
 DEFAULT_LONG_VIDEO_MAX_DURATION = 14400.0  # 4 hours
 
 MAX_SHORT_DURATION = float(os.environ.get("MAX_SHORT_DURATION", str(DEFAULT_SHORTS_MAX_DURATION)))
 EXPECTED_WIDTH = 1080
+
+
+def validate_cinerush_duration_policy(
+    max_duration: float | None = None,
+    min_duration: float = DEFAULT_CINERUSH_MIN_DURATION,
+    quick_test: bool = False,
+) -> tuple[float, float]:
+    """Return the normal Cinerush minimum/maximum duration contract."""
+    if quick_test:
+        return 0.0, CINERUSH_QUICK_TEST_DURATION
+    ceiling = validate_duration_policy(max_duration=max_duration, profile="shorts")
+    minimum = float(min_duration)
+    if minimum < 1.0 or minimum > ceiling:
+        raise ConfigurationError(
+            f"Cinerush minimum duration must be between 1.0s and {ceiling:.1f}s, got {minimum:.2f}s"
+        )
+    return minimum, ceiling
 EXPECTED_HEIGHT = 1920
 
 # Source types that carry no licensed footage. A render built from these is
