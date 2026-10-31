@@ -26,6 +26,7 @@ from cinerush_viral_selector import select_viral_segment, build_trimmed_timeline
 from cinerush_face_reframer import render_shot_locked_cinerush_video
 from cinerush_subtitles import generate_cinerush_karaoke_ass, burn_karaoke_subtitles
 from cinerush_shutter_sfx import apply_camera_shutter_transitions
+from cinerush_bgm import apply_cinerush_bgm
 from movie_pipeline_state import assert_upload_cadence_allowed, load_history
 from movie_quality import (
     CINERUSH_QUICK_TEST_DURATION,
@@ -275,6 +276,17 @@ def run_cinerush_pipeline(
         if sfx_result != reframed_path and reframed_with_sfx.exists():
             reframed_path.unlink(missing_ok=True)
             reframed_path = reframed_with_sfx
+
+    # Step 4.6: Mix Rayalo / Rayelo background music under dialogue
+    reframed_with_bgm = output_dir / f"cinerush_reframed_bgm_{timestamp_str}.mp4"
+    bgm_result = apply_cinerush_bgm(
+        video_path=reframed_path,
+        output_path=reframed_with_bgm,
+        bgm_volume=float(os.environ.get("BGM_VOLUME", "0.12")),
+    )
+    if bgm_result != reframed_path and reframed_with_bgm.exists():
+        reframed_path.unlink(missing_ok=True)
+        reframed_path = reframed_with_bgm
 
     # Step 5: Dynamic Karaoke Word-Highlighted Subtitles
     ass_path = output_dir / f"cinerush_subtitles_{timestamp_str}.ass"

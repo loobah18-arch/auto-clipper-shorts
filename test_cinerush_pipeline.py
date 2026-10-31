@@ -535,5 +535,28 @@ class TestCinerushSeriesProgression(unittest.TestCase):
         self.assertTrue(history["current_series"]["completed"])
 
 
+class TestCinerushBGM(unittest.TestCase):
+    def test_resolve_cinerush_bgm_defaults_to_rayalo(self):
+        from cinerush_bgm import resolve_cinerush_bgm
+        resolved = resolve_cinerush_bgm()
+        self.assertIsNotNone(resolved)
+        self.assertTrue(resolved.exists())
+        self.assertIn("ray", resolved.name.lower())
+
+    def test_resolve_cinerush_bgm_supports_aliases(self):
+        from cinerush_bgm import resolve_cinerush_bgm
+        self.assertIsNotNone(resolve_cinerush_bgm("rayalo"))
+        self.assertIsNotNone(resolve_cinerush_bgm("rayelo"))
+        self.assertIsNotNone(resolve_cinerush_bgm("rayelo_ultraslowed.mp3"))
+
+    def test_apply_cinerush_bgm_missing_video_falls_back(self):
+        from cinerush_bgm import apply_cinerush_bgm
+        dummy_v = Path("non_existent_video_123.mp4")
+        out = Path("non_existent_out_123.mp4")
+        # Should gracefully return original video_path without crashing
+        res = apply_cinerush_bgm(dummy_v, out)
+        self.assertEqual(res, dummy_v)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -68,6 +68,7 @@ ASSETS_DIR = WORKSPACE_DIR / "assets"
 BGM_DIR = ASSETS_DIR / "bgm"
 
 NON_COPYRIGHT_BGM_TRACKS = [
+    "rayelo_ultraslowed.mp3",
     "aerohead_fragments_recap.mp3",
     "hot_heat_topher_mohr.mp3",
     "cinematic_suspense_thriller.mp3",
@@ -77,8 +78,8 @@ NON_COPYRIGHT_BGM_TRACKS = [
     "cozy_cafe_guitar.mp3",
     "snowfall_calm_aesthetic.mp3",
 ]
-DEFAULT_RECAPPERS_BGM = BGM_DIR / "aerohead_fragments_recap.mp3"
-DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "aerohead_fragments_recap.mp3"
+DEFAULT_RECAPPERS_BGM = BGM_DIR / "rayelo_ultraslowed.mp3"
+DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "rayelo_ultraslowed.mp3"
 KNOWN_COPYRIGHTED_BGM = {
     "feeling_blue.mp3",
     "mitski_washing_machine_heart.mp3",
@@ -89,19 +90,35 @@ KNOWN_COPYRIGHTED_BGM = {
 def resolve_non_copyright_bgm(bgm_path: Path | str | None) -> Path | None:
     """Ensure that verified viral recapper music is used.
 
-    Defaults to Mitski Washing Machine Heart (from viral Movrecap shorts)
-    or the verified royalty-free suspense thriller track.
+    Defaults to Rayalo / Rayelo Slowed Phonk (matching viral Shorts)
+    with seamless fallback to aerohead_fragments_recap.mp3.
     """
     if bgm_path is None:
-        default_track = DEFAULT_RECAPPERS_BGM if DEFAULT_RECAPPERS_BGM.exists() else DEFAULT_NON_COPYRIGHT_BGM
-        return default_track if default_track.exists() else None
+        if DEFAULT_RECAPPERS_BGM.exists():
+            return DEFAULT_RECAPPERS_BGM
+        fallback = BGM_DIR / "aerohead_fragments_recap.mp3"
+        return fallback if fallback.exists() else None
+
+    # Handle alias keywords
+    str_val = str(bgm_path).lower().strip()
+    if str_val in ("rayalo", "rayelo", "rayelo_ultraslowed", "rayalo.mp3", "rayelo.mp3", "rayelo_ultraslowed.mp3"):
+        for cand in ("rayelo_ultraslowed.mp3", "rayalo.mp3", "rayelo.mp3"):
+            p = BGM_DIR / cand
+            if p.exists():
+                return p
+
     path = Path(bgm_path)
     if path.name.lower() in KNOWN_COPYRIGHTED_BGM:
         log(f"⚠️ Copyright warning: '{path.name}' is a known copyrighted track! Switching to royalty-free BGM: {DEFAULT_NON_COPYRIGHT_BGM.name}")
-        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else None
+        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else (BGM_DIR / "aerohead_fragments_recap.mp3")
+
     if not path.exists():
+        # Check inside BGM_DIR
+        candidate = BGM_DIR / path.name
+        if candidate.exists():
+            return candidate
         log(f"⚠️ BGM file '{path}' not found; falling back to {DEFAULT_NON_COPYRIGHT_BGM.name}")
-        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else None
+        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else (BGM_DIR / "aerohead_fragments_recap.mp3")
     return path
 
 

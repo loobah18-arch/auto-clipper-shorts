@@ -230,7 +230,7 @@ class TestMoviePipeline(unittest.TestCase):
         resolved = resolve_non_copyright_bgm(None)
         self.assertIsNotNone(resolved)
         self.assertTrue(resolved.exists())
-        self.assertIn(resolved.name, ["aerohead_fragments_recap.mp3", "hot_heat_topher_mohr.mp3", "cinematic_suspense_thriller.mp3", "cinematic_suspense_drone.mp3"])
+        self.assertIn(resolved.name, ["rayelo_ultraslowed.mp3", "rayalo.mp3", "aerohead_fragments_recap.mp3", "hot_heat_topher_mohr.mp3", "cinematic_suspense_thriller.mp3", "cinematic_suspense_drone.mp3"])
 
     def test_subtitle_ass_generation(self):
         words = [
@@ -307,7 +307,7 @@ class TestMoviePipeline(unittest.TestCase):
         """Non-copyright BGM is enabled by default and verified royalty-free."""
         from movie_video_engine import resolve_non_copyright_bgm, DEFAULT_NON_COPYRIGHT_BGM
         self.assertTrue(
-            (BGM_DIR / "aerohead_fragments_recap.mp3").exists(),
+            (BGM_DIR / "rayelo_ultraslowed.mp3").exists() or (BGM_DIR / "aerohead_fragments_recap.mp3").exists(),
             "the configured non-copyright BGM track must exist in assets/bgm/",
         )
         orchestrator = (WORKSPACE_DIR / "generate_movie_short.py").read_text(encoding="utf-8")
