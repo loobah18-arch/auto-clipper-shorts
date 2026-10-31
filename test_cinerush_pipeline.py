@@ -160,7 +160,7 @@ class TestCinerushViralSelector(unittest.TestCase):
             {"start": 50.0, "end": 180.0, "words": [{"word": f"w{i}", "start": 50.0 + i, "end": 50.5 + i} for i in range(80)]},
         ]
         res = _heuristic_viral_window(segments, total_video_duration=240.0, movie_title="Test Movie")
-        self.assertGreaterEqual(res["clip_end"] - res["clip_start"], 45.0)
+        self.assertGreaterEqual(res["clip_end"] - res["clip_start"], 50.0)
         self.assertLessEqual(res["clip_end"] - res["clip_start"], 58.0)
         self.assertIn("#film #movie #shorts", res["title"])
 
@@ -451,6 +451,26 @@ class TestCinerushKaraokeSubtitles(unittest.TestCase):
         finally:
             if ass_path.exists():
                 ass_path.unlink()
+
+
+class TestCinerushShutterSFX(unittest.TestCase):
+    def test_ensure_shutter_sfx_creates_valid_wav(self):
+        from cinerush_shutter_sfx import ensure_camera_shutter_sfx
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            sfx = ensure_camera_shutter_sfx(tmp_path)
+            self.assertTrue(sfx.exists())
+            self.assertGreater(sfx.stat().st_size, 1000)
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    def test_apply_shutter_skips_when_no_cuts(self):
+        from cinerush_shutter_sfx import apply_camera_shutter_transitions
+        dummy = Path("dummy.mp4")
+        out = Path("dummy_out.mp4")
+        result = apply_camera_shutter_transitions(dummy, [], out)
+        self.assertEqual(result, dummy)
 
 
 class TestCinerushSeriesProgression(unittest.TestCase):

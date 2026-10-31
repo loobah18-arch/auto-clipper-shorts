@@ -31,8 +31,8 @@ def format_transcript_for_prompt(segments: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-CINERUSH_MIN_DURATION = 45.0
-CINERUSH_TARGET_DURATION = 54.0
+CINERUSH_MIN_DURATION = 50.0
+CINERUSH_TARGET_DURATION = 55.0
 CINERUSH_MAX_DURATION = 58.0
 
 
@@ -98,18 +98,28 @@ Return ONLY a valid JSON object matching this schema:
     try:
         from groq import Groq
         client = Groq(api_key=api_key)
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": "You are a specialized viral YouTube Shorts video editor for Cinerush."},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3,
-            max_tokens=600,
-        )
-        content = response.choices[0].message.content
-        data = json.loads(content)
+        data = None
+        for model_id in ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"]:
+            try:
+                response = client.chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": "You are a specialized viral YouTube Shorts video editor for Cinerush."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.3,
+                    max_tokens=600,
+                )
+                content = response.choices[0].message.content
+                data = json.loads(content)
+                break
+            except Exception as model_err:
+                log(f"   ↳ Model '{model_id}' failed: {model_err}")
+                continue
+
+        if not data:
+            raise RuntimeError("All Groq models failed to return valid JSON window")
 
         clip_start = float(data.get("clip_start", default_start))
         clip_end = float(data.get("clip_end", default_end))
@@ -225,15 +235,16 @@ def build_trimmed_timeline(
     all_words: list[dict[str, Any]],
     clip_start: float,
     clip_end: float,
-    silence_threshold: float = 2.0,
-    speech_padding: float = 0.35,
+    silence_threshold: float = 2.5,
+    speech_padding: float = 0.50,
     minimum_duration: float | None = None,
 ) -> tuple[list[tuple[float, float]], list[dict[str, Any]], float]:
     """
     Applies Cinerush fast-paced dead-air trimming (jump cuts):
-    - Cuts gaps > 2.0s between dialogue lines
-    - Retains 0.35s speech buffer before and after words
-    - Leaves natural brief dramatic pauses (< 2.0s) intact
+    - Cuts gaps > 2.5s between dialogue lines (never cuts while dialogue is active)
+    - Retains 0.50s speech buffer before and after words to avoid clipping dialogue
+    - Preserves natural dramatic pauses (< 2.5s) intact
+    - Guarantees minimum duration by restoring pauses and outer boundaries without stretching
     - Recalculates shifted word timestamps for 100% accurate subtitle sync along the trimmed timeline.
 
     Returns:
@@ -262,7 +273,13 @@ def build_trimmed_timeline(
         w_next = window_words[i + 1]
 
         gap = w_next["start"] - w_curr["end"]
-        if gap > silence_threshold:
+        # Only cut if silence gap exceeds threshold. Mid-sentence words without terminal punctuation
+        # are granted an extended threshold (3.5s) so sentences are never cut in half.
+        curr_text = str(w_curr.get("word", "")).strip()
+        has_terminal_punct = bool(re.search(r"[\.!\?]$|--$|—$", curr_text))
+        effective_threshold = silence_threshold if has_terminal_punct else max(silence_threshold, 3.5)
+
+        if gap > effective_threshold:
             # Silence gap is too long: end current interval and start new interval
             current_interval[1] = min(clip_end, w_curr["end"] + speech_padding)
             if current_interval[1] > current_interval[0]:
@@ -270,7 +287,7 @@ def build_trimmed_timeline(
             new_start = max(clip_start, w_next["start"] - speech_padding)
             current_interval = [new_start, w_next["end"] + speech_padding]
         else:
-            # Gap <= 2.0s: keep intact (preserves dramatic acting/pauses)
+            # Gap <= threshold: keep intact (preserves dramatic acting/pauses)
             current_interval[1] = max(current_interval[1], w_next["end"] + speech_padding)
 
     # Finish last interval
@@ -307,6 +324,36 @@ def build_trimmed_timeline(
                 merged_intervals[index] = (merged_intervals[index][0], right_start)
                 merged_intervals[index + 1] = (right_start, merged_intervals[index + 1][1])
                 current_duration += gap_size
+
+            # Consolidate touching intervals
+            consolidated: list[list[float]] = []
+            for s, e in merged_intervals:
+                if not consolidated:
+                    consolidated.append([s, e])
+                elif s <= consolidated[-1][1] + 0.05:
+                    consolidated[-1][1] = max(consolidated[-1][1], e)
+                else:
+                    consolidated.append([s, e])
+
+            current_duration = sum(e - s for s, e in consolidated)
+            # If still under target_minimum, expand outer boundaries towards clip_start and clip_end
+            if current_duration < target_minimum and consolidated:
+                needed = target_minimum - current_duration
+                available_left = max(0.0, consolidated[0][0] - clip_start)
+                expand_left = min(available_left, needed / 2.0)
+                consolidated[0][0] -= expand_left
+                needed -= expand_left
+
+                available_right = max(0.0, clip_end - consolidated[-1][1])
+                expand_right = min(available_right, needed)
+                consolidated[-1][1] += expand_right
+                needed -= expand_right
+
+                if needed > 0 and consolidated[0][0] > clip_start:
+                    extra_left = min(max(0.0, consolidated[0][0] - clip_start), needed)
+                    consolidated[0][0] -= extra_left
+
+            merged_intervals = [(round(s, 3), round(e, 3)) for s, e in consolidated]
 
     # 3. Recalculate shifted word timestamps along the concatenated timeline
     shifted_words: list[dict[str, Any]] = []

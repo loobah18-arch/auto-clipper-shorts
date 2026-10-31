@@ -433,7 +433,8 @@ def render_shot_locked_cinerush_video(
                     "is_wide": is_wide,
                 })
 
-            for plan in shot_plans:
+            total_plans = len(shot_plans)
+            for plan_idx, plan in enumerate(shot_plans):
                 shot_start = plan["start"]
                 shot_end = plan["end"]
                 x_start = plan["x_start"]
@@ -442,9 +443,18 @@ def render_shot_locked_cinerush_video(
                 shot_dur = max(0.05, shot_end - shot_start)
                 seg_out = temp_dir / f"seg_{seg_idx:04d}.mp4"
 
-                # Audio fade: 30ms in, 30ms out to prevent clicks
-                fade_dur = min(0.03, shot_dur / 4.0)
-                af = f"afade=t=in:st=0:d={fade_dur:.3f},afade=t=out:st={max(0, shot_dur - fade_dur):.3f}:d={fade_dur:.3f}"
+                # Audio fade: only fade at interval edges (jump cut points), NEVER mid-dialogue
+                # Internal sub-windows inside the same interval stay 100% continuous without audio dips
+                is_first_in_interval = (plan_idx == 0)
+                is_last_in_interval = (plan_idx == total_plans - 1)
+                audio_filters = []
+                if is_first_in_interval:
+                    fade_in_dur = min(0.040, shot_dur / 3.0)
+                    audio_filters.append(f"afade=t=in:st=0:d={fade_in_dur:.3f}")
+                if is_last_in_interval:
+                    fade_out_dur = min(0.040, shot_dur / 3.0)
+                    audio_filters.append(f"afade=t=out:st={max(0, shot_dur - fade_out_dur):.3f}:d={fade_out_dur:.3f}")
+                af = ",".join(audio_filters) if audio_filters else "anull"
 
                 # Video filter:
                 # 1. Wide shot in 9:16 -> blurred background composite to prevent cutting actors
@@ -458,7 +468,7 @@ def render_shot_locked_cinerush_video(
                 # 2. Moving subject -> smooth camera pan tracking
                 elif x_start != x_end and target_mode != "landscape_16x9":
                     vf = (
-                        f"crop={crop_w}:{crop_h}:x='clip({x_start}+({x_end}-{x_start})*t/{shot_dur:.3f},0,in_w-out_w)':0,"
+                        f"crop=w={crop_w}:h={crop_h}:x='clip({x_start}+({x_end}-{x_start})*t/{shot_dur:.3f},0,in_w-out_w)':y=0,"
                         f"scale={out_w}:{out_h}:flags=lanczos,setsar=1,fps=30"
                     )
                 # 3. Static centered crop

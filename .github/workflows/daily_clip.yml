@@ -253,7 +253,7 @@ jobs:
           import sys
           duration = float(sys.argv[1])
           quick = sys.argv[2] == "true"
-          low, high = ((1.0, 12.5) if quick else (45.0, 58.0))
+          low, high = ((1.0, 12.5) if quick else (50.0, 58.0))
           if not low <= duration <= high:
               raise SystemExit(f"duration {duration:.2f}s outside {low:.1f}-{high:.1f}s contract")
           print(f"Verified Cinerush duration: {duration:.2f}s")
