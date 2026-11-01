@@ -297,8 +297,9 @@ def run_cinerush_pipeline(
     bgm_result = apply_cinerush_bgm(
         video_path=reframed_path,
         output_path=reframed_with_bgm,
-        bgm_volume=float(os.environ.get("CINERUSH_BGM_VOLUME", "0.26")),
+        bgm_volume=float(os.environ.get("CINERUSH_BGM_VOLUME", "0.18")),
         speech_intervals=speech_intervals,
+        raw_clip_volume=float(os.environ.get("CINERUSH_RAW_CLIP_VOLUME", "1.40")),
     )
     if bgm_result != reframed_path and reframed_with_bgm.exists():
         reframed_path.unlink(missing_ok=True)

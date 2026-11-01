@@ -1574,7 +1574,7 @@ def render_movie_explanation_short(
     - Crystal clear voiceover with smoothly ducked BGM and fade transitions
     """
     if bgm_volume is None:
-        bgm_volume = float(os.environ.get("BGM_VOLUME", "0.12"))
+        bgm_volume = float(os.environ.get("BGM_VOLUME", "0.08"))
 
     active_profile = resolve_profile(profile if profile else "shorts_9x16")
     is_long = (active_profile.profile_type == ProfileType.LANDSCAPE)

@@ -111,13 +111,16 @@ def apply_cinerush_bgm(
     video_path: Path,
     output_path: Path,
     bgm_path: Path | str | None = None,
-    bgm_volume: float = 0.28,
+    bgm_volume: float = 0.18,
     speech_intervals: list[tuple[float, float]] | None = None,
+    raw_clip_volume: float = 1.40,
 ) -> Path:
     """Mixes background music underneath the video's audio with automatic speech ducking.
 
-    - When dialogue is spoken: BGM automatically ducks down (~0.06-0.08) so speech is crystal clear.
-    - When dialogue stops / during pauses: BGM smoothly swells back up to full presence (bgm_volume ~0.28).
+    - Raw Clip Volume: Dialogue audio is boosted (default 1.40x) with normalize=0 so dialogue is loud and crisp.
+    - Base BGM Volume: Subtle background music bed (default 0.18x).
+    - Dialogue Active: BGM automatically ducks down (~0.04-0.05) so dialogue punches through with clarity.
+    - Dialogue Finished / Pauses: BGM smoothly swells back up to base presence (0.18x).
     - Uses sidechain compression with video stream-copying for instantaneous, zero-loss performance.
     """
     resolved_bgm = resolve_cinerush_bgm(bgm_path)
@@ -144,16 +147,27 @@ def apply_cinerush_bgm(
     except (ValueError, TypeError):
         release_ms = 850
 
+    try:
+        bgm_volume = float(os.environ.get("CINERUSH_BGM_VOLUME", str(bgm_volume)))
+    except (ValueError, TypeError):
+        pass
+
+    try:
+        raw_clip_volume = float(os.environ.get("CINERUSH_RAW_CLIP_VOLUME", str(raw_clip_volume)))
+    except (ValueError, TypeError):
+        raw_clip_volume = 1.40
+
     if speech_intervals:
         key_wav = output_path.parent / f"duck_key_{output_path.stem}.wav"
         generate_speech_key_signal(key_wav, video_dur, speech_intervals)
-        log(f"🎵 Applying auto-ducking BGM '{resolved_bgm.name}' (full={bgm_volume:.2f}, auto-ducked during speech, release={release_ms}ms)...")
+        log(f"🎵 Applying auto-ducking BGM '{resolved_bgm.name}' (raw_vol={raw_clip_volume:.2f}, bgm_base={bgm_volume:.2f}, release={release_ms}ms)...")
 
         # Sidechain compress using the speech key tone (input 2)
         fc = (
+            f"[0:a]volume={raw_clip_volume:.2f}[raw_boosted];"
             f"[1:a]volume={bgm_volume:.3f}[bgm_full];"
             f"[bgm_full][2:a]sidechaincompress=threshold=0.08:ratio=12:attack=40:release={release_ms}[bgm_ducked];"
-            f"[0:a][bgm_ducked]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+            f"[raw_boosted][bgm_ducked]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[aout]"
         )
         cmd = [
             "ffmpeg", "-y",
@@ -172,13 +186,13 @@ def apply_cinerush_bgm(
         ]
     else:
         # Acoustic sidechain ducking triggered by vocal frequency range in dialogue audio
-        log(f"🎵 Applying acoustic auto-ducking BGM '{resolved_bgm.name}' (vol={bgm_volume:.2f}, release={release_ms}ms)...")
+        log(f"🎵 Applying acoustic auto-ducking BGM '{resolved_bgm.name}' (raw_vol={raw_clip_volume:.2f}, bgm_base={bgm_volume:.2f}, release={release_ms}ms)...")
         fc = (
-            f"[0:a]asplit=2[dia_out][dia_sc];"
+            f"[0:a]volume={raw_clip_volume:.2f},asplit=2[dia_out][dia_sc];"
             f"[dia_sc]highpass=f=150,lowpass=f=3800[voice_sc];"
             f"[1:a]volume={bgm_volume:.3f}[bgm_full];"
             f"[bgm_full][voice_sc]sidechaincompress=threshold=0.02:ratio=8:attack=40:release={release_ms}[bgm_ducked];"
-            f"[dia_out][bgm_ducked]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+            f"[dia_out][bgm_ducked]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[aout]"
         )
         cmd = [
             "ffmpeg", "-y",
