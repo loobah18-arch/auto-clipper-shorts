@@ -584,6 +584,38 @@ class TestCinerushBGM(unittest.TestCase):
         res = apply_cinerush_bgm(dummy_v, out, speech_intervals=[(1.0, 2.0)])
         self.assertEqual(res, dummy_v)
 
+    def test_generate_speech_key_signal_hold_tail(self):
+        import tempfile
+        import wave
+        from cinerush_bgm import generate_speech_key_signal
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
+            wav_path = Path(tf.name)
+
+        try:
+            # Single interval ending at 1.0s; with hold_tail_sec=0.65s, the tone extends until 1.65s
+            intervals = [(0.2, 1.0)]
+            generate_speech_key_signal(wav_path, duration_sec=3.0, speech_intervals=intervals, sample_rate=8000, hold_tail_sec=0.65)
+            self.assertTrue(wav_path.exists())
+            with wave.open(str(wav_path), "rb") as wf:
+                raw_frames = wf.readframes(wf.getnframes())
+                # Samples around 1.3s (within 0.65s hold tail) must contain non-zero tone
+                frame_idx = int(1.3 * 8000)
+                samples_at_1_3s = [
+                    abs(int.from_bytes(raw_frames[(frame_idx + i)*2:(frame_idx + i + 1)*2], byteorder="little", signed=True))
+                    for i in range(8)
+                ]
+                self.assertGreater(max(samples_at_1_3s), 0)
+                # Samples at 2.5s (after hold tail) must be completely silent (0)
+                frame_idx_after = int(2.5 * 8000)
+                samples_at_2_5s = [
+                    abs(int.from_bytes(raw_frames[(frame_idx_after + i)*2:(frame_idx_after + i + 1)*2], byteorder="little", signed=True))
+                    for i in range(8)
+                ]
+                self.assertEqual(max(samples_at_2_5s), 0)
+        finally:
+            wav_path.unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     unittest.main()

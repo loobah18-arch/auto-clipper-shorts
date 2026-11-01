@@ -280,10 +280,16 @@ def run_cinerush_pipeline(
     # Step 4.6: Mix Rayalo / Rayelo background music under dialogue with intelligent auto-ducking
     reframed_with_bgm = output_dir / f"cinerush_reframed_bgm_{timestamp_str}.mp4"
     speech_intervals: list[tuple[float, float]] = []
+    # Bridge natural conversational pauses up to 1.4s so volume does not surge between lines
+    try:
+        pause_bridge_sec = float(os.environ.get("CINERUSH_PAUSE_BRIDGE_SEC", "1.4"))
+    except (ValueError, TypeError):
+        pause_bridge_sec = 1.4
+
     for w in shifted_words:
         s = max(0.0, float(w.get("start", 0.0)))
         e = max(s + 0.08, float(w.get("end", 0.0)))
-        if speech_intervals and s - speech_intervals[-1][1] <= 0.35:
+        if speech_intervals and s - speech_intervals[-1][1] <= pause_bridge_sec:
             speech_intervals[-1] = (speech_intervals[-1][0], max(speech_intervals[-1][1], e))
         else:
             speech_intervals.append((s, e))
