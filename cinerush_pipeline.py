@@ -65,6 +65,37 @@ def generate_thumbnail(video_path: Path, output_thumb: Path, timestamp: float = 
     return output_thumb
 
 
+def render_cinerush_normal_landscape_video(
+    short_video_path: Path,
+    output_normal_path: Path,
+) -> Path:
+    """Render a 16:9 widescreen (1920x1080) landscape video from a Cinerush Short.
+
+    Uses blurred, dimmed side pillars so the Short is centered for standard YouTube
+    desktop/TV players without letterboxing artifacts or duplicate stream rejection.
+    """
+    output_normal_path.parent.mkdir(parents=True, exist_ok=True)
+    fc = (
+        "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,"
+        "boxblur=25:5,eq=brightness=-0.12:saturation=1.1[bg];"
+        "[0:v]scale=-1:1080[fg];"
+        "[bg][fg]overlay=(W-w)/2:0[v]"
+    )
+    cmd = [
+        "ffmpeg", "-y", "-i", str(short_video_path),
+        "-filter_complex", fc, "-map", "[v]", "-map", "0:a",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+        "-c:a", "copy",
+        str(output_normal_path),
+    ]
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if res.returncode == 0 and output_normal_path.exists() and output_normal_path.stat().st_size > 0:
+        log(f"🎬 Rendered 16:9 normal landscape video: {output_normal_path.name}")
+        return output_normal_path
+    log(f"⚠️ Landscape render notice (code {res.returncode}); falling back to source video.")
+    return short_video_path
+
+
 def upload_cinerush_to_youtube(
     video_path: Path,
     thumb_path: Path,
@@ -99,15 +130,29 @@ def upload_cinerush_to_youtube(
         )
         youtube = build("youtube", "v3", credentials=creds)
 
-        title = meta.get("title", "Insane Movie Scene 🎬🔥 #film #movie #shorts")[:100]
-        if not is_short:
-            title = meta.get("normal_title", f"{title} | Full Scene")[:100]
-        desc = meta.get("description", f"{title}\n\n#film #movie #shorts")
-        if not is_short:
-            desc = meta.get("normal_description", f"{title}\n\nFull movie scene commentary.")
-        tags = meta.get("tags", ["film", "movie", "shorts", "cinerush", "cinema"])
-        if not is_short:
-            tags = [tag for tag in tags if tag != "shorts"] + ["movie scene", "full scene"]
+        raw_title = meta.get("title", "Insane Movie Scene 🎬🔥 #film #movie #shorts")
+        raw_desc = meta.get("description", f"{raw_title}\n\n#film #movie #shorts")
+        raw_tags = list(meta.get("tags", ["film", "movie", "shorts", "cinerush", "cinema"]))
+
+        if is_short:
+            title = raw_title[:100]
+            desc = raw_desc
+            tags = raw_tags
+        else:
+            # Strip all shorts hashtag occurrences from title and description
+            clean_title = re.sub(r"#\s*shorts?\b", "", raw_title, flags=re.IGNORECASE)
+            clean_title = re.sub(r"\s+", " ", clean_title).strip()
+            default_normal_title = f"{clean_title} | Full Scene Clip" if clean_title else "Insane Movie Scene 🎬🔥 | Full Scene Clip"
+            title = meta.get("normal_title", default_normal_title)[:100]
+
+            clean_desc = re.sub(r"#\s*shorts?\b", "", raw_desc, flags=re.IGNORECASE)
+            clean_desc = re.sub(r"\n{3,}", "\n\n", clean_desc).strip()
+            default_normal_desc = f"{clean_desc}\n\n🎬 Full movie scene clip & dialogue breakdown.\nEnjoy the best cinematic moments in HD."
+            desc = meta.get("normal_description", default_normal_desc).strip()
+
+            tags = [tag for tag in raw_tags if not re.search(r"^#?shorts?$", tag, re.IGNORECASE)]
+            tags.extend(["movie scene", "full scene", "cinema scene", "film clip"])
+            tags = list(dict.fromkeys(tags))
 
         body = {
             "snippet": {
@@ -122,7 +167,7 @@ def upload_cinerush_to_youtube(
             },
         }
 
-        upload_kind = "Short (9:16)" if is_short else "normal video"
+        upload_kind = "Short (9:16 / 1:1)" if is_short else "Normal Video (16:9 Landscape)"
         log(f"🚀 Uploading {upload_kind} to YouTube: '{title}'...")
         media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
         req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
@@ -336,6 +381,10 @@ def run_cinerush_pipeline(
     thumb_path = output_dir / f"thumb_{timestamp_str}.jpg"
     generate_thumbnail(final_short_path, thumb_path, timestamp=min(1.5, trimmed_dur / 2.0))
 
+    final_normal_path = output_dir / f"cinerush_normal_{timestamp_str}.mp4"
+    if not dry_run and not test_mode:
+        render_cinerush_normal_landscape_video(final_short_path, final_normal_path)
+
     # Step 7: YouTube Upload
     upload_group_id = f"{(movie_meta or {}).get('id', scene_meta.get('gdrive_file_id', 'scene'))}:p{(movie_meta or {}).get('part_number', 'standalone')}"
     youtube_id = None
@@ -362,7 +411,7 @@ def run_cinerush_pipeline(
             )
         if youtube_id:
             normal_video_id = upload_cinerush_to_youtube(
-                video_path=final_short_path,
+                video_path=final_normal_path if final_normal_path.exists() else final_short_path,
                 thumb_path=thumb_path,
                 meta=viral_data,
                 dry_run=dry_run,
@@ -387,6 +436,7 @@ def run_cinerush_pipeline(
         "keep_intervals": keep_intervals,
         "words_count": len(shifted_words),
         "output_file": str(final_short_path.resolve()),
+        "normal_output_file": str(final_normal_path.resolve()) if final_normal_path.exists() else None,
         "youtube_id": youtube_id,
         "normal_video_id": normal_video_id,
         "upload_group_id": upload_group_id,

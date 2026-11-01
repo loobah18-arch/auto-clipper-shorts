@@ -617,5 +617,83 @@ class TestCinerushBGM(unittest.TestCase):
             wav_path.unlink(missing_ok=True)
 
 
+class TestCinerushNormalLandscapeAndUpload(unittest.TestCase):
+    def test_render_cinerush_normal_landscape_video_command(self):
+        from cinerush_pipeline import render_cinerush_normal_landscape_video
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            src = Path(tmp_dir) / "short.mp4"
+            src.write_bytes(b"dummy")
+            out = Path(tmp_dir) / "normal.mp4"
+
+            with patch("subprocess.run") as mock_run:
+                # Simulate successful ffmpeg render
+                def fake_run(cmd, *args, **kwargs):
+                    out.write_bytes(b"rendered_normal")
+                    res = MagicMock()
+                    res.returncode = 0
+                    return res
+                mock_run.side_effect = fake_run
+
+                res_path = render_cinerush_normal_landscape_video(src, out)
+                self.assertEqual(res_path, out)
+                self.assertTrue(out.exists())
+
+                called_cmd = mock_run.call_args[0][0]
+                cmd_str = " ".join(called_cmd)
+                self.assertIn("ffmpeg", cmd_str)
+                self.assertIn("1920:1080", cmd_str)
+                self.assertIn("boxblur=25:5", cmd_str)
+                self.assertIn("overlay=(W-w)/2:0", cmd_str)
+                self.assertIn("ultrafast", cmd_str)
+
+    def test_upload_cinerush_to_youtube_strips_shorts_for_normal_video(self):
+        from cinerush_pipeline import upload_cinerush_to_youtube
+
+        mock_youtube = MagicMock()
+        mock_req = MagicMock()
+        mock_req.next_chunk.return_value = (None, {"id": "normal_yt_456"})
+        mock_youtube.videos().insert.return_value = mock_req
+
+        meta = {
+            "title": "Epic Scene 🎬🔥 #shorts #film",
+            "description": "Watch this scene!\n\n#shorts #film",
+            "tags": ["shorts", "#shorts", "film", "movie"],
+        }
+
+        with patch.dict("os.environ", {
+            "CLIENT_ID": "fake_id",
+            "CLIENT_SECRET": "fake_secret",
+            "REFRESH_TOKEN": "fake_token",
+        }), patch("cinerush_pipeline.Credentials"), patch("cinerush_pipeline.build", return_value=mock_youtube), patch("cinerush_pipeline.MediaFileUpload"):
+            dummy_path = Path("dummy.mp4")
+            dummy_thumb = Path("dummy.jpg")
+
+            vid_id = upload_cinerush_to_youtube(
+                video_path=dummy_path,
+                thumb_path=dummy_thumb,
+                meta=meta,
+                dry_run=False,
+                is_short=False,
+            )
+
+            self.assertEqual(vid_id, "normal_yt_456")
+            insert_call = mock_youtube.videos().insert.call_args
+            body = insert_call[1]["body"]
+            snippet = body["snippet"]
+
+            # Title must have #shorts removed and '| Full Scene Clip' added
+            self.assertNotIn("#shorts", snippet["title"].lower())
+            self.assertIn("Epic Scene 🎬🔥 #film | Full Scene Clip", snippet["title"])
+
+            # Description must have #shorts stripped
+            self.assertNotIn("#shorts", snippet["description"].lower())
+
+            # Tags must not have any variation of shorts
+            for t in snippet["tags"]:
+                self.assertNotIn("shorts", t.lower())
+            self.assertIn("full scene", snippet["tags"])
+
+
 if __name__ == "__main__":
     unittest.main()

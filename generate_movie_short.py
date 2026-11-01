@@ -1008,7 +1008,15 @@ def run_pipeline(
         assert_upload_cadence_allowed(history)
         youtube_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=True)
         if youtube_id:
-            normal_video_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=False)
+            normal_path = final_short_path.parent / f"{final_short_path.stem}_normal.mp4"
+            from cinerush_pipeline import render_cinerush_normal_landscape_video
+            render_cinerush_normal_landscape_video(final_short_path, normal_path)
+            normal_video_id = upload_movie_to_youtube(
+                normal_path if normal_path.exists() else final_short_path,
+                thumb_path,
+                movie_data,
+                is_short=False,
+            )
 
     pair_uploaded = bool(youtube_id and normal_video_id)
     status = RunStatus.UPLOADED.value if pair_uploaded else current_state.value
