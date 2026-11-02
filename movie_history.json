@@ -1235,15 +1235,33 @@
       "source_provider": "google_drive",
       "gdrive_file_id": "1lBOdtZD0zExmMFY75fAToDlF06iIXf4c",
       "gdrive_file_name": "Avengers - Infinity War (720p).mp4"
+    },
+    {
+      "movie_id": "avengers_infinity_war",
+      "title": "He knew the truth before anyone spoke 🎬🔥 #film #movie #shorts",
+      "part_number": 4,
+      "total_parts": 6,
+      "youtube_id": "MReFJ49d18k",
+      "normal_video_id": "XsH9XCQGqwo",
+      "upload_group_id": "avengers_infinity_war:p4",
+      "timestamp": "2026-11-02T18:26:21.358126+00:00",
+      "uploaded_at": "2026-11-02T18:26:21.358131+00:00",
+      "video_path": "cinerush_short_20261102_182346.mp4",
+      "duration_sec": 52.57,
+      "status": "uploaded",
+      "source_type": "private_media",
+      "source_provider": "google_drive",
+      "gdrive_file_id": "1lBOdtZD0zExmMFY75fAToDlF06iIXf4c",
+      "gdrive_file_name": "Avengers - Infinity War (720p).mp4"
     }
   ],
   "current_series": {
     "movie_id": "avengers_infinity_war",
-    "movie_title": "Avengers Infinity War - Part 3/6",
-    "current_part": 3,
+    "movie_title": "Avengers Infinity War - Part 4/6",
+    "current_part": 4,
     "total_parts": 6,
     "completed": false,
-    "last_updated": "2026-11-01T18:01:20.797506+00:00"
+    "last_updated": "2026-11-02T18:26:21.358101+00:00"
   },
   "superseded_uploads": [
     {
