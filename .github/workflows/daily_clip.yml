@@ -54,6 +54,11 @@ on:
         required: false
         default: true
         type: boolean
+      allow_cadence_override:
+        description: 'Allow manual upload even if cadence interval (24h) or weekly limit is reached'
+        required: false
+        default: false
+        type: boolean
       set_visibility:
         description: 'Optional: comma-separated video IDs to change visibility (skips the normal pipeline)'
         required: false
@@ -223,6 +228,8 @@ jobs:
           INPUT_PROFILE: ${{ inputs.profile }}
           INPUT_ALLOW_UNREVIEWED_RIGHTS: ${{ inputs.allow_unreviewed_rights }}
           INPUT_ALLOW_DUPLICATE: ${{ inputs.allow_duplicate }}
+          INPUT_ALLOW_CADENCE_OVERRIDE: ${{ inputs.allow_cadence_override }}
+          ALLOW_CADENCE_OVERRIDE: ${{ inputs.allow_cadence_override || 'false' }}
         run: |
           set -euo pipefail
           echo "🎬 Running Movie Explanation Shorts Generator (Cinematic Story Style)..."
@@ -234,6 +241,7 @@ jobs:
           if [ -n "${INPUT_PROFILE:-}" ]; then ARGS+=(--profile "$INPUT_PROFILE"); fi
           if [ "${INPUT_ALLOW_UNREVIEWED_RIGHTS:-true}" = "true" ]; then ARGS+=(--allow-unreviewed-rights); fi
           if [ "${INPUT_ALLOW_DUPLICATE:-false}" = "true" ]; then ARGS+=(--allow-duplicate); fi
+          if [ "${INPUT_ALLOW_CADENCE_OVERRIDE:-false}" = "true" ]; then ARGS+=(--allow-cadence-override); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
           if [ "${INPUT_QUICK_TEST:-false}" = "true" ]; then
             if [ "$INPUT_DRY_RUN" != "true" ]; then

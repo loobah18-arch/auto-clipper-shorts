@@ -1267,8 +1267,12 @@ def main():
     parser.add_argument("--profile", type=str, choices=["shorts", "shorts_9x16", "cinerush", "cinerush_style", "square", "landscape", "long_form", "long_video"], default="cinerush_style", help="Video profile ('cinerush_style', 'shorts_9x16', 'landscape')")
     parser.add_argument("--allow-unreviewed-rights", action="store_true", help="Allow upload of assets with unverified rights without manual review gate")
     parser.add_argument("--allow-duplicate", action="store_true", help="Allow regenerating or re-uploading an episode already marked in history")
+    parser.add_argument("--allow-cadence-override", action="store_true", help="Allow manual upload even if cadence interval or weekly limit is reached")
     parser.add_argument("--stitch-series", type=str, default=None, help="Movie ID to stitch all cached parts into a Full Long Video")
     args = parser.parse_args()
+
+    if args.allow_cadence_override:
+        os.environ["ALLOW_CADENCE_OVERRIDE"] = "true"
 
     if args.list:
         cat = load_catalog()

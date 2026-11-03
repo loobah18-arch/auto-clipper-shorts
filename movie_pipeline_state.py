@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
@@ -233,8 +234,14 @@ def completed_upload_groups(history: dict[str, JsonValue], now: datetime | None 
     return sorted(groups.items(), key=lambda item: item[1])
 
 
-def assert_upload_cadence_allowed(history: dict[str, JsonValue], now: datetime | None = None) -> None:
-    """Fail closed at three clip groups/week or less than 24 hours apart."""
+def assert_upload_cadence_allowed(
+    history: dict[str, JsonValue],
+    now: datetime | None = None,
+    allow_override: bool = False,
+) -> None:
+    """Fail closed at three clip groups/week or less than 24 hours apart, unless explicitly overridden."""
+    if allow_override or os.environ.get("ALLOW_CADENCE_OVERRIDE", "false").lower() == "true":
+        return
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     groups = completed_upload_groups(history, now)
     if len(groups) >= 3:
