@@ -359,41 +359,22 @@ Narration and commentary are original to this channel. Visuals are sourced only 
         )
         youtube = build("youtube", "v3", credentials=creds)
 
-        body = {
-            "snippet": {
+        from movie_upload_guard import upload_video_with_remediation_retry
+
+        vid_id, guard_info = upload_video_with_remediation_retry(
+            youtube=youtube,
+            video_path=video_path,
+            thumb_path=thumb_path,
+            meta={
                 "title": youtube_title,
                 "description": description,
                 "tags": tags,
-                "categoryId": "1"  # Film & Animation
+                "privacy_status": os.environ.get("PRIVACY_STATUS") or "public",
             },
-            "status": {
-                "privacyStatus": os.environ.get("PRIVACY_STATUS") or "public",
-                "selfDeclaredMadeForKids": False
-            }
-        }
-
-        media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
-        req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
-
-        resp = None
-        while resp is None:
-            status, resp = req.next_chunk()
-            if status:
-                log(f"Upload progress: {int(status.progress() * 100)}%")
-
-        vid_id = resp.get("id")
-        live_url = f"https://youtube.com/watch?v={vid_id}" if not is_short else f"https://youtube.com/shorts/{vid_id}"
-        log(f"🎉 Successfully uploaded {upload_type_str}! URL: {live_url}")
-
-        # Set thumbnail if available
-        if thumb_path and thumb_path.exists():
-            try:
-                thumb_media = MediaFileUpload(str(thumb_path), mimetype="image/jpeg")
-                youtube.thumbnails().set(videoId=vid_id, media_body=thumb_media).execute()
-                log("🖼️ Custom thumbnail uploaded.")
-            except Exception as te:
-                log(f"⚠️ Thumbnail upload notice: {te}")
-
+            is_short=is_short,
+            dry_run=dry_run,
+            media_upload_cls=MediaFileUpload,
+        )
         return vid_id
 
     except Exception as e:

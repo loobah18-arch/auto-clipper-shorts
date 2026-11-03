@@ -154,42 +154,22 @@ def upload_cinerush_to_youtube(
             tags.extend(["movie scene", "full scene", "cinema scene", "film clip"])
             tags = list(dict.fromkeys(tags))
 
-        body = {
-            "snippet": {
-                "title": title,
-                "description": desc,
-                "tags": tags[:15],
-                "categoryId": "1",  # Film & Animation
-            },
-            "status": {
-                "privacyStatus": os.environ.get("PRIVACY_STATUS") or "public",
-                "selfDeclaredMadeForKids": False,
-            },
+        meta_prepared = {
+            "title": title,
+            "description": desc,
+            "tags": tags,
         }
 
-        upload_kind = "Short (9:16 / 1:1)" if is_short else "Normal Video (16:9 Landscape)"
-        log(f"🚀 Uploading {upload_kind} to YouTube: '{title}'...")
-        media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
-        req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
-
-        resp = None
-        while resp is None:
-            status, resp = req.next_chunk()
-            if status:
-                log(f"   ↳ Upload progress: {int(status.progress() * 100)}%")
-
-        youtube_id = resp.get("id")
-        upload_url = f"https://youtube.com/shorts/{youtube_id}" if is_short else f"https://youtube.com/watch?v={youtube_id}"
-        log(f"🎉 Successfully uploaded Cinerush {upload_kind}! URL: {upload_url}")
-
-        # Upload thumbnail if available
-        if thumb_path and thumb_path.exists() and youtube_id:
-            try:
-                youtube.thumbnails().set(videoId=youtube_id, media_body=MediaFileUpload(str(thumb_path), mimetype="image/jpeg")).execute()
-                log("🖼️ Custom thumbnail set successfully.")
-            except Exception as te:
-                log(f"⚠️ Thumbnail upload notice: {te}")
-
+        from movie_upload_guard import upload_video_with_remediation_retry
+        youtube_id, guard_info = upload_video_with_remediation_retry(
+            youtube=youtube,
+            video_path=video_path,
+            thumb_path=thumb_path,
+            meta=meta_prepared,
+            is_short=is_short,
+            dry_run=dry_run,
+            media_upload_cls=MediaFileUpload,
+        )
         return youtube_id
     except Exception as e:
         log(f"❌ YouTube upload failed: {e}")

@@ -217,6 +217,9 @@ jobs:
           CINERUSH_RAW_CLIP_VOLUME: '1.40'
           BGM_VOLUME: '0.04'
           DEFAULT_VOICE: 'en-US-ChristopherNeural'
+          ENABLE_YOUTUBE_BLOCK_RETRY: 'true'
+          YOUTUBE_BLOCK_MAX_RETRIES: '2'
+          YOUTUBE_VERIFY_TIMEOUT_SEC: '15.0'
           ALLOW_TRAILER_SEARCH: 'false'
           ALLOW_EXTERNAL_ARTWORK: 'false'
           INPUT_MOVIE_NAME: ${{ inputs.movie_name }}
