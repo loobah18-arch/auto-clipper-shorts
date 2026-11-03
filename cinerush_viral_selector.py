@@ -31,9 +31,9 @@ def format_transcript_for_prompt(segments: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-CINERUSH_MIN_DURATION = 50.0
-CINERUSH_TARGET_DURATION = 55.0
-CINERUSH_MAX_DURATION = 58.0
+CINERUSH_MIN_DURATION = 120.0
+CINERUSH_TARGET_DURATION = 155.0
+CINERUSH_MAX_DURATION = 180.0
 
 
 def select_viral_segment(
@@ -45,7 +45,7 @@ def select_viral_segment(
     max_duration: float = CINERUSH_MAX_DURATION,
     target_duration: float = CINERUSH_TARGET_DURATION,
 ) -> dict[str, Any]:
-    """Select a gripping source window sized for a safe YouTube Short."""
+    """Select a gripping continuous source window sized for a 2-3 minute YouTube Short."""
     min_duration = max(1.0, float(min_duration))
     max_duration = max(min_duration, float(max_duration))
     target_duration = min(max(min_duration, float(target_duration)), max_duration)
@@ -74,16 +74,22 @@ TRANSCRIPT:
 {transcript_text[:12000]}
 
 OBJECTIVES:
-1. Identify the single most intense, emotional, gripping, or high-stakes continuous window in this scene.
-2. Target approximately {target_duration:.1f} seconds and keep the window between {min_duration:.1f} and {max_duration:.1f} seconds when the source is long enough.
-   If the entire video is shorter than {min_duration:.1f} seconds, use the available source duration.
-3. The selected window must start with a compelling hook line and build to an intense confrontation, revelation, or climax.
-4. Generate a Cinerush viral curiosity-gap title:
+1. Identify the COMPLETE conversation exchange or dialogue arc in this scene.
+2. CRITICAL CONSTRAINT — FULL CONVERSATION INTEGRITY:
+   - NEVER cut off characters mid-conversation, mid-dialogue, or mid-sentence!
+   - The selected window MUST start right at the beginning of the conversation exchange and conclude AFTER the final dialogue response, punchline, or resolution has completely finished speaking.
+3. DURATION CONTRACT:
+   - Target approximately {target_duration:.1f} seconds.
+   - Keep the window between {min_duration:.1f}s (minimum 2 minutes) and {max_duration:.1f}s (maximum 3 minutes for YouTube Shorts) when source permits.
+   - If the entire source scene is shorter than {min_duration:.1f} seconds, capture the entire available conversation.
+4. "clip_start": Start timestamp (seconds) aligned right before the opening dialogue line begins.
+5. "clip_end": End timestamp (seconds) aligned AFTER the final dialogue line concludes, including natural reaction buffer.
+6. Generate a Cinerush viral curiosity-gap title:
    - Maximum 12 words
    - Include exactly 2 emojis
    - MUST end with "#film #movie #shorts"
    - Example format: "They broke his hand so he beat them with his left ♠️🔥 #film #movie #shorts"
-5. Generate an engaging 2-sentence description and 10 relevant tags.
+7. Generate an engaging 2-sentence description and 10 relevant tags.
 
 Return ONLY a valid JSON object matching this schema:
 {{
@@ -121,20 +127,49 @@ Return ONLY a valid JSON object matching this schema:
         if not data:
             raise RuntimeError("All Groq models failed to return valid JSON window")
 
-        clip_start = float(data.get("clip_start", default_start))
-        clip_end = float(data.get("clip_end", default_end))
+        raw_start = float(data.get("clip_start", default_start))
+        raw_end = float(data.get("clip_end", default_end))
 
         available_duration = max(0.0, float(total_video_duration))
         effective_max = min(max_duration, available_duration)
         if effective_max <= 0:
             raise ValueError("source video has no usable duration")
         effective_min = min(min_duration, effective_max)
-        requested_duration = min(max(target_duration, effective_min), effective_max)
-        clip_start = max(0.0, min(max(0.0, available_duration - requested_duration), clip_start))
-        clip_end = min(available_duration, clip_start + requested_duration)
+
+        # Snap to valid duration bounds without discarding the LLM's selected conversation
+        clip_start = max(0.0, min(available_duration, raw_start))
+        clip_end = max(clip_start, min(available_duration, raw_end))
+
+        # If LLM didn't return a valid span, initialize from target_duration
+        if clip_end - clip_start < 1.0:
+            clip_end = min(available_duration, clip_start + target_duration)
+
+        # If selected span is shorter than effective_min (e.g. 120s), expand naturally around dialogue
         if clip_end - clip_start < effective_min:
-            clip_start = max(0.0, available_duration - effective_min)
-            clip_end = available_duration
+            needed = effective_min - (clip_end - clip_start)
+            available_before = clip_start
+            expand_before = min(available_before, needed / 2.0)
+            clip_start -= expand_before
+            needed -= expand_before
+
+            available_after = max(0.0, available_duration - clip_end)
+            expand_after = min(available_after, needed)
+            clip_end += expand_after
+            needed -= expand_after
+
+            if needed > 0 and clip_start > 0:
+                extra_before = min(clip_start, needed)
+                clip_start -= extra_before
+
+        # If selected span exceeds effective_max (e.g. 180s), clamp safely to a complete sentence boundary
+        if clip_end - clip_start > effective_max:
+            boundary_end = clip_start + effective_max
+            for s in reversed(segments):
+                s_end = float(s.get("end", 0.0))
+                if clip_start + effective_min <= s_end <= boundary_end:
+                    boundary_end = s_end + 0.5
+                    break
+            clip_end = min(available_duration, boundary_end)
 
         raw_title = str(data.get("title", default_title)).strip()
         formatted_title = format_cinerush_title(raw_title, movie_title)
@@ -148,7 +183,7 @@ Return ONLY a valid JSON object matching this schema:
             "selection_duration": round(clip_end - clip_start, 2),
             "requested_min_duration": effective_min,
             "requested_max_duration": effective_max,
-            "target_duration": requested_duration,
+            "target_duration": target_duration,
             "title": formatted_title,
             "description": str(data.get("description", f"{formatted_title}\n\n#film #movie #shorts")),
             "tags": list(data.get("tags", ["film", "movie", "shorts", "cinerush", "cinema", "scene"])),
@@ -215,7 +250,14 @@ def _heuristic_viral_window(
         cur_start += step
 
     clip_start = round(best_start, 2)
-    clip_end = round(min(total_video_duration, best_start + target_len), 2)
+    end_candidates = [
+        float(s.get("end", 0.0)) for s in segments
+        if best_start + effective_min <= float(s.get("end", 0.0)) <= best_start + effective_max
+    ]
+    if end_candidates:
+        clip_end = round(min(available_duration, max(end_candidates) + 0.8), 2)
+    else:
+        clip_end = round(min(available_duration, best_start + target_len), 2)
     title = format_cinerush_title(f"He knew the truth before anyone spoke", movie_title)
 
     return {

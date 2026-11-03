@@ -239,7 +239,7 @@ def run_cinerush_pipeline(
     quick_test = bool(quick_test or test_mode)
     min_duration, duration_ceiling = validate_cinerush_duration_policy(
         max_duration=max_duration,
-        min_duration=DEFAULT_CINERUSH_MIN_DURATION,
+        min_duration=float(os.environ.get("CINERUSH_MIN_DURATION", str(DEFAULT_CINERUSH_MIN_DURATION))),
         quick_test=quick_test,
     )
     if quick_test:
@@ -342,7 +342,7 @@ def run_cinerush_pipeline(
     bgm_result = apply_cinerush_bgm(
         video_path=reframed_path,
         output_path=reframed_with_bgm,
-        bgm_volume=float(os.environ.get("CINERUSH_BGM_VOLUME", "0.18")),
+        bgm_volume=float(os.environ.get("CINERUSH_BGM_VOLUME", "0.06")),
         speech_intervals=speech_intervals,
         raw_clip_volume=float(os.environ.get("CINERUSH_RAW_CLIP_VOLUME", "1.40")),
     )
@@ -371,7 +371,7 @@ def run_cinerush_pipeline(
     if quick_test:
         if measured_output_duration <= 0 or measured_output_duration > duration_ceiling + 0.5:
             raise RuntimeError(f"Quick-test output duration {measured_output_duration:.2f}s exceeds the smoke-test limit")
-    elif measured_output_duration < min_duration - 0.5 or measured_output_duration > duration_ceiling + 0.5:
+    elif measured_output_duration < min_duration - 1.5 or measured_output_duration > duration_ceiling + 1.0:
         raise RuntimeError(
             f"Cinerush output duration {measured_output_duration:.2f}s is outside the normal "
             f"{min_duration:.1f}-{duration_ceiling:.1f}s contract"

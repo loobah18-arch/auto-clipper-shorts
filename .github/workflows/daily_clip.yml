@@ -208,9 +208,9 @@ jobs:
           GDRIVE_FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
           GDRIVE_FILE_NAME: ${{ secrets.GDRIVE_FILE_NAME }}
           MOVIE_BGM_PATH: ${{ secrets.MOVIE_BGM_PATH || 'assets/bgm/rayelo_ultraslowed.mp3' }}
-          CINERUSH_BGM_VOLUME: '0.18'
+          CINERUSH_BGM_VOLUME: '0.06'
           CINERUSH_RAW_CLIP_VOLUME: '1.40'
-          BGM_VOLUME: '0.08'
+          BGM_VOLUME: '0.04'
           DEFAULT_VOICE: 'en-US-ChristopherNeural'
           ALLOW_TRAILER_SEARCH: 'false'
           ALLOW_EXTERNAL_ARTWORK: 'false'
@@ -255,7 +255,7 @@ jobs:
           import sys
           duration = float(sys.argv[1])
           quick = sys.argv[2] == "true"
-          low, high = ((1.0, 12.5) if quick else (50.0, 58.0))
+          low, high = ((1.0, 12.5) if quick else (120.0, 180.0))
           if not low <= duration <= high:
               raise SystemExit(f"duration {duration:.2f}s outside {low:.1f}-{high:.1f}s contract")
           print(f"Verified Cinerush duration: {duration:.2f}s")

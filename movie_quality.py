@@ -10,8 +10,10 @@ from typing import Any
 
 # Default safe duration ceiling for Shorts: 58.0 seconds (leaves a 2.0s buffer below YouTube's 60.0s hard cap)
 DEFAULT_SHORTS_MAX_DURATION = 58.0
-DEFAULT_CINERUSH_MIN_DURATION = 50.0
-DEFAULT_CINERUSH_TARGET_DURATION = 55.0
+DEFAULT_CINERUSH_MIN_DURATION = 120.0
+DEFAULT_CINERUSH_TARGET_DURATION = 155.0
+DEFAULT_CINERUSH_MAX_DURATION = 180.0
+CINERUSH_SHORTS_HARD_CAP = 180.0
 CINERUSH_QUICK_TEST_DURATION = 12.0
 SHORTS_HARD_CAP = 60.0
 MIN_SHORT_DURATION = 10.0
@@ -26,10 +28,12 @@ def validate_cinerush_duration_policy(
     min_duration: float = DEFAULT_CINERUSH_MIN_DURATION,
     quick_test: bool = False,
 ) -> tuple[float, float]:
-    """Return the normal Cinerush minimum/maximum duration contract."""
+    """Return the normal Cinerush minimum/maximum duration contract (2-3 min for YouTube Shorts)."""
     if quick_test:
         return 0.0, CINERUSH_QUICK_TEST_DURATION
-    ceiling = validate_duration_policy(max_duration=max_duration, profile="shorts")
+    if max_duration is None:
+        max_duration = float(os.environ.get("CINERUSH_MAX_DURATION", str(DEFAULT_CINERUSH_MAX_DURATION)))
+    ceiling = validate_duration_policy(max_duration=max_duration, profile="cinerush_style")
     minimum = float(min_duration)
     if minimum < 1.0 or minimum > ceiling:
         raise ConfigurationError(
@@ -82,6 +86,18 @@ def validate_duration_policy(
         if val <= SHORTS_HARD_CAP:
             raise ConfigurationError(
                 f"Long-form video max duration must exceed {SHORTS_HARD_CAP:.0f}s, got {val:.2f}s"
+            )
+        return val
+
+    # Cinerush 3-minute Shorts (YouTube expanded Shorts cap up to 180s)
+    if profile in ("cinerush", "cinerush_style"):
+        if val > CINERUSH_SHORTS_HARD_CAP:
+            raise ConfigurationError(
+                f"Configured Cinerush max duration ({val:.2f}s) exceeds the YouTube Shorts 3-minute hard cap of {CINERUSH_SHORTS_HARD_CAP:.1f}s."
+            )
+        if val < MIN_SHORT_DURATION:
+            raise ConfigurationError(
+                f"Configured Shorts max duration ({val:.2f}s) is below minimum allowed duration ({MIN_SHORT_DURATION:.1f}s)."
             )
         return val
 

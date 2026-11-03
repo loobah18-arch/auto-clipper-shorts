@@ -156,12 +156,12 @@ class TestCinerushViralSelector(unittest.TestCase):
 
     def test_heuristic_window_selection(self):
         segments = [
-            {"start": 10.0, "end": 40.0, "words": [{"word": f"w{i}", "start": 10.0 + i, "end": 10.5 + i} for i in range(25)]},
-            {"start": 50.0, "end": 180.0, "words": [{"word": f"w{i}", "start": 50.0 + i, "end": 50.5 + i} for i in range(80)]},
+            {"start": 10.0, "end": 60.0, "words": [{"word": f"w{i}", "start": 10.0 + i, "end": 10.5 + i} for i in range(40)]},
+            {"start": 70.0, "end": 230.0, "words": [{"word": f"w{i}", "start": 70.0 + i, "end": 70.5 + i} for i in range(140)]},
         ]
-        res = _heuristic_viral_window(segments, total_video_duration=240.0, movie_title="Test Movie")
-        self.assertGreaterEqual(res["clip_end"] - res["clip_start"], 50.0)
-        self.assertLessEqual(res["clip_end"] - res["clip_start"], 58.0)
+        res = _heuristic_viral_window(segments, total_video_duration=300.0, movie_title="Test Movie")
+        self.assertGreaterEqual(res["clip_end"] - res["clip_start"], 120.0)
+        self.assertLessEqual(res["clip_end"] - res["clip_start"], 180.0)
         self.assertIn("#film #movie #shorts", res["title"])
 
 
@@ -693,6 +693,51 @@ class TestCinerushNormalLandscapeAndUpload(unittest.TestCase):
             for t in snippet["tags"]:
                 self.assertNotIn("shorts", t.lower())
             self.assertIn("full scene", snippet["tags"])
+
+    def test_full_conversation_window_preserved_between_2_and_3_minutes(self):
+        from cinerush_viral_selector import select_viral_segment
+        import json
+        import types
+
+        fake_groq_resp = MagicMock()
+        fake_groq_resp.choices = [
+            MagicMock(message=MagicMock(content=json.dumps({
+                "clip_start": 20.0,
+                "clip_end": 165.0,  # 145s full conversation
+                "title": "Thanos interrogates Collector until Gamora strikes",
+                "description": "Full intense dialogue exchange.",
+                "tags": ["cinema", "marvel"],
+            })))
+        ]
+        mock_groq_instance = MagicMock()
+        mock_groq_instance.chat.completions.create.return_value = fake_groq_resp
+        mock_groq_cls = MagicMock(return_value=mock_groq_instance)
+        mock_groq_mod = types.ModuleType("groq")
+        mock_groq_mod.Groq = mock_groq_cls
+
+        segments = [
+            {"start": 18.0, "end": 166.0, "words": [{"word": "dialogue", "start": 20.0, "end": 164.5}]},
+        ]
+
+        with patch.dict("sys.modules", {"groq": mock_groq_mod}):
+            res = select_viral_segment(
+                segments=segments,
+                total_video_duration=300.0,
+                movie_title="Avengers",
+                groq_api_key="fake_key",
+            )
+            # Duration should be 145.0s (within 120-180s range) - NOT truncated to 55s!
+            self.assertAlmostEqual(res["clip_start"], 20.0, places=1)
+            self.assertAlmostEqual(res["clip_end"], 165.0, places=1)
+            self.assertEqual(res["selection_duration"], 145.0)
+            self.assertGreaterEqual(res["selection_duration"], 120.0)
+            self.assertLessEqual(res["selection_duration"], 180.0)
+
+    def test_cinerush_bgm_defaults_to_subtle_ambient_volume(self):
+        import inspect
+        from cinerush_bgm import apply_cinerush_bgm
+        sig = inspect.signature(apply_cinerush_bgm)
+        self.assertEqual(sig.parameters["bgm_volume"].default, 0.06)
 
 
 if __name__ == "__main__":

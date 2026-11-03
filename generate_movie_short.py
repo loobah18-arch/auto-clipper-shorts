@@ -469,7 +469,7 @@ def run_pipeline(
                 "ffmpeg", "-y",
                 "-ss", f"{start_sec:.2f}",
                 "-i", str(target_movie_path),
-                "-t", "240",
+                "-t", "300",
                 "-c:v", "libx264", "-preset", "ultrafast",
                 "-c:a", "aac",
                 str(candidate_scene),

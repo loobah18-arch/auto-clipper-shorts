@@ -111,16 +111,16 @@ def apply_cinerush_bgm(
     video_path: Path,
     output_path: Path,
     bgm_path: Path | str | None = None,
-    bgm_volume: float = 0.18,
+    bgm_volume: float = 0.06,
     speech_intervals: list[tuple[float, float]] | None = None,
     raw_clip_volume: float = 1.40,
 ) -> Path:
     """Mixes background music underneath the video's audio with automatic speech ducking.
 
     - Raw Clip Volume: Dialogue audio is boosted (default 1.40x) with normalize=0 so dialogue is loud and crisp.
-    - Base BGM Volume: Subtle background music bed (default 0.18x).
-    - Dialogue Active: BGM automatically ducks down (~0.04-0.05) so dialogue punches through with clarity.
-    - Dialogue Finished / Pauses: BGM smoothly swells back up to base presence (0.18x).
+    - Base BGM Volume: Subtle background music bed (default 0.06x), purely ambient background music.
+    - Dialogue Active: BGM automatically ducks down (~0.015) so dialogue punches through with clarity.
+    - Dialogue Finished / Pauses: BGM smoothly swells back up to subtle base presence (0.06x).
     - Uses sidechain compression with video stream-copying for instantaneous, zero-loss performance.
     """
     resolved_bgm = resolve_cinerush_bgm(bgm_path)
