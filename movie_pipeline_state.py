@@ -239,13 +239,11 @@ def assert_upload_cadence_allowed(
     now: datetime | None = None,
     allow_override: bool = False,
 ) -> None:
-    """Fail closed at three clip groups/week or less than 24 hours apart, unless explicitly overridden."""
+    """Fail closed if less than 24 hours have elapsed since the previous upload group, unless explicitly overridden."""
     if allow_override or os.environ.get("ALLOW_CADENCE_OVERRIDE", "false").lower() == "true":
         return
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     groups = completed_upload_groups(history, now)
-    if len(groups) >= 3:
-        raise HistoryError("Weekly upload limit reached: three completed clip groups are already recorded")
     if groups and now - groups[-1][1] < timedelta(hours=24):
         raise HistoryError("Upload cadence blocked: the previous clip group is less than 24 hours old")
 

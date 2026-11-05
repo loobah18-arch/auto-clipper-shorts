@@ -33,10 +33,10 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIn("MOVIE_BGM_PATH", orchestrator)
         self.assertIn("ALLOW_PRIVATE_MEDIA_SOURCES", orchestrator)
 
-    def test_schedule_runs_three_times_weekly(self):
+    def test_schedule_runs_daily_24h_gap(self):
         workflow = (WORKSPACE_DIR / ".github/workflows/daily_clip.yml").read_text(encoding="utf-8")
         self.assertIn("\n  schedule:\n", workflow)
-        self.assertIn("- cron: '15 8 * * 1,3,5'", workflow)
+        self.assertIn("- cron: '15 8 * * *'", workflow)
         self.assertNotIn("15 8,20", workflow)
 
     def test_quick_test_is_explicit_and_dry_run_only(self):

@@ -62,7 +62,7 @@ class TestUploadCadence(unittest.TestCase):
         with self.assertRaisesRegex(HistoryError, "24 hours"):
             assert_upload_cadence_allowed(too_soon, now)
 
-    def test_three_completed_groups_block_even_when_pairs_duplicate(self):
+    def test_multiple_completed_groups_allowed_when_24_hours_spaced(self):
         now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
         entries = []
         for index, hours in enumerate((72, 48, 25), start=1):
@@ -72,8 +72,13 @@ class TestUploadCadence(unittest.TestCase):
             ])
         history = {"uploaded_movies": entries}
         self.assertEqual(len(completed_upload_groups(history, now)), 3)
-        with self.assertRaisesRegex(HistoryError, "three completed"):
-            assert_upload_cadence_allowed(history, now)
+        # 3 or more completed groups must NOT be blocked by an arbitrary weekly cap
+        assert_upload_cadence_allowed(history, now)
+        # But if the latest upload is under 24 hours old, it must block
+        entries.append(self._entry("group-4", now - timedelta(hours=23), short_id="s4", normal_id="n4"))
+        history_too_soon = {"uploaded_movies": entries}
+        with self.assertRaisesRegex(HistoryError, "24 hours"):
+            assert_upload_cadence_allowed(history_too_soon, now)
 
     def test_missing_normal_upload_does_not_consume_completed_group(self):
         now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
