@@ -105,7 +105,7 @@ Return ONLY a valid JSON object matching this schema:
         from groq import Groq
         client = Groq(api_key=api_key)
         data = None
-        for model_id in ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"]:
+        for model_id in ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"]:
             try:
                 response = client.chat.completions.create(
                     model=model_id,
