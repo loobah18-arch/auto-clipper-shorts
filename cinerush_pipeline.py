@@ -302,7 +302,7 @@ def run_cinerush_pipeline(
             reframed_path.unlink(missing_ok=True)
             reframed_path = reframed_with_sfx
 
-    # Step 4.6: Mix Rayalo / Rayelo background music under dialogue with intelligent auto-ducking
+    # Step 4.6: Mix Sub Urban - Cradles background music under dialogue with intelligent auto-ducking
     reframed_with_bgm = output_dir / f"cinerush_reframed_bgm_{timestamp_str}.mp4"
     speech_intervals: list[tuple[float, float]] = []
     # Bridge natural conversational pauses up to 1.4s so volume does not surge between lines

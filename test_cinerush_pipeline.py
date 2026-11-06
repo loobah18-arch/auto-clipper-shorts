@@ -541,18 +541,19 @@ class TestCinerushSeriesProgression(unittest.TestCase):
 
 
 class TestCinerushBGM(unittest.TestCase):
-    def test_resolve_cinerush_bgm_defaults_to_rayalo(self):
+    def test_resolve_cinerush_bgm_defaults_to_cradles(self):
         from cinerush_bgm import resolve_cinerush_bgm
         resolved = resolve_cinerush_bgm()
         self.assertIsNotNone(resolved)
         self.assertTrue(resolved.exists())
-        self.assertIn("ray", resolved.name.lower())
+        self.assertIn("cradles", resolved.name.lower())
 
     def test_resolve_cinerush_bgm_supports_aliases(self):
         from cinerush_bgm import resolve_cinerush_bgm
-        self.assertIsNotNone(resolve_cinerush_bgm("rayalo"))
-        self.assertIsNotNone(resolve_cinerush_bgm("rayelo"))
-        self.assertIsNotNone(resolve_cinerush_bgm("rayelo_ultraslowed.mp3"))
+        self.assertIsNotNone(resolve_cinerush_bgm("cradles"))
+        self.assertIsNotNone(resolve_cinerush_bgm("sub_urban_cradles"))
+        self.assertIsNotNone(resolve_cinerush_bgm("cradles.mp3"))
+        self.assertIsNotNone(resolve_cinerush_bgm("sub_urban_cradles.mp3"))
 
     def test_apply_cinerush_bgm_missing_video_falls_back(self):
         from cinerush_bgm import apply_cinerush_bgm

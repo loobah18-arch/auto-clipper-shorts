@@ -68,7 +68,8 @@ ASSETS_DIR = WORKSPACE_DIR / "assets"
 BGM_DIR = ASSETS_DIR / "bgm"
 
 NON_COPYRIGHT_BGM_TRACKS = [
-    "rayelo_ultraslowed.mp3",
+    "cradles.mp3",
+    "sub_urban_cradles.mp3",
     "aerohead_fragments_recap.mp3",
     "hot_heat_topher_mohr.mp3",
     "cinematic_suspense_thriller.mp3",
@@ -78,8 +79,8 @@ NON_COPYRIGHT_BGM_TRACKS = [
     "cozy_cafe_guitar.mp3",
     "snowfall_calm_aesthetic.mp3",
 ]
-DEFAULT_RECAPPERS_BGM = BGM_DIR / "rayelo_ultraslowed.mp3"
-DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "rayelo_ultraslowed.mp3"
+DEFAULT_RECAPPERS_BGM = BGM_DIR / "cradles.mp3"
+DEFAULT_NON_COPYRIGHT_BGM = BGM_DIR / "cradles.mp3"
 KNOWN_COPYRIGHTED_BGM = {
     "feeling_blue.mp3",
     "mitski_washing_machine_heart.mp3",
@@ -90,7 +91,7 @@ KNOWN_COPYRIGHTED_BGM = {
 def resolve_non_copyright_bgm(bgm_path: Path | str | None) -> Path | None:
     """Ensure that verified viral recapper music is used.
 
-    Defaults to Rayalo / Rayelo Slowed Phonk (matching viral Shorts)
+    Defaults to Sub Urban - Cradles (NCS copyright-free)
     with seamless fallback to aerohead_fragments_recap.mp3.
     """
     if bgm_path is None:
@@ -101,11 +102,14 @@ def resolve_non_copyright_bgm(bgm_path: Path | str | None) -> Path | None:
 
     # Handle alias keywords
     str_val = str(bgm_path).lower().strip()
-    if str_val in ("rayalo", "rayelo", "rayelo_ultraslowed", "rayalo.mp3", "rayelo.mp3", "rayelo_ultraslowed.mp3"):
-        for cand in ("rayelo_ultraslowed.mp3", "rayalo.mp3", "rayelo.mp3"):
+    if str_val in ("cradles", "sub_urban", "sub_urban_cradles", "cradles.mp3", "sub_urban_cradles.mp3"):
+        for cand in ("cradles.mp3", "sub_urban_cradles.mp3"):
             p = BGM_DIR / cand
             if p.exists():
                 return p
+    if str_val in ("rayalo", "rayelo", "rayelo_ultraslowed", "rayalo.mp3", "rayelo.mp3", "rayelo_ultraslowed.mp3"):
+        # Deprecated: rayalo removed, redirect to default Cradles
+        return DEFAULT_NON_COPYRIGHT_BGM if DEFAULT_NON_COPYRIGHT_BGM.exists() else None
 
     path = Path(bgm_path)
     if path.name.lower() in KNOWN_COPYRIGHTED_BGM:

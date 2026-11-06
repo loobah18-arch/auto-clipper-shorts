@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Cinerush BGM Engine with Intelligent Dialogue Auto-Ducking
-Mixes atmospheric background music (Rayalo / Rayelo Slowed Phonk) under movie dialogue.
+Mixes atmospheric background music (Sub Urban - Cradles NCS) under movie dialogue.
 - Dialogue Active: Music volume automatically drops down (ducked ~0.07) so speech is 100% crisp and clear.
 - Dialogue Finished / Pauses: Music volume smoothly swells up to full presence (vol ~0.28) for high cinematic impact.
 - Sidechain Compression: Attack (40ms) and release (350ms) prevent clicks, distortion, or pumping.
@@ -25,16 +25,15 @@ def log(msg: str) -> None:
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 BGM_DIR = ASSETS_DIR / "bgm"
 
-# Candidate filenames for Rayalo / Rayelo
-RAYALO_TRACK_NAMES = (
-    "rayelo_ultraslowed.mp3",
-    "rayalo.mp3",
-    "rayelo.mp3",
+# Candidate filenames for Sub Urban - Cradles
+CRADLES_TRACK_NAMES = (
+    "cradles.mp3",
+    "sub_urban_cradles.mp3",
 )
 
 
 def resolve_cinerush_bgm(bgm_path: Path | str | None = None) -> Path | None:
-    """Resolves the background music track, defaulting to Rayalo / Rayelo."""
+    """Resolves the background music track, defaulting to Sub Urban - Cradles."""
     if bgm_path:
         p = Path(bgm_path)
         if p.exists():
@@ -52,7 +51,7 @@ def resolve_cinerush_bgm(bgm_path: Path | str | None = None) -> Path | None:
         if candidate.exists():
             return candidate
 
-    for name in RAYALO_TRACK_NAMES:
+    for name in CRADLES_TRACK_NAMES:
         candidate = BGM_DIR / name
         if candidate.exists():
             return candidate
