@@ -13,7 +13,7 @@ import random
 import sys
 from pathlib import Path
 
-from creator_fetcher import fetch_from_youtube
+from creator_fetcher import download_creator_section, fetch_creator_metadata
 from isla_story_engine import generate_looped_arc_script
 from isla_upload_guard import upload_isla_short
 from isla_video_engine import DEFAULT_BGM, assemble_isla_short
@@ -41,7 +41,7 @@ def pick_target_url(catalog: dict, niche_key: str = "science_experiments") -> tu
     creators = niche.get("target_creators", [])
     if not creators:
         # Fallback default
-        return "https://www.youtube.com/watch?v=Xn7K8AneuT4", "NileBlue"
+        return "https://www.youtube.com/watch?v=x0SQ88bAjto", "NileBlue"
 
     creator = random.choice(creators)
     creator_name = creator.get("name", "Creator")
@@ -50,8 +50,7 @@ def pick_target_url(catalog: dict, niche_key: str = "science_experiments") -> tu
     if sample_urls:
         return random.choice(sample_urls), creator_name
 
-    # If creator has no sample_urls, return their channel or a popular test url
-    return f"https://www.youtube.com/watch?v=Xn7K8AneuT4", creator_name
+    return "https://www.youtube.com/watch?v=x0SQ88bAjto", creator_name
 
 
 def main() -> int:
@@ -76,41 +75,42 @@ def main() -> int:
 
     log(f"🚀 Starting Isla Value-Add Clipper Pipeline for: {target_url} ({creator_name})")
 
-    # 1. Fetch Source Video
-    log("Step 1/5: Fetching high-resolution video and audio...")
-    metadata = fetch_from_youtube(target_url, output_dir=output_dir)
+    # 1. Fetch Metadata & Subtitles (Fast Phase 1)
+    log("Step 1/5: Extracting video metadata and speech transcript...")
+    metadata = fetch_creator_metadata(target_url, output_dir=output_dir)
     creator_name = metadata.channel_name or creator_name
+    log(f"📺 Channel: {creator_name} | Video: '{metadata.title}' ({metadata.duration_sec:.1f}s)")
 
-    # 2. Transcribe Audio
-    log("Step 2/5: Transcribing speech for viral story arc detection...")
-    transcript = ""
-    # Try faster-whisper if available
-    try:
-        from cinerush_transcriber import transcribe_scene
-        segments = transcribe_scene(metadata.video_path, output_dir=output_dir)
-        transcript = " ".join(s.get("text", "") for s in segments)
-    except Exception as e:
-        log(f"Notice: Local whisper transcription skipped ({e}); using title & description metadata.")
-        transcript = f"{metadata.title}. High energy creator experiment video with dramatic twists."
-
-    # 3. Generate Looped Arc Script
-    log("Step 3/5: Generating Looped Arc script (Hook -> Conflict -> Comeback -> Seamless Loop)...")
+    # 2. Generate Looped Arc Script (Phase 2)
+    log("Step 2/5: Generating Looped Arc script (Hook -> Conflict -> Comeback -> Seamless Loop)...")
     script = generate_looped_arc_script(
         video_title=metadata.title,
         channel_name=creator_name,
-        transcript_text=transcript,
+        transcript_text=metadata.transcript_text,
         video_duration=metadata.duration_sec,
     )
     log(f"📝 Script generated: '{script.title}' (Hook: '{script.hook_text}')")
 
-    # 4. Assemble 9:16 Short with Kinetic Subtitles
+    # 3. Precision Section Download (Phase 3)
+    clip_dur = min(58.0, max(42.0, script.raw_clip_end - script.raw_clip_start))
+    section_file = output_dir / f"clip_{metadata.video_id}_{int(script.raw_clip_start)}.mp4"
+    log(f"Step 3/5: Precision download of viral window ({script.raw_clip_start:.1f}s -> {script.raw_clip_start + clip_dur:.1f}s)...")
+    download_creator_section(
+        url=target_url,
+        start_sec=script.raw_clip_start,
+        duration_sec=clip_dur,
+        output_path=section_file,
+    )
+
+    # 4. Assemble 9:16 Full-Bleed Short with Kinetic Subtitles & Audio Mix
     log("Step 4/5: Rendering 1080x1920 full-bleed Short with subtitles & audio mix...")
     rendered_short = assemble_isla_short(
-        source_video=metadata.video_path,
+        source_video=section_file,
         script=script,
         output_dir=output_dir,
         voice=args.voice,
         bgm_path=DEFAULT_BGM if DEFAULT_BGM.exists() else None,
+        is_pre_sliced=True,
     )
 
     # 5. Upload to YouTube

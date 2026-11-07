@@ -171,6 +171,7 @@ def assemble_isla_short(
     output_dir: Path = Path("output"),
     voice: str = DEFAULT_VOICE,
     bgm_path: Optional[Path] = None,
+    is_pre_sliced: bool = True,
 ) -> Path:
     """
     Complete rendering pipeline:
@@ -185,8 +186,8 @@ def assemble_isla_short(
 
     log(f"🎬 Assembling Isla Value-Add Short: '{script.title}'...")
 
-    clip_start = script.raw_clip_start
-    clip_dur = min(58.0, max(40.0, script.raw_clip_end - clip_start))
+    clip_start = 0.0 if is_pre_sliced else script.raw_clip_start
+    clip_dur = min(58.0, max(40.0, script.raw_clip_end - script.raw_clip_start))
 
     # 1. Generate full narration audio
     narrator_texts = [s.text for s in script.segments if s.speaker == "narrator"]

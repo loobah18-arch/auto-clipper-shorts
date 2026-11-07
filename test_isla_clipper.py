@@ -3,11 +3,12 @@
 Unit tests for Isla Value-Add Creator Shorts Clipper.
 Verifies:
 1. Multi-niche creator catalog loading and schema validation.
-2. Looped Arc story engine (3 viral criteria, open-loop hook, seamless loop connector).
-3. Kinetic karaoke ASS subtitle generation with high-impact styles.
-4. Full-bleed 9:16 crop command construction (zero letterbox bars).
-5. Standalone title formatting (removal of 'Part X' labels).
-6. Upload guard dry-run and description fair use compliance.
+2. Two-phase fetcher helpers (time formatting, vtt cleaner).
+3. Looped Arc story engine (3 viral criteria, open-loop hook, seamless loop connector).
+4. Kinetic karaoke ASS subtitle generation with high-impact styles.
+5. Full-bleed 9:16 crop command construction (zero letterbox bars).
+6. Standalone title formatting (removal of 'Part X' labels).
+7. Upload guard dry-run and description fair use compliance.
 """
 
 from __future__ import annotations
@@ -18,7 +19,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from creator_fetcher import CreatorVideoMetadata, _prepare_cookies_arg, resolve_media_info
+from creator_fetcher import (
+    CreatorVideoMetadata,
+    _clean_vtt_text,
+    _format_time_sec,
+)
 from generate_isla_short import load_catalog, pick_target_url
 from isla_story_engine import (
     AudioCutSegment,
@@ -48,6 +53,34 @@ class TestIslaClipper(unittest.TestCase):
         url, creator = pick_target_url(catalog, "science_experiments")
         self.assertTrue(url.startswith("http"))
         self.assertTrue(len(creator) > 0)
+
+    def test_format_time_sec(self):
+        self.assertEqual(_format_time_sec(0), "00:00:00")
+        self.assertEqual(_format_time_sec(75), "00:01:15")
+        self.assertEqual(_format_time_sec(3665), "01:01:05")
+
+    def test_clean_vtt_text(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".vtt", delete=False) as f:
+            f.write("""WEBVTT
+Kind: captions
+Language: en
+
+00:00:01.000 --> 00:00:03.000
+<00:00:01.000><c> Hello</c><00:00:01.500><c> world</c>
+
+00:00:03.000 --> 00:00:05.000
+<00:00:03.000><c> Testing</c><00:00:03.500><c> science</c>
+""")
+            vtt_path = Path(f.name)
+
+        try:
+            text = _clean_vtt_text(vtt_path)
+            self.assertIn("Hello world", text)
+            self.assertIn("Testing science", text)
+            self.assertNotIn("WEBVTT", text)
+        finally:
+            if vtt_path.exists():
+                vtt_path.unlink()
 
     def test_looped_arc_structure(self):
         script = generate_deterministic_fallback_script(
