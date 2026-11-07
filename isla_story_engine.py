@@ -298,6 +298,67 @@ def generate_deterministic_fallback_script(
             scenes=scenes,
         )
 
+    elif "mrbeast" in c_lower or "beast" in c_lower or "yacht" in t_lower or "48h57pspbec" in t_lower:
+        # Verified MrBeast $1 vs $1,000,000,000 Yacht benchmark (48h57PspBec)
+        scenes = [
+            VideoSceneCut(name="hook", start_sec=700.0, end_sec=704.0, description="1 billion dollar mega yacht preview with water slides"),
+            VideoSceneCut(name="setup", start_sec=37.0, end_sec=49.0, description="1 dollar boat sinking into ocean"),
+            VideoSceneCut(name="process", start_sec=112.0, end_sec=124.0, description="10M and 50M super yachts with helicopter pad"),
+            VideoSceneCut(name="conflict", start_sec=648.0, end_sec=664.0, description="tom brady drone challenge on 300M yacht"),
+            VideoSceneCut(name="rebuild", start_sec=704.0, end_sec=712.0, description="exploring 1 billion dollar floating city"),
+            VideoSceneCut(name="payoff", start_sec=731.0, end_sec=737.0, description="jimmy water park top deck reaction"),
+        ]
+        hook = "what happens when you compare a one dollar yacht to a one billion dollar yacht?"
+        loop = "which is why everyone wonders..."
+        segments = [
+            AudioCutSegment(
+                start_sec=0.0, end_sec=4.0, speaker="narrator",
+                text=hook, bgm_action="normal"
+            ),
+            AudioCutSegment(
+                start_sec=4.0, end_sec=16.0, speaker="narrator",
+                text="this guy bought a boat for literally one single dollar to see if it could actually float. but the second they put it in the ocean, water rushed in through the bottom and it started sinking in under ten seconds.",
+                bgm_action="normal"
+            ),
+            AudioCutSegment(
+                start_sec=16.0, end_sec=28.0, speaker="narrator",
+                text="so they upgraded fast. first to a ten million dollar yacht with a private chef, and then a fifty million dollar superyacht packed with jet skis and a helicopter pad.",
+                bgm_action="normal"
+            ),
+            AudioCutSegment(
+                start_sec=28.0, end_sec=44.0, speaker="narrator",
+                text="but on the three hundred million dollar yacht, things got wild. they brought out nfl legend tom brady and challenged him to hit a tiny flying drone out of the sky with a football from fifty yards away. and on his very first try, he destroyed it.",
+                bgm_action="normal"
+            ),
+            AudioCutSegment(
+                start_sec=44.0, end_sec=54.0, speaker="narrator",
+                text="finally, they boarded the one billion dollar titan. it's bigger than three statues of liberty, seventeen stories tall, and is basically a floating city.",
+                bgm_action="normal"
+            ),
+            AudioCutSegment(
+                start_sec=54.0, end_sec=56.0, speaker="narrator",
+                text="so, he checked out the roof.",
+                bgm_action="ducked"
+            ),
+            AudioCutSegment(
+                start_sec=56.0, end_sec=61.0, speaker="creator",
+                text="there's a whole entire water park up here! this is insane!",
+                bgm_action="silence"
+            ),
+        ]
+        return LoopedArcScript(
+            title="He Bought a $1 Sinking Boat vs $1,000,000,000 Yacht 😳 (@MrBeast) #shorts",
+            concept="Comparing a $1 sinking boat to luxury yachts and the final $1,000,000,000 floating city.",
+            hook_text=hook,
+            loop_connector=loop,
+            segments=segments,
+            raw_clip_start=700.0,
+            raw_clip_end=737.0,
+            estimated_duration=61.0,
+            keywords=["mrbeast", "yacht", "billion dollar", "shorts", "testednproved"],
+            scenes=scenes,
+        )
+
     # General creator fallback with 3 narrative scenes
     sc1_start = max(5.0, min(60.0, duration_sec * 0.05))
     sc2_start = max(sc1_start + 20.0, min(duration_sec * 0.45, duration_sec - 35.0))

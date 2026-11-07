@@ -199,6 +199,37 @@ Language: en
         self.assertIn("100 RedBulls into 1 Drink", script.title)
         self.assertIn("what would happen", script.hook_text.lower())
 
+    def test_mrbeast_yacht_benchmark_script(self):
+        script = generate_deterministic_fallback_script(
+            title="$1 vs $1,000,000,000 Yacht!",
+            channel_name="MrBeast",
+            duration_sec=887.0,
+        )
+        self.assertEqual(len(script.scenes), 6)
+        self.assertEqual(script.scenes[0].name, "hook")
+        self.assertEqual(script.scenes[0].start_sec, 700.0)
+        self.assertEqual(script.scenes[1].name, "setup")
+        self.assertEqual(script.scenes[1].start_sec, 37.0)
+        self.assertIn("MrBeast", script.title)
+        self.assertIn("yacht", script.hook_text.lower())
+
+    def test_compute_kinetic_word_timings(self):
+        from isla_video_engine import compute_kinetic_word_timings
+        chunks = compute_kinetic_word_timings(
+            text="what would happen if you compressed 100 cans",
+            start_sec=0.0,
+            speech_duration=3.0,
+            chunk_size=2,
+        )
+        self.assertGreater(len(chunks), 0)
+        # Verify first chunk starts at start_sec
+        self.assertGreaterEqual(chunks[0][0], 0.0)
+        # Verify last chunk ends at speech_duration
+        self.assertAlmostEqual(chunks[-1][1], 3.0, places=2)
+        # Verify lowercase
+        for _, _, text in chunks:
+            self.assertEqual(text, text.lower())
+
     def test_upload_guard_dry_run(self):
         script = generate_deterministic_fallback_script("Test", "Creator", 200.0)
         result = upload_isla_short(

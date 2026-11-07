@@ -64,6 +64,21 @@
           "sample_urls": []
         }
       ]
+    },
+    "extreme_challenges": {
+      "name": "Extreme Challenges & Stunts",
+      "description": "Insane high-budget spectacles, survival experiments, and luxury comparisons",
+      "target_creators": [
+        {
+          "name": "MrBeast",
+          "channel_url": "https://www.youtube.com/@MrBeast",
+          "topics": ["1 dollar vs billion dollar", "survival", "challenges", "insane builds"],
+          "sample_urls": [
+            "https://www.youtube.com/watch?v=48h57PspBec",
+            "https://www.youtube.com/watch?v=0CTp1a-aCUM"
+          ]
+        }
+      ]
     }
   }
 }
