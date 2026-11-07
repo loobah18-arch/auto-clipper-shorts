@@ -8,6 +8,7 @@ pipeline_debug.log
 .deepseek_chat_history.json
 *.mp4
 !assets/backgrounds/*.mp4
+!assets/videos/*.mp4
 !assets/videos/**/*.mp4
 !assets/samples/*.mp4
 *.mp3

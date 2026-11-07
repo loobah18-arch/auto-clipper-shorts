@@ -1,9 +1,9 @@
 <?svml using="@hypit/markup/run@1"?>
 <svrun version="1">
-  <author source="./mrbeast_yacht.svml"/>
+  <author source="./mrbeast_challenge.svml"/>
   <look source="./look.svs"/>
   <inputs>
-    <file id="mrbeast_raw" path="/storage/emulated/0/Download/mrbeast_short.mp4"/>
+    <file id="mrbeast_raw" path="assets/videos/mrbeast_fall_challenge_raw.mp4"/>
   </inputs>
-  <target output="final.video" destination="/storage/emulated/0/Download/hypit_mrbeast_short.mp4"/>
+  <target output="final.video" destination="/storage/emulated/0/Download/hypit_mrbeast_fall_challenge.mp4"/>
 </svrun>

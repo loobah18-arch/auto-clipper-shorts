@@ -15,22 +15,22 @@ SOURCES_DIR = ROOT_DIR / "sources"
 class TestHypitEngine(unittest.TestCase):
 
     def setUp(self):
-        self.svml_path = SOURCES_DIR / "mrbeast_yacht.svml"
         self.svrun_path = SOURCES_DIR / "production.svrun"
         self.look_path = SOURCES_DIR / "look.svs"
+        self.challenge_svml = SOURCES_DIR / "mrbeast_challenge.svml"
 
     def test_sources_exist(self):
-        self.assertTrue(self.svml_path.exists(), "mrbeast_yacht.svml should exist")
+        self.assertTrue(self.challenge_svml.exists(), "mrbeast_challenge.svml should exist")
         self.assertTrue(self.svrun_path.exists(), "production.svrun should exist")
         self.assertTrue(self.look_path.exists(), "look.svs should exist")
 
     def test_svml_parser(self):
-        parser = HypitSVMLParser(self.svml_path).parse()
+        parser = HypitSVMLParser(self.challenge_svml).parse()
         self.assertEqual(parser.canvas_width, 1080)
         self.assertEqual(parser.canvas_height, 1920)
         self.assertEqual(parser.fps, 30)
-        self.assertEqual(parser.timeline_duration, 20.0)
-        self.assertIn("hook", parser.windows)
+        self.assertEqual(parser.timeline_duration, 24.0)
+        self.assertIn("countdown", parser.windows)
         self.assertIn("opening", parser.script_segments)
 
     def test_svrun_parser(self):
@@ -49,7 +49,7 @@ class TestHypitEngine(unittest.TestCase):
             content = ass_path.read_text(encoding="utf-8")
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1920", content)
-            self.assertIn("WHAT IF", content)
+            self.assertIn("3...", content)
             self.assertIn("Style: Highlight", content)
         finally:
             if test_ass.exists():
