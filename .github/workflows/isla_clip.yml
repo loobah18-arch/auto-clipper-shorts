@@ -16,6 +16,7 @@ on:
           - 'science_experiments'
           - 'podcasts_mindset'
           - 'tech_inventions'
+          - 'extreme_challenges'
       voice:
         description: 'Neural narration voice'
         required: false
