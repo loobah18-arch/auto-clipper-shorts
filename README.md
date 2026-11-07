@@ -1,128 +1,55 @@
-# 🎬 Auto Movie & Series Explanation Engine (MovieGyan & Movie Insight Style)
+# 🎬 Hypit Video Engine
 
-An automated YouTube channel engine for **@woosclips** producing high-retention, detailed **Movie Explanations, Series Recaps, and Twist Reveals** in the signature style of channels like **MovieGyan** and **Movie Insight Hindi**.
+Hypit video workflow and domain-specific authoring framework for AI coding agents.
 
-Generates neural narration (`edge-tts`), dynamic word-level neon karaoke subtitles (`.ass`), uses authorized footage, mixes 100% royalty-free non-copyright BGM, renders 9:16 Shorts as well as complete stitched **Normal Long Videos** once all parts of a movie or webseries are completed. Automated via GitHub Actions.
-
----
-
-## 🌟 Key Capabilities & Aesthetic
-
-- **Detailed Storytelling (1-Min Limit Removed)**: Unconstrained by 60s clips; scripts provide rich 200–350 word detailed scene breakdowns, character motivations, and suspense (up to 3 minutes per part for Shorts).
-- **100% Non-Copyright BGM**: Strictly uses royalty-free cinematic suspense/thriller tracks (`cinematic_suspense_thriller.mp3`), auto-rejecting copyrighted OSTs.
-- **Dual-Funnel Episodic + Normal Long Video**: Each part is published sequentially to keep audiences hooked, and once all parts of a movie/series are completed, the engine automatically stitches all parts together and uploads the complete compilation as a **Normal Long Video** (with chapters and custom landscape thumbnail)!
-- **9:16 Vertical Framing (1080x1920)**: Centered 16:9 foreground movie clip positioned over a dynamic blurred mirror background.
-- **Dynamic Neon Karaoke Subtitles**: Active spoken word pop in Bright Yellow (`&H0000FFFF&`) with black outline for high contrast.
-- **Top Badge Pill**: Sleek header badge (`🎬 MOVIE EXPLAINED • {TITLE}`).
+This project uses **SVML** (Semantic Video Markup Language) and **SVS** stylesheets to author high-impact viral shorts where cuts, captions, transitions, and audio ducking are anchored to spoken words.
 
 ---
 
-## ⚡ 100% Free Tech Stack
+## 🚀 Features
 
-| Component | Technology | Cost |
-|---|---|---|
-| **Movie Script Engine** | Curated Catalog + Groq (Llama 3.3 70B) / DeepSeek | Free Tier |
-| **Neural Voiceover** | `edge-tts` (ChristopherNeural / MadhurNeural) | 100% Free |
-| **Footage Extraction** | Explicitly configured authorized trailer/local media via `yt-dlp` or FFmpeg | Free / Open-Source |
-| **Subtitle Engine** | Word-Level Timing + Advanced ASS Karaoke | Free / Open-Source |
-| **Video Compositor** | `FFmpeg` (Multi-layer filtergraph) | Free / Open-Source |
-| **YouTube Upload** | Google YouTube Data API v3 | Free (10,000 units/day) |
-| **Cloud Automation** | GitHub Actions (`ubuntu-latest`) | Free (2,000 min/month) |
+- **Semantic Video Markup Language (SVML)**: Declarative canvas (`<space:Canvas>`), timelines (`<time:Timeline>`), and audio/visual tracks (`<visual:Track>`, `<audio:Track>`).
+- **Word-Anchored Typography**: Frame-locked, kinetic subtitles anchored to speech cues (`look.svs` styles).
+- **Run Manifests (`.svrun`)**: Reusable candidate graphs linking sources, styles, and rendering targets.
+- **Hypit Engine**: High-performance local and cloud compiler utilizing FFmpeg for 9:16 vertical delivery.
+- **Agent Skill Integration**: Native AI agent skill installed at `.agents/skills/hypit/` and global `~/.agents/skills/hypit/`.
 
 ---
 
-## 📚 Curated Movie Catalog & AI Generation
+## 📁 Project Structure
 
-Includes 15+ pre-crafted viral thriller & mind-bending movie recaps in `movie_catalog.json`:
-- **The Platform (2019)** — The 333-floor vertical prison food mystery
-- **Fall (2022)** — Trapped on a 2,000-ft rusted tower with a chilling twist
-- **Coherence (2013)** — Passing comet fractures reality into infinite dimensions
-- **Shutter Island (2010)** — Asylum investigation and the iconic psychiatric twist
-- **Interstellar (2014)** — Gargantua black hole gravitational time dilation
-- **Source Code (2011)** — 8-minute recurring train explosion time loop
-- **The Mist (2007)** — Lovecraftian horrors and cinema's most heartbreaking ending
-- **Parasite (2019)** — Basement bunker secret under the luxury mansion
-- **A Quiet Place (2018)** — Blind sound-hunting alien predators
-- **Ex Machina (2014)** — AI Turing test and ruthless deception
-- **Don't Breathe (2016)** — Blind military veteran's dark basement secret
-- **Vivarium (2019)** — Infinite suburban labyrinth extraterrestrial zoo
-- **Predestination (2014)** — Ultimate bootstrap paradox time loop
-- **The Truman Show (1998)** — Life as a 24/7 unscripted global TV show
-- **Triangle (2009)** — Abandoned ocean liner temporal purgatory loop
-
-### On-Demand AI Generation
-Pass any movie name:
-```bash
-python generate_movie_short.py --movie "Inception"
 ```
-Uses Groq / DeepSeek to generate a complete viral 50-55s movie breakdown formatted for MovieGyan storytelling.
-
----
-
-## 🚀 Usage
-
-### 1. Cloud Dry Run
-Run the render from GitHub Actions with `dry_run=true`; do not run FFmpeg or video rendering on a phone. The workflow uploads the MP4, thumbnail, subtitles, render manifest, and `ffprobe` report to the `movie-explanation-short` artifact.
-
-### 2. Authorized Media Sources
-The default workflow uses only an explicitly configured `trailer_url` from the catalog, an authorized local file passed by the operator, or a neutral generated fallback. Trailer search, private Google Drive media, external poster artwork, and BGM are disabled by default and must be explicitly enabled for a rights-cleared source.
-
-```bash
-python generate_movie_short.py --movie "Inception" --video-file /path/to/authorized_inception.mp4 --dry-run
-```
-
-### 3. Publishing Safety
-- The default `PRIVACY_STATUS` is now `public`. Drop it back to `unlisted` (workflow input, or `PRIVACY_STATUS` for local runs) if the content and source rights have not been reviewed.
-- Use original or licensed narration, footage, and music.
-- Do not treat a Fair Use notice, watermark, or color grade as a guarantee of platform approval.
-- Add a channel watermark only when it represents your actual channel identity:
-  ```bash
-  python generate_movie_short.py --movie "Fall" --watermark "@CinemaInsights"
-  ```
-- Custom voiceover remains supported for cloud runs that provide an authorized audio file.
-
-### 4. View Catalog and Upload History
-```bash
-python generate_movie_short.py --list
-```
-
-### 3. Run Pipeline Unit Tests
-```bash
-python test_movie_pipeline.py
-python test_pipeline.py
-python test_workflow_contract.py
-```
-
-### 4. Upload to YouTube
-Provide your YouTube OAuth tokens in `.env`:
-```env
-CLIENT_ID=your_client_id
-CLIENT_SECRET=your_client_secret
-REFRESH_TOKEN=your_refresh_token
-PRIVACY_STATUS=public
-```
-
-Already-uploaded videos can be re-flipped without re-rendering. Trigger the
-workflow with `set_visibility` set to a comma-separated list of video IDs;
-that path skips the render pipeline entirely:
-
-```bash
-python set_video_visibility.py  # reads SET_VISIBILITY_IDS / SET_VISIBILITY_STATUS
-```
-Run:
-```bash
-python generate_movie_short.py --movie "The Platform" --upload
+├── .agents/skills/hypit/     <- Complete Hypit Agent skill, DSL reference & playbooks
+├── .github/workflows/       <- Cloud rendering CI/CD (hypit_render.yml)
+├── assets/
+│   ├── fonts/               <- Design tokens & typography (Montserrat-ExtraBold)
+│   ├── bgm/                 <- Curated background music tracks
+│   └── sfx/                 <- Sound effects (pops, whooshes, shutters)
+├── sources/
+│   ├── mrbeast_yacht.svml   <- SVML authoring specification for MrBeast $1 vs $1B Yacht
+│   ├── look.svs             <- Hypit stylesheet for typography and film settings
+│   └── production.svrun     <- Production execution manifest
+├── hypit_engine.py          <- Hypit compiler and video render pipeline
+├── test_hypit_engine.py     <- Unit tests for parsing and subtitle generation
+├── package.json             <- Hypit project configuration
+└── requirements.txt         <- Python dependencies
 ```
 
 ---
 
-## 🤖 GitHub Actions Automation
+## ⚡ Usage
 
-Trigger manually or on schedule via `.github/workflows/daily_clip.yml`:
-1. Go to **GitHub Repo → Actions → 🎬 Auto Movie Explanation Shorts (MovieGyan Style)**.
-2. Click **Run workflow**.
-3. Optionally enter:
-   - `movie_name`: e.g. `Interstellar` (or leave blank to auto-rotate from catalog).
-   - `lang`: `en` or `hi`.
-   - `dry_run`: `true` to test render and inspect video artifact without uploading.
-4. Download the rendered MP4, thumbnail, subtitles, manifest, diagnostics, and logs from the workflow **Artifacts** (`movie-explanation-short`).
+### Validate Project
+```bash
+python3 hypit_engine.py --check
+```
+
+### Render Deliverable
+```bash
+python3 hypit_engine.py sources/production.svrun -o /storage/emulated/0/Download/hypit_mrbeast_short.mp4
+```
+
+### Run Tests
+```bash
+python3 test_hypit_engine.py
+```

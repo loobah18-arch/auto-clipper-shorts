@@ -1,0 +1,9 @@
+<?svml using="@hypit/markup/run@1"?>
+<svrun version="1">
+  <author source="./mrbeast_yacht.svml"/>
+  <look source="./look.svs"/>
+  <inputs>
+    <file id="mrbeast_raw" path="/storage/emulated/0/Download/mrbeast_short.mp4"/>
+  </inputs>
+  <target output="final.video" destination="/storage/emulated/0/Download/hypit_mrbeast_short.mp4"/>
+</svrun>

@@ -1,0 +1,63 @@
+name: 🎬 Hypit Cloud Render Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: 'Path to Hypit .svrun manifest'
+        required: false
+        default: 'sources/production.svrun'
+        type: string
+      output_filename:
+        description: 'Name of the output video file'
+        required: false
+        default: 'hypit_mrbeast_short.mp4'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  hypit_build_and_render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 🎥 Install FFmpeg & Fonts
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-montserrat
+
+      - name: 📦 Install Python Dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🧪 Run Hypit Unit Tests
+        run: |
+          set -euo pipefail
+          python3 test_hypit_engine.py
+
+      - name: 🎬 Render Hypit Deliverable
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          python3 hypit_engine.py "${{ inputs.manifest }}" --output "output/${{ inputs.output_filename }}"
+
+      - name: 📦 Upload Generated Video Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hypit-render-output
+          path: output/*.mp4
+          retention-days: 7

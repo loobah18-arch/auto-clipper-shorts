@@ -1,0 +1,40 @@
+<?svml using="@hypit/recipe@1"?>
+<sheet version="1">
+  text.title {
+    font-family: "Montserrat";
+    font-size: 78;
+    font-weight: 800;
+    color: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 6.0;
+    alignment: center;
+  }
+
+  text.caption.highlight {
+    font-family: "Montserrat";
+    font-size: 74;
+    font-weight: 800;
+    color: #FFE600;
+    stroke: #000000;
+    stroke-width: 5.8;
+    transform: uppercase;
+  }
+
+  text.caption.default {
+    font-family: "Montserrat";
+    font-size: 74;
+    font-weight: 800;
+    color: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 5.8;
+    transform: uppercase;
+  }
+
+  film.main {
+    background: #0B0E14;
+    aspect-ratio: "9:16";
+    width: 1080;
+    height: 1920;
+    frame-rate: 30;
+  }
+</sheet>
