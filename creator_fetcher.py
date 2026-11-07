@@ -214,7 +214,8 @@ def fetch_creator_metadata(
             continue
         cmd = [
             "yt-dlp",
-            "--js-runtimes", "node",
+            "--remote-components", "ejs:github",
+            "--js-runtimes", "deno,node",
             "--skip-download",
             "--dump-json",
             "--ignore-no-formats-error",
@@ -350,17 +351,18 @@ def download_creator_section(
 
     log(f"📥 Downloading targeted {duration_sec:.1f}s section [{_format_time_sec(start_sec)} -> {_format_time_sec(end_sec)}] -> {output_path.name}...")
 
+    fmt_selector = "bestvideo[height<=1080]+bestaudio/bestvideo[height<=720]+bestaudio/best[height<=1080]/best"
     download_strategies = [
-        # Strategy 1: android (bypasses datacenter block, supports format 18/best)
-        ["--extractor-args", "youtube:player_client=android", "-f", "best/18/b/w"],
-        # Strategy 2: android + mweb
-        ["--extractor-args", "youtube:player_client=android,mweb", "-f", "best/18/b/w"],
-        # Strategy 3: ios + android
-        ["--extractor-args", "youtube:player_client=ios,android", "-f", "best/18/b/w"],
-        # Strategy 4: mweb with cookies
-        [*cookie_args, "--extractor-args", "youtube:player_client=mweb", "-f", "best/b/18"] if cookie_args else None,
+        # Strategy 1: Modern Deno/Node with ejs challenge solver + cookies
+        [*cookie_args, "-f", fmt_selector] if cookie_args else None,
+        # Strategy 2: EJS + android client
+        ["--extractor-args", "youtube:player_client=android", "-f", fmt_selector],
+        # Strategy 3: EJS + mweb client with cookies
+        [*cookie_args, "--extractor-args", "youtube:player_client=mweb", "-f", fmt_selector] if cookie_args else None,
+        # Strategy 4: EJS + ios/android
+        ["--extractor-args", "youtube:player_client=ios,android", "-f", fmt_selector],
         # Strategy 5: default vanilla
-        ["-f", "best/b/18"],
+        ["-f", fmt_selector],
     ]
 
     res_dl = None
@@ -369,7 +371,8 @@ def download_creator_section(
             continue
         cmd = [
             "yt-dlp",
-            "--js-runtimes", "node",
+            "--remote-components", "ejs:github",
+            "--js-runtimes", "deno,node",
             "--download-sections", section_arg,
             "--merge-output-format", "mp4",
             "-o", str(output_path),
@@ -391,13 +394,8 @@ def download_creator_section(
             import shutil
             shutil.move(mp4_parts[0], output_path)
 
-    # Fallback to bundled sample if cloud runner is blocked
+    # Fail closed instead of silently falling back to a completely different creator video
     if not output_path.exists() or output_path.stat().st_size < 50_000:
-        if sample_mp4.exists():
-            log(f"🛡️ YouTube section download blocked on cloud IP; using verified sample clip: {sample_mp4}")
-            import shutil
-            shutil.copyfile(sample_mp4, output_path)
-            return output_path
         err_msg = res_dl.stderr[:300] if res_dl else "Download failed"
         raise RuntimeError(f"Section download failed: {err_msg}")
 
