@@ -27,7 +27,7 @@ from cinerush_face_reframer import render_shot_locked_cinerush_video
 from cinerush_subtitles import generate_cinerush_karaoke_ass, burn_karaoke_subtitles
 from cinerush_shutter_sfx import apply_camera_shutter_transitions
 from cinerush_bgm import apply_cinerush_bgm
-from movie_pipeline_state import assert_upload_cadence_allowed, load_history
+from movie_pipeline_state import assert_upload_cadence_allowed, ensure_upload_cadence_or_wait, load_history
 from movie_quality import (
     CINERUSH_QUICK_TEST_DURATION,
     DEFAULT_CINERUSH_MIN_DURATION,
@@ -416,7 +416,19 @@ def run_cinerush_pipeline(
     normal_video_id = None
     if not dry_run and not test_mode:
         history_path = Path(__file__).resolve().parent / "movie_history.json"
-        assert_upload_cadence_allowed(load_history(history_path))
+        can_proceed, next_target_time, rem = ensure_upload_cadence_or_wait(load_history(history_path))
+        if not can_proceed:
+            target_str = next_target_time.strftime("%Y-%m-%d %H:%M:%S UTC") if next_target_time else "target time"
+            log(f"⏸️ [CadenceManager] Upload deferred until {target_str}. Skipping YouTube publish.")
+            return {
+                "title": viral_data.get("title", "Scene"),
+                "output_file": str(final_short_path),
+                "normal_output_file": str(final_normal_path) if final_normal_path.exists() else None,
+                "youtube_id": None,
+                "normal_video_id": None,
+                "upload_group_id": upload_group_id,
+                "cadence_deferred": True,
+            }
         if movie_meta and movie_meta.get("part_number"):
             viral_data.setdefault("tags", []).extend([
                 f"part{movie_meta['part_number']}",

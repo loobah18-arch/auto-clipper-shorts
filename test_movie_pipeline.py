@@ -1333,6 +1333,27 @@ class TestMoviePipeline(unittest.TestCase):
                 f"Title '{title}' does not contain 'Explanation' or 'Explained'",
             )
 
+    def test_cadence_deferral_summary_exports(self):
+        from datetime import datetime, timezone
+        from generate_movie_short import _export_cadence_deferral_summary
+        with tempfile.TemporaryDirectory() as tmp:
+            summary_path = Path(tmp) / "summary.md"
+            output_path = Path(tmp) / "output.txt"
+            target_time = datetime(2026, 11, 7, 4, 25, 0, tzinfo=timezone.utc)
+            with unittest.mock.patch.dict(os.environ, {
+                "GITHUB_STEP_SUMMARY": str(summary_path),
+                "GITHUB_OUTPUT": str(output_path),
+            }):
+                _export_cadence_deferral_summary(target_time, 3600.0)
+            self.assertTrue(summary_path.exists())
+            summary_content = summary_path.read_text(encoding="utf-8")
+            self.assertIn("Upload Cadence Deferral", summary_content)
+            self.assertIn("2026-11-07 04:25:00 UTC", summary_content)
+            self.assertTrue(output_path.exists())
+            output_content = output_path.read_text(encoding="utf-8")
+            self.assertIn("cadence_deferred=true", output_content)
+            self.assertIn("next_upload_time=2026-11-07T04:25:00+00:00", output_content)
+
 
 
 

@@ -4,6 +4,9 @@ on:
   schedule:
     # Daily movie explanation release (Short + 16:9 full scene) with exactly 24 hours gap between uploads
     - cron: '15 8 * * *'
+    # Cadence-aware automated checks every 30 mins to automatically upload on exact 24h timing
+    - cron: '15 * * * *'
+    - cron: '45 * * * *'
   workflow_dispatch:
     inputs:
       movie_name:
@@ -294,6 +297,7 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
+          mkdir -p output
           report="output/ffprobe_report.txt"
           : > "$report"
           for video in output/*.mp4; do

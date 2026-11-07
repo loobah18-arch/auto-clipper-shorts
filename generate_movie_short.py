@@ -55,6 +55,8 @@ from movie_pipeline_state import (
     confirmed_part_durations,
     entry_is_uploaded,
     assert_upload_cadence_allowed,
+    ensure_upload_cadence_or_wait,
+    get_next_allowed_upload_time,
     write_manifest,
 )
 from movie_quality import (
@@ -389,6 +391,32 @@ Narration and commentary are original to this channel. Visuals are sourced only 
         return None
 
 
+def _export_cadence_deferral_summary(next_time: datetime, remaining_seconds: float) -> None:
+    """Record cadence deferral details to GitHub step summary and outputs."""
+    next_str = next_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+    rem_hours = remaining_seconds / 3600.0
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        try:
+            with open(github_output, "a", encoding="utf-8") as f:
+                f.write(f"cadence_deferred=true\n")
+                f.write(f"next_upload_time={next_time.isoformat()}\n")
+        except Exception as e:
+            log(f"⚠️ Failed to write to GITHUB_OUTPUT: {e}")
+
+    github_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if github_summary:
+        try:
+            with open(github_summary, "a", encoding="utf-8") as f:
+                f.write("### ⏳ Upload Cadence Deferral\n\n")
+                f.write("The pipeline detected that the previous upload was less than 24 hours ago.\n\n")
+                f.write(f"- ⏱️ **Target Next Upload**: `{next_str}`\n")
+                f.write(f"- ⏳ **Time Remaining**: `{rem_hours:.2f} hours` ({int(remaining_seconds)}s)\n")
+                f.write("- 🤖 **Status**: Cleanly deferred. Next scheduled workflow check will automatically execute upload on timing.\n")
+        except Exception as e:
+            log(f"⚠️ Failed to write to GITHUB_STEP_SUMMARY: {e}")
+
+
 def run_pipeline(
     movie_name: str | None = None,
     part: int | None = None,
@@ -404,6 +432,7 @@ def run_pipeline(
     allow_unreviewed_rights: bool = False,
     allow_duplicate: bool = False,
     quick_test: bool = False,
+    allow_cadence_override: bool = False,
     style_restart_count: int = 0,
     max_style_restarts: int = 1,
 ) -> Path:
@@ -416,9 +445,21 @@ def run_pipeline(
         from cinerush_pipeline import run_cinerush_pipeline
         from movie_video_engine import parse_timestamp_to_seconds, resolve_part_window
 
-        # Fail fast if upload is requested but upload cadence interval has not elapsed
+        # Check upload cadence: note timing of last upload and next target upload
         if not dry_run and not quick_test:
-            assert_upload_cadence_allowed(load_movie_history(HISTORY_FILE))
+            can_proceed, next_target_time, remaining_seconds = ensure_upload_cadence_or_wait(
+                load_movie_history(HISTORY_FILE),
+                allow_override=allow_cadence_override,
+            )
+            if not can_proceed:
+                target_str = next_target_time.strftime("%Y-%m-%d %H:%M:%S UTC") if next_target_time else "target time"
+                log(
+                    f"⏸️ [CadenceManager] Next upload window opens at {target_str} "
+                    f"({remaining_seconds / 3600.0:.2f} hours remaining). Deferring pipeline run cleanly."
+                )
+                if next_target_time:
+                    _export_cadence_deferral_summary(next_target_time, remaining_seconds)
+                return Path(HISTORY_FILE)
 
         # Step 1: Select next movie and episodic part in sequence from Drive catalog & history
         movie_data = select_next_movie(movie_name, requested_part=part, lang=lang)
@@ -1001,7 +1042,19 @@ def run_pipeline(
     normal_video_id = None
     upload_group_id = episode_key(movie_id, part_number)
     if upload_requested and current_state == RunStatus.PUBLISH_READY:
-        assert_upload_cadence_allowed(history)
+        can_proceed, next_target_time, remaining_seconds = ensure_upload_cadence_or_wait(
+            history,
+            allow_override=allow_cadence_override,
+        )
+        if not can_proceed:
+            target_str = next_target_time.strftime("%Y-%m-%d %H:%M:%S UTC") if next_target_time else "target time"
+            log(
+                f"⏸️ [CadenceManager] Next upload window opens at {target_str} "
+                f"({remaining_seconds / 3600.0:.2f} hours remaining). Deferring upload cleanly."
+            )
+            if next_target_time:
+                _export_cadence_deferral_summary(next_target_time, remaining_seconds)
+            return final_short_path
         upload_res = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=True, return_guard_info=True)
         guard_info: dict[str, Any] = {}
         if isinstance(upload_res, tuple):
@@ -1356,6 +1409,7 @@ def main():
         allow_unreviewed_rights=args.allow_unreviewed_rights,
         allow_duplicate=args.allow_duplicate,
         quick_test=args.quick_test,
+        allow_cadence_override=args.allow_cadence_override,
     )
 
 

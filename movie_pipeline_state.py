@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
@@ -139,8 +140,9 @@ def _as_dict(value: JsonValue) -> dict[str, JsonValue] | None:
     return value if isinstance(value, dict) else None
 
 
-def load_history(path: Path) -> dict[str, JsonValue]:
+def load_history(path: Path | str) -> dict[str, JsonValue]:
     """Load and normalize history, failing closed on malformed state."""
+    path = Path(path)
     if not path.exists():
         return {"uploaded_movies": []}
 
@@ -246,6 +248,101 @@ def assert_upload_cadence_allowed(
     groups = completed_upload_groups(history, now)
     if groups and now - groups[-1][1] < timedelta(hours=24):
         raise HistoryError("Upload cadence blocked: the previous clip group is less than 24 hours old")
+
+
+def get_next_allowed_upload_time(
+    history: dict[str, JsonValue],
+    now: datetime | None = None,
+    cadence_hours: float = 24.0,
+) -> tuple[datetime | None, datetime | None, float]:
+    """Calculate the exact previous upload time, next allowed upload time, and remaining seconds.
+
+    Returns:
+        (last_upload_time, next_allowed_time, remaining_seconds)
+    """
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    groups = completed_upload_groups(history, now)
+    if groups:
+        last_upload_time = groups[-1][1]
+        next_allowed_time = last_upload_time + timedelta(hours=cadence_hours)
+        remaining_seconds = max(0.0, (next_allowed_time - now).total_seconds())
+        return last_upload_time, next_allowed_time, remaining_seconds
+
+    # If no groups within 7-day rolling window, search older completed entries for reporting
+    all_groups: dict[str, datetime] = {}
+    entries = history.get("uploaded_movies", [])
+    if isinstance(entries, list):
+        for entry in entries:
+            record = _as_dict(entry)
+            if record is None or not entry_is_uploaded(entry) or not record.get("normal_video_id"):
+                continue
+            uploaded_at = _parse_utc_timestamp(record.get("uploaded_at") or record.get("timestamp"))
+            group = upload_group_key(entry)
+            if uploaded_at and group:
+                all_groups[group] = max(all_groups.get(group, uploaded_at), uploaded_at)
+    if all_groups:
+        latest_past = sorted(all_groups.items(), key=lambda item: item[1])[-1][1]
+        return latest_past, latest_past + timedelta(hours=cadence_hours), 0.0
+
+    return None, None, 0.0
+
+
+def ensure_upload_cadence_or_wait(
+    history: dict[str, JsonValue],
+    now: datetime | None = None,
+    allow_override: bool = False,
+    max_wait_seconds: float | None = None,
+    cadence_hours: float = 24.0,
+) -> tuple[bool, datetime | None, float]:
+    """Ensures 24-hour cadence between uploads:
+
+    1. Notes the exact timing of the last upload.
+    2. Calculates the timing of the next upload (+24 hours).
+    3. If 24 hours have already passed, returns (True, None, 0.0) immediately.
+    4. If remaining wait time is within max_wait_seconds (default 2100s / 35 min),
+       sleeps inline with periodic heartbeats until target timing and returns (True, next_allowed_time, 0.0).
+    5. If remaining wait time exceeds max_wait_seconds, returns (False, next_allowed_time, remaining_seconds)
+       so the workflow can defer cleanly without crashing with an error.
+    """
+    if allow_override or os.environ.get("ALLOW_CADENCE_OVERRIDE", "false").lower() == "true":
+        return True, None, 0.0
+
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    last_time, next_time, remaining = get_next_allowed_upload_time(history, now, cadence_hours=cadence_hours)
+
+    if not last_time or remaining <= 0:
+        return True, None, 0.0
+
+    if max_wait_seconds is None:
+        try:
+            max_wait_seconds = float(os.environ.get("CADENCE_MAX_WAIT_SECONDS", "2100"))
+        except (ValueError, TypeError):
+            max_wait_seconds = 2100.0
+
+    rem_min = remaining / 60.0
+    rem_hours = remaining / 3600.0
+    last_str = last_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+    next_str = next_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    if remaining <= max_wait_seconds:
+        print(f"[CadenceManager] ⏱️ Last upload: {last_str}. Next upload scheduled for: {next_str}.", flush=True)
+        print(f"[CadenceManager] ⏳ Remaining wait ({rem_min:.1f} min) is within inline window ({max_wait_seconds / 60:.1f} min).", flush=True)
+        print(f"[CadenceManager] 💤 Waiting until exact upload timing ({next_str})...", flush=True)
+        sleep_chunk = 30.0
+        time_to_wait = remaining
+        while time_to_wait > 0:
+            step = min(sleep_chunk, time_to_wait)
+            time.sleep(step)
+            time_to_wait -= step
+            if time_to_wait > 5.0:
+                print(f"[CadenceManager] ⏳ Countdown: {time_to_wait / 60.0:.1f} min remaining until target timing ({next_str})...", flush=True)
+        print(f"[CadenceManager] 🔔 Target upload timing reached ({next_str})! Proceeding with upload.", flush=True)
+        return True, next_time, 0.0
+
+    print(f"[CadenceManager] ⏱️ Last upload: {last_str}.", flush=True)
+    print(f"[CadenceManager] 🎯 Next upload scheduled for: {next_str} (in {rem_hours:.2f} hours).", flush=True)
+    print(f"[CadenceManager] 📌 Deferring upload until {next_str} to preserve the exact 24-hour cadence window.", flush=True)
+    return False, next_time, remaining
 
 
 def entry_is_uploaded(entry: JsonValue) -> bool:

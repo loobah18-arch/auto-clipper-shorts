@@ -22,7 +22,13 @@ from unittest.mock import patch, MagicMock
 import numpy as np
 
 from cinerush_downloader import download_movie_scene
-from movie_pipeline_state import HistoryError, assert_upload_cadence_allowed, completed_upload_groups
+from movie_pipeline_state import (
+    HistoryError,
+    assert_upload_cadence_allowed,
+    completed_upload_groups,
+    get_next_allowed_upload_time,
+    ensure_upload_cadence_or_wait,
+)
 from cinerush_viral_selector import (
     format_cinerush_title,
     build_trimmed_timeline,
@@ -85,6 +91,68 @@ class TestUploadCadence(unittest.TestCase):
         history = {"uploaded_movies": [self._entry("pending", now - timedelta(hours=1), normal_id=None)]}
         self.assertEqual(completed_upload_groups(history, now), [])
         assert_upload_cadence_allowed(history, now)
+
+    def test_get_next_allowed_upload_time(self):
+        now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
+        # Empty history
+        last_t, next_t, rem = get_next_allowed_upload_time({}, now)
+        self.assertIsNone(last_t)
+        self.assertIsNone(next_t)
+        self.assertEqual(rem, 0.0)
+
+        # Uploaded 10 hours ago -> 14 hours remaining
+        upload_time = now - timedelta(hours=10)
+        history = {"uploaded_movies": [self._entry("one", upload_time)]}
+        last_t, next_t, rem = get_next_allowed_upload_time(history, now)
+        self.assertEqual(last_t, upload_time)
+        self.assertEqual(next_t, upload_time + timedelta(hours=24))
+        self.assertAlmostEqual(rem, 14 * 3600.0, places=1)
+
+        # Uploaded 25 hours ago -> 0 remaining
+        upload_time_past = now - timedelta(hours=25)
+        history_past = {"uploaded_movies": [self._entry("one", upload_time_past)]}
+        last_t, next_t, rem = get_next_allowed_upload_time(history_past, now)
+        self.assertEqual(last_t, upload_time_past)
+        self.assertEqual(rem, 0.0)
+
+    @patch("time.sleep", return_value=None)
+    def test_ensure_upload_cadence_or_wait_sleeps_within_max_wait(self, mock_sleep):
+        now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
+        # 23.8 hours ago -> remaining is 0.2 hours = 12 minutes (720 seconds)
+        upload_time = now - timedelta(hours=23.8)
+        history = {"uploaded_movies": [self._entry("one", upload_time)]}
+
+        can_proceed, next_t, rem = ensure_upload_cadence_or_wait(
+            history, now=now, max_wait_seconds=1200.0
+        )
+        self.assertTrue(can_proceed)
+        self.assertEqual(next_t, upload_time + timedelta(hours=24))
+        self.assertEqual(rem, 0.0)
+        self.assertTrue(mock_sleep.called)
+
+    def test_ensure_upload_cadence_or_wait_defers_when_exceeding_max_wait(self):
+        now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
+        # 10 hours ago -> remaining 14 hours > max_wait_seconds
+        upload_time = now - timedelta(hours=10)
+        history = {"uploaded_movies": [self._entry("one", upload_time)]}
+
+        can_proceed, next_t, rem = ensure_upload_cadence_or_wait(
+            history, now=now, max_wait_seconds=1800.0
+        )
+        self.assertFalse(can_proceed)
+        self.assertEqual(next_t, upload_time + timedelta(hours=24))
+        self.assertAlmostEqual(rem, 14 * 3600.0, places=1)
+
+    def test_ensure_upload_cadence_or_wait_allows_override(self):
+        now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
+        upload_time = now - timedelta(hours=2)
+        history = {"uploaded_movies": [self._entry("one", upload_time)]}
+
+        can_proceed, next_t, rem = ensure_upload_cadence_or_wait(
+            history, now=now, allow_override=True
+        )
+        self.assertTrue(can_proceed)
+        self.assertEqual(rem, 0.0)
 
 
 class TestCinerushDownloader(unittest.TestCase):
