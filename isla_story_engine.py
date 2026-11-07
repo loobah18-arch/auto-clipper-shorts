@@ -118,62 +118,74 @@ Return strictly a valid JSON object matching this schema:
 
 
 def _call_groq_llm(prompt: str, api_key: str) -> Optional[str]:
-    """Queries Groq API (llama-3.3-70b-versatile)."""
-    try:
-        import urllib.request
-        url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-            "User-Agent": "Antigravity/1.0",
-        }
-        payload = {
-            "model": "llama-3.3-70b-versatile",
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.6,
-        }
-        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return data["choices"][0]["message"]["content"]
-    except Exception as e:
-        log(f"⚠️ Groq LLM query failed: {e}")
-        return None
+    """Queries Groq API with robust model fallbacks."""
+    import urllib.request
+    models = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"]
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "Antigravity/1.0",
+    }
+    for model in models:
+        try:
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.6,
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                content = data["choices"][0]["message"]["content"]
+                if content:
+                    return content
+        except Exception as e:
+            continue
+    log("⚠️ All Groq models failed or timed out.")
+    return None
 
 
 def _call_openrouter_llm(prompt: str, api_key: str) -> Optional[str]:
     """Queries OpenRouter API (nemotron / free models)."""
-    try:
-        import urllib.request
-        url = "https://openrouter.ai/api/v1/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-            "HTTP-Referer": "https://github.com/loobah18-arch/auto-clipper-shorts",
-            "X-Title": "Isla Clipper",
-        }
-        payload = {
-            "model": "nvidia/nemotron-3-super-120b-a12b:free",
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.6,
-        }
-        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            content = data["choices"][0]["message"]["content"]
-            # Clean possible markdown fencing
-            match = re.search(r"\{.*\}", content, re.DOTALL)
-            return match.group(0) if match else content
-    except Exception as e:
-        log(f"⚠️ OpenRouter LLM query failed: {e}")
-        return None
+    import urllib.request
+    models = [
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "nvidia/nemotron-3.5-lightning:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "openrouter/auto",
+    ]
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "HTTP-Referer": "https://github.com/loobah18-arch/auto-clipper-shorts",
+        "X-Title": "Isla Clipper",
+    }
+    for model in models:
+        try:
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.6,
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                content = data["choices"][0]["message"]["content"]
+                match = re.search(r"\{.*\}", content, re.DOTALL)
+                return match.group(0) if match else content
+        except Exception:
+            continue
+    log("⚠️ All OpenRouter models failed or timed out.")
+    return None
 
 
 def generate_deterministic_fallback_script(
