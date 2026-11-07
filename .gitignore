@@ -9,6 +9,7 @@ pipeline_debug.log
 *.mp4
 !assets/backgrounds/*.mp4
 !assets/videos/**/*.mp4
+!assets/samples/*.mp4
 *.mp3
 !assets/bgm/*.mp3
 *.m4a
