@@ -32,9 +32,9 @@
 
   film.main {
     background: #0B0E14;
-    aspect-ratio: "9:16";
+    aspect-ratio: "3:4";
     width: 1080;
-    height: 1920;
+    height: 1440;
     frame-rate: 30;
   }
 </sheet>

@@ -145,7 +145,46 @@ class HypitEngine:
     def get_cues(self) -> List[Tuple[float, float, str]]:
         """Returns word-level cues matched to the active SVML document."""
         svml_name = self.svrun.author_svml.name.lower()
-        if "challenge" in svml_name or "fall" in svml_name:
+        if "challenge" in svml_name or "cops" in svml_name:
+            # MrBeast: Escape 100 Cops, Win $500,000 (60s Looped Arc)
+            return [
+                # Beat 1: Hook & Stakes (0.0s - 15.0s)
+                (0.00, 2.30, "BEHIND ME ARE 100 COPS! 🚔"),
+                (2.30, 4.10, "IF THEY ARREST US..."),
+                (4.10, 6.50, "THEY WIN A MILLION DOLLARS! 💰"),
+                (6.50, 8.50, "BUT IF WE ESCAPE..."),
+                (8.50, 10.00, "START THE TIMER! ⏱️"),
+                (10.00, 11.20, "THEY ARE RIGHT ON US!"),
+                (11.20, 13.10, "DON'T WORRY, I HAVE A PLAN!"),
+                (13.10, 15.00, "RUN! GO GO GO! 😱"),
+
+                # Beat 2: Setup & Traps (15.0s - 30.0s)
+                (15.00, 17.50, "WE GOT TO GET OUT!"),
+                (17.50, 19.50, "WHERE DO WE GO?!"),
+                (19.50, 22.00, "GO! MOVE MOVE!"),
+                (22.00, 24.80, "THE BALL IS OFF!"),
+                (24.80, 26.50, "THAT'S THE FIRE! 🔥"),
+                (26.50, 28.50, "IT'S A TRAP!"),
+                (28.50, 30.00, "WE JUST ESCAPED!"),
+
+                # Beat 3: Conflict & Explosions (30.0s - 45.0s)
+                (30.00, 32.20, "FOR THIS NEXT DIVERSION..."),
+                (32.20, 34.20, "I WANTED TO HAVE A LOT OF..."),
+                (34.20, 36.50, "EXPLOSIONS! 💥💥"),
+                (36.50, 39.00, "MAN DOES IT LOOK EPIC!"),
+                (39.00, 41.50, "WE CAN'T SEE ANYTHING!"),
+                (41.50, 45.00, "THEY'RE NOT GONNA CATCH HIM!"),
+
+                # Beat 4: Climax & Swarm Loop (45.0s - 60.17s)
+                (45.00, 47.50, "DUDE, JIMMY!"),
+                (47.50, 49.50, "WE'RE SURROUNDED! 🚨"),
+                (49.50, 51.50, "LET'S GO DEEPER!"),
+                (51.50, 54.50, "IT'S A DEAD END! 😱"),
+                (54.50, 56.50, "I MADE A MISTAKE!"),
+                (56.50, 58.50, "SET A PERIMETER! 🚔"),
+                (58.50, 60.17, "LOCK IT UP! THEY'RE SURROUNDED!"),
+            ]
+        elif "fall" in svml_name:
             # MrBeast: Last To Fall Wins challenge
             return [
                 (0.00, 0.70, "3..."),
@@ -190,17 +229,24 @@ class HypitEngine:
         font_name = "Montserrat" if FONT_PATH.exists() else "DejaVu Sans"
         cues = self.get_cues()
 
+        # Responsive layout tokens derived from canvas bounds
+        w = self.svml.canvas_width
+        h = self.svml.canvas_height
+        font_size = int(w * 0.072)
+        font_size_hl = int(w * 0.078)
+        margin_v = int(h * 0.19)
+
         ass_content = f"""[Script Info]
 Title: Hypit Dynamic Kinetic Subtitles
 ScriptType: v4.00+
-PlayResX: {self.svml.canvas_width}
-PlayResY: {self.svml.canvas_height}
+PlayResX: {w}
+PlayResY: {h}
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{font_name},80,&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6.5,3.0,2,60,60,420,1
-Style: Highlight,{font_name},86,&H0000E6FF,&H00000000,&H00000000,&H80000000,-1,0,0,0,106,106,0,0,1,7.5,4.0,2,60,60,420,1
+Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6.5,3.0,2,60,60,{margin_v},1
+Style: Highlight,{font_name},{font_size_hl},&H0000E6FF,&H00000000,&H00000000,&H80000000,-1,0,0,0,106,106,0,0,1,7.5,4.0,2,60,60,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -208,7 +254,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for i, (start, end, text) in enumerate(cues):
             start_fmt = self._sec_to_ass_time(start)
             end_fmt = self._sec_to_ass_time(end)
-            style = "Highlight" if (i % 2 == 1 or "!" in text or "$" in text or "😱" in text or "😂" in text) else "Default"
+            style = "Highlight" if (i % 2 == 1 or "!" in text or "$" in text or "😱" in text or "😂" in text or "🔥" in text or "💥" in text or "🚨" in text) else "Default"
             ass_content += f"Dialogue: 0,{start_fmt},{end_fmt},{style},,0,0,0,,{text}\n"
 
         output_ass_path.write_text(ass_content, encoding="utf-8")

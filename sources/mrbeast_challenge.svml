@@ -14,25 +14,25 @@
   <import as="look" source="./look.svs"/>
 
   <script id="story">
-    <opening><HOST>3... 2... 1... PULL!</HOST></opening>
-    <battle><HOST>GO GO GO! YES! PULL! BYE BYE!</HOST></battle>
-    <drop><HOST>OH GOSH! NO NO NO!</HOST></drop>
-    <aftermath><HOST>OH MY SHOE! I STARTED SLIPPING WHEN MY SHOE CAME OFF! ... EXCUSES!</HOST></aftermath>
+    <opening><HOST>BEHIND ME ARE 100 COPS! AND IF THEY ARREST US, THEY WIN A MILLION DOLLARS!</HOST></opening>
+    <setup><HOST>WE GOT TO GET OUT OF HERE! WHERE DO WE GO?! IT'S A TRAP!</HOST></setup>
+    <conflict><HOST>FOR THIS NEXT DIVERSION... A LOT OF EXPLOSIONS! MAN DOES IT LOOK EPIC!</HOST></conflict>
+    <climax><HOST>DUDE, JIMMY! WE'RE SURROUNDED! IT'S A DEAD END! LOCK IT UP!</HOST></climax>
   </script>
 
-  <space:Canvas id="canvas" width="1080" height="1920"/>
+  <space:Canvas id="canvas" width="1080" height="1440"/>
   <time:Clock id="clock" frame-rate="30"/>
 
   <space:Frame id="viewport" within="{canvas.bounds}"
     left="0%" top="0%" right="100%" bottom="100%"/>
   <space:Frame id="subtitle-frame" within="{canvas.bounds}"
-    left="5%" top="58%" right="95%" bottom="85%"/>
+    left="5%" top="65%" right="95%" bottom="90%"/>
 
-  <time:Timeline id="timeline" clock="{clock}" end="24.0s">
-    <time:Window id="countdown" from="0.0s" for="3.2s"/>
-    <time:Window id="battle" from="3.2s" for="5.3s"/>
-    <time:Window id="drop" from="8.5s" for="5.5s"/>
-    <time:Window id="aftermath" from="14.0s" for="10.0s"/>
+  <time:Timeline id="timeline" clock="{clock}" end="60.0s">
+    <time:Window id="hook" from="0.0s" for="15.0s"/>
+    <time:Window id="setup" from="15.0s" for="15.0s"/>
+    <time:Window id="conflict" from="30.0s" for="15.0s"/>
+    <time:Window id="climax" from="45.0s" for="15.0s"/>
   </time:Timeline>
 
   <visual:Track id="main-video" timeline="{timeline.timeline}">

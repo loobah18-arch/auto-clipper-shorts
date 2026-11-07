@@ -27,10 +27,11 @@ class TestHypitEngine(unittest.TestCase):
     def test_svml_parser(self):
         parser = HypitSVMLParser(self.challenge_svml).parse()
         self.assertEqual(parser.canvas_width, 1080)
-        self.assertEqual(parser.canvas_height, 1920)
+        self.assertEqual(parser.canvas_height, 1440)
         self.assertEqual(parser.fps, 30)
-        self.assertEqual(parser.timeline_duration, 24.0)
-        self.assertIn("countdown", parser.windows)
+        self.assertEqual(parser.timeline_duration, 60.0)
+        self.assertIn("hook", parser.windows)
+        self.assertIn("climax", parser.windows)
         self.assertIn("opening", parser.script_segments)
 
     def test_svrun_parser(self):
@@ -48,8 +49,8 @@ class TestHypitEngine(unittest.TestCase):
             self.assertTrue(ass_path.exists())
             content = ass_path.read_text(encoding="utf-8")
             self.assertIn("PlayResX: 1080", content)
-            self.assertIn("PlayResY: 1920", content)
-            self.assertIn("3...", content)
+            self.assertIn("PlayResY: 1440", content)
+            self.assertIn("BEHIND ME ARE 100 COPS!", content)
             self.assertIn("Style: Highlight", content)
         finally:
             if test_ass.exists():
