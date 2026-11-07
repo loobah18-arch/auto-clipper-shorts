@@ -416,6 +416,10 @@ def run_pipeline(
         from cinerush_pipeline import run_cinerush_pipeline
         from movie_video_engine import parse_timestamp_to_seconds, resolve_part_window
 
+        # Fail fast if upload is requested but upload cadence interval has not elapsed
+        if not dry_run and not quick_test:
+            assert_upload_cadence_allowed(load_movie_history(HISTORY_FILE))
+
         # Step 1: Select next movie and episodic part in sequence from Drive catalog & history
         movie_data = select_next_movie(movie_name, requested_part=part, lang=lang)
         movie_id = str(movie_data.get("id", re.sub(r"[^\w]", "_", str(movie_data.get("title", "movie"))).lower()))
