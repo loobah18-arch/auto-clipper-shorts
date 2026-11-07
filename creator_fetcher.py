@@ -196,13 +196,17 @@ def fetch_creator_metadata(
     sub_output_template = str(output_dir / "sub_%(id)s")
 
     client_strategies = [
-        # Strategy 1: web_embedded and mweb (bypasses bot detection on many datacenters)
-        ["--extractor-args", "youtube:player_client=web_embedded,mweb"],
-        # Strategy 2: tv_embedded (high compatibility)
-        ["--extractor-args", "youtube:player_client=tv_embedded,web_embedded"],
-        # Strategy 3: with cookies if present
-        [*cookie_args, "--extractor-args", "youtube:player_client=web,mweb"] if cookie_args else None,
-        # Strategy 4: default vanilla yt-dlp
+        # Strategy 1: android (highest bypass rate on datacenter IPs)
+        ["--extractor-args", "youtube:player_client=android"],
+        # Strategy 2: android + mweb
+        ["--extractor-args", "youtube:player_client=android,mweb"],
+        # Strategy 3: with cookies and android
+        [*cookie_args, "--extractor-args", "youtube:player_client=android"] if cookie_args else None,
+        # Strategy 4: ios + android
+        ["--extractor-args", "youtube:player_client=ios,android"],
+        # Strategy 5: mweb
+        ["--extractor-args", "youtube:player_client=mweb"],
+        # Strategy 6: default
         [],
     ]
 
@@ -225,7 +229,8 @@ def fetch_creator_metadata(
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
         if res.returncode == 0:
             break
-        log(f"Notice: yt-dlp extraction with strategy {strat} returned code {res.returncode}; trying next...")
+        err_hint = res.stderr.strip()[:160].replace("\n", " ") if res.stderr else "code non-zero"
+        log(f"Notice: yt-dlp extraction with strategy {strat} returned code {res.returncode} ({err_hint}); trying next...")
 
     if not res or res.returncode != 0:
         err_msg = res.stderr[:300] if res else "Unknown error"
@@ -346,9 +351,15 @@ def download_creator_section(
     log(f"📥 Downloading targeted {duration_sec:.1f}s section [{_format_time_sec(start_sec)} -> {_format_time_sec(end_sec)}] -> {output_path.name}...")
 
     download_strategies = [
-        ["--extractor-args", "youtube:player_client=web_embedded,mweb"],
-        ["--extractor-args", "youtube:player_client=tv_embedded,web_embedded"],
-        [*cookie_args, "--extractor-args", "youtube:player_client=web,mweb"] if cookie_args else None,
+        # Strategy 1: android (highest reliability for downloading streams without SABR block)
+        ["--extractor-args", "youtube:player_client=android"],
+        # Strategy 2: android + mweb
+        ["--extractor-args", "youtube:player_client=android,mweb"],
+        # Strategy 3: with cookies and android
+        [*cookie_args, "--extractor-args", "youtube:player_client=android"] if cookie_args else None,
+        # Strategy 4: ios + android
+        ["--extractor-args", "youtube:player_client=ios,android"],
+        # Strategy 5: default vanilla
         [],
     ]
 
@@ -359,7 +370,7 @@ def download_creator_section(
         cmd = [
             "yt-dlp",
             "--download-sections", section_arg,
-            "-f", "best[ext=mp4]/b/bv*+ba",
+            "-f", "best[ext=mp4]/b/bv*+ba/best",
             "--merge-output-format", "mp4",
             "-o", str(output_path),
             *strat,
@@ -369,7 +380,8 @@ def download_creator_section(
         res_dl = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
         if res_dl.returncode == 0 and (output_path.exists() or list(output_path.parent.glob(f"{output_path.stem}*.mp4"))):
             break
-        log(f"Notice: Section download with strategy {strat} returned code {res_dl.returncode}; trying next...")
+        err_hint = res_dl.stderr.strip()[:160].replace("\n", " ") if res_dl.stderr else "code non-zero"
+        log(f"Notice: Section download with strategy {strat} returned code {res_dl.returncode} ({err_hint}); trying next...")
 
     # Look for matching glob if output filename was suffixed
     if not output_path.exists() or output_path.stat().st_size < 50_000:
