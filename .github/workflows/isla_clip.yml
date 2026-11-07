@@ -1,0 +1,129 @@
+name: 🎬 Isla Value-Add Creator Shorts Clipper
+
+on:
+  workflow_dispatch:
+    inputs:
+      youtube_url:
+        description: 'Target YouTube video URL to clip (leave blank to pick from creator_catalog.json)'
+        required: false
+        type: string
+      niche:
+        description: 'Creator niche'
+        required: false
+        default: 'science_experiments'
+        type: choice
+        options:
+          - 'science_experiments'
+          - 'podcasts_mindset'
+          - 'tech_inventions'
+      voice:
+        description: 'Neural narration voice'
+        required: false
+        default: 'en-US-ChristopherNeural'
+        type: string
+      dry_run:
+        description: 'Run pipeline without uploading to YouTube'
+        required: false
+        default: false
+        type: boolean
+      privacy_status:
+        description: 'YouTube privacy status'
+        required: false
+        default: 'public'
+        type: choice
+        options:
+          - 'public'
+          - 'unlisted'
+          - 'private'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: isla_clipper_pipeline
+  cancel-in-progress: false
+
+jobs:
+  clip_and_publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 🎥 Install FFmpeg & Fonts
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          sudo -E apt-get update -qq
+          sudo -E apt-get install -y --no-install-recommends ffmpeg fonts-montserrat fonts-dejavu-core
+
+      - name: 📦 Install Python Dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🚀 Run Isla Value-Add Clipper
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+        run: |
+          set -euo pipefail
+          ARGS=()
+          if [ -n "${{ inputs.youtube_url }}" ]; then
+            ARGS+=(--url "${{ inputs.youtube_url }}")
+          fi
+          ARGS+=(--niche "${{ inputs.niche || 'science_experiments' }}")
+          ARGS+=(--voice "${{ inputs.voice || 'en-US-ChristopherNeural' }}")
+          ARGS+=(--privacy "${{ inputs.privacy_status || 'public' }}")
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+
+          python generate_isla_short.py "${ARGS[@]}" 2>&1 | tee pipeline.log
+
+      - name: 📦 Upload Generated Video Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isla-short-output
+          path: |
+            output/*.mp4
+            output/*.ass
+            output/*.mp3
+            pipeline.log
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: 💾 Commit Updated History State
+        if: always() && inputs.dry_run != true
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          TARGET_BRANCH="${GITHUB_REF_NAME:-main}"
+          if [ -f isla_history.json ]; then
+            git add isla_history.json
+          fi
+          if git diff --cached --quiet; then
+            echo "No state changes to commit"
+            exit 0
+          fi
+          git commit -m "🤖 Auto-clip Isla state update [skip ci]"
+          git fetch origin "$TARGET_BRANCH"
+          git rebase "origin/$TARGET_BRANCH"
+          git push origin "HEAD:$TARGET_BRANCH"

@@ -1,0 +1,69 @@
+{
+  "catalog_version": "2.0",
+  "description": "Multi-Niche Creator Catalog for Isla Value-Add Clipping Engine",
+  "niches": {
+    "science_experiments": {
+      "name": "Science & Crazy Experiments",
+      "description": "High-stakes chemistry, physics, and extreme transformations (NileBlue, NileRed, Action Lab style)",
+      "target_creators": [
+        {
+          "name": "NileBlue",
+          "channel_url": "https://www.youtube.com/@NileBlue",
+          "topics": ["chemicals", "dehydration", "extreme science", "food experiments"],
+          "sample_urls": [
+            "https://www.youtube.com/watch?v=Xn7K8AneuT4",
+            "https://www.youtube.com/watch?v=u1aB_iUe_pU"
+          ]
+        },
+        {
+          "name": "The Action Lab",
+          "channel_url": "https://www.youtube.com/@TheActionLab",
+          "topics": ["vacuum chambers", "lasers", "optical illusions", "materials"],
+          "sample_urls": []
+        },
+        {
+          "name": "Mark Rober",
+          "channel_url": "https://www.youtube.com/@MarkRober",
+          "topics": ["engineering challenges", "squirrel maze", "glitter bomb"],
+          "sample_urls": []
+        }
+      ]
+    },
+    "podcasts_mindset": {
+      "name": "High-Impact Podcasts & Stories",
+      "description": "Unbelievable true stories, psychology, and high-performance interviews",
+      "target_creators": [
+        {
+          "name": "The Diary Of A CEO",
+          "channel_url": "https://www.youtube.com/@TheDiaryOfACEO",
+          "topics": ["neuroscience", "human behavior", "untold stories", "health secrets"],
+          "sample_urls": []
+        },
+        {
+          "name": "Andrew Huberman",
+          "channel_url": "https://www.youtube.com/@hubermanlab",
+          "topics": ["sleep protocols", "dopamine mastery", "focus triggers"],
+          "sample_urls": []
+        }
+      ]
+    },
+    "tech_inventions": {
+      "name": "Extreme Inventions & Tech",
+      "description": "Building insane machines, weapons, and robotics from scratch",
+      "target_creators": [
+        {
+          "name": "Stuff Made Here",
+          "channel_url": "https://www.youtube.com/@StuffMadeHere",
+          "topics": ["unmissable basketball hoop", "robotic haircut", "chainsaw robot"],
+          "sample_urls": []
+        },
+        {
+          "name": "Hacksmith Industries",
+          "channel_url": "https://www.youtube.com/@theHacksmith",
+          "topics": ["real lightsaber", "exosuits", "sci-fi weapons in real life"],
+          "sample_urls": []
+        }
+      ]
+    }
+  }
+}

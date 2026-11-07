@@ -8,3 +8,5 @@ google-auth-oauthlib>=1.2.0
 google-auth-httplib2>=0.2.0
 requests>=2.31.0
 gdown>=5.2.0
+edge-tts>=6.1.9
+yt-dlp>=2024.08.01
