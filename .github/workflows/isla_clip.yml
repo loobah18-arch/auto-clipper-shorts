@@ -19,7 +19,7 @@ on:
       voice:
         description: 'Neural narration voice'
         required: false
-        default: 'en-US-ChristopherNeural'
+        default: 'en-US-AvaNeural'
         type: string
       dry_run:
         description: 'Run pipeline without uploading to YouTube'
@@ -75,7 +75,7 @@ jobs:
       - name: 📦 Install Python Dependencies
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip yt-dlp
+          python -m pip install --upgrade pip yt-dlp edge-tts
           pip install -r requirements.txt
 
       - name: 🚀 Run Isla Value-Add Clipper
@@ -93,7 +93,7 @@ jobs:
             ARGS+=(--url "${{ inputs.youtube_url }}")
           fi
           ARGS+=(--niche "${{ inputs.niche || 'science_experiments' }}")
-          ARGS+=(--voice "${{ inputs.voice || 'en-US-ChristopherNeural' }}")
+          ARGS+=(--voice "${{ inputs.voice || 'en-US-AvaNeural' }}")
           ARGS+=(--privacy "${{ inputs.privacy_status || 'public' }}")
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS+=(--dry-run)

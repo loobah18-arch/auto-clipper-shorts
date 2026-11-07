@@ -56,93 +56,103 @@ class LoopedArcScript:
             self.scenes = []
 
 
-SYSTEM_PROMPT = """You are an elite YouTube Shorts viral retention editor trained on the Jack Craig & Isla framework.
-You transform long-form creator videos (science experiments, tech builds, high-stakes stories) into 40-50 second viral Shorts.
+SYSTEM_PROMPT = """You are an elite YouTube Shorts viral retention editor trained on the Jack Craig & Isla framework (@testednproved).
+You transform long-form creator videos (science experiments, crazy builds, high-stakes stories) into exact 58-62 second viral Shorts.
 
 STRICT EDITING RULES:
 1. UNIVERSAL RELATABILITY: Focus on the most relatable, tangible human element (food, danger, money, curiosity, failure).
-2. THE LOOPED ARC STRUCTURE:
-   - BEAT 1 (0-3s): OPEN-LOOP HOOK. Must plant an urgent, unanswered question. NEVER give away the answer or ending!
-     Example: "What would happen if you compressed 100 cans of Red Bull into one drink?" (NOT "He made Red Bull powder").
-   - BEAT 2 (3-15s): RISING ACTION / SETUP. Rapid process, building curiosity.
-   - BEAT 3 (15-28s): CONFLICT / CREATOR CUT-IN. Something fails or creator screams/reacts. When creator speaks, narrator voiceover stops completely!
-   - BEAT 4 (28-38s): COMEBACK. The creator's counter-intuitive pivot or clever fix.
-   - BEAT 5 (38-45s): PAYOFF & SEAMLESS LOOP. The satisfying result, ending with a sentence that naturally loops directly back into the opening hook!
-3. MULTI-SCENE SELECTION:
-   - Identify 2-3 distinct timestamps across the video for:
-     * Scene 1: The setup/premise
-     * Scene 2: The conflict/failure/reaction
-     * Scene 3: The payoff/result
-4. AUDIO DYNAMICS:
-   - When speaker is "creator", narrator is SILENT. Original creator audio plays at 100% volume.
-   - Mark bgm_action: "silence" right before/during the creator reaction.
+2. THE 6-BEAT LOOPED ARC STRUCTURE (58-62 SECONDS):
+   - BEAT 1 (0-4s): OPEN-LOOP HOOK + PAYOFF PREVIEW. Must plant an urgent question while showing the intriguing final action (e.g. pouring concentrate syrup into funnel).
+     Example: "what would happen if you compressed 100 cans of red bull into one drink?"
+   - BEAT 2 (4-15s): SETUP / PREMISE. Rapid setup showing the massive scale (e.g. pouring 100 cans into a giant tub).
+   - BEAT 3 (15-28s): THE PROCESS / THE MACHINE. The scientific or technical mechanism (e.g. spray drying with 150° hot air).
+   - BEAT 4 (28-46s): THE TWIST / CONFLICT. The unexpected failure or mystery (e.g. weighing the powder, discovering 33 cans vanished into thin air).
+   - BEAT 5 (46-55s): THE REBUILD / CLIMAX. Reconstituting the final product (e.g. 66 cans in one bottle, one sip equals an entire can).
+   - BEAT 6 (55-61s): HAND-OFF & CREATOR PAYOFF. Narrator speaks the hand-off ("so, he tried it."), narrator goes COMPLETELY SILENT, and original creator speaks the genuine payoff reaction with full audio ("woah. that's crazy. crazy good.").
+3. MULTI-SCENE TIMESTAMPS:
+   - Identify 5-6 distinct timestamp ranges across the source video:
+     * hook: Payoff preview action (3-4s)
+     * setup: Starting action / scale (10-14s)
+     * process: Technical machine or method (10-14s)
+     * conflict: The failure, math, or surprise (15-18s)
+     * rebuild: Final assembly (7-10s)
+     * payoff: Creator tasting / reaction (5-7s)
+4. SUBTITLES & TEXT STYLE:
+   - All subtitle text must be in LOWERCASE matching Isla's aesthetic.
+   - Clean, punchy 1-3 word bursts.
+5. AUDIO INTEGRATION:
+   - When speaker is "creator", narrator is 100% SILENT.
+   - Mark bgm_action: "silence" right before and during the creator reaction.
 
 OUTPUT FORMAT:
 Return strictly a valid JSON object matching this schema:
 {
-  "title": "Short title describing what happened with 2 emojis and #shorts",
+  "title": "He Compressed 100 RedBulls into 1 Drink 😳 (@Creator/YT) #shorts",
   "concept": "1-sentence summary of the core loop",
-  "hook_text": "Opening hook sentence (0-3s)",
-  "loop_connector": "Ending phrase that connects back into hook_text",
+  "hook_text": "what would happen if you compressed 100 cans of red bull into one drink?",
+  "loop_connector": "which is why everyone wonders...",
   "scenes": [
-    {"name": "setup", "start_sec": 76.0, "end_sec": 88.0, "description": "100 cans loaded"},
-    {"name": "conflict", "start_sec": 1655.0, "end_sec": 1673.0, "description": "scale math and 33.5 cans vanished"},
-    {"name": "payoff", "start_sec": 2355.0, "end_sec": 2367.0, "description": "tasting reaction"}
+    {"name": "hook", "start_sec": 2118.0, "end_sec": 2122.0, "description": "pouring brown syrup into orange funnel"},
+    {"name": "setup", "start_sec": 240.0, "end_sec": 253.0, "description": "pouring 100 cans into container"},
+    {"name": "process", "start_sec": 524.0, "end_sec": 537.0, "description": "150 degree spray dryer running"},
+    {"name": "conflict", "start_sec": 1655.0, "end_sec": 1672.0, "description": "scale math and 33 cans vanished"},
+    {"name": "rebuild", "start_sec": 2100.0, "end_sec": 2108.0, "description": "mixing concentrate into bottle"},
+    {"name": "payoff", "start_sec": 2192.0, "end_sec": 2198.0, "description": "blue spoon tasting reaction"}
   ],
-  "raw_clip_start": 76.0,
-  "raw_clip_end": 118.0,
+  "raw_clip_start": 2118.0,
+  "raw_clip_end": 2198.0,
   "segments": [
     {
       "start_sec": 0.0,
-      "end_sec": 3.5,
+      "end_sec": 4.0,
       "speaker": "narrator",
-      "text": "What would happen if you compressed 100 cans of Red Bull into one drink?",
+      "text": "what would happen if you compressed 100 cans of red bull into one drink?",
       "bgm_action": "normal"
     },
     {
-      "start_sec": 3.5,
-      "end_sec": 12.0,
+      "start_sec": 4.0,
+      "end_sec": 17.0,
       "speaker": "narrator",
-      "text": "NileBlue wanted to find out...",
+      "text": "this guy bought 100 cans of sugar-free red bull and poured every single one into a giant bucket. that's 25 liters of energy drink, and the goal was simple: concentrate all of it into the size of one can. to do that, he used this insane machine that removes all the water from liquids.",
       "bgm_action": "normal"
     },
     {
-      "start_sec": 12.0,
-      "end_sec": 18.0,
+      "start_sec": 17.0,
+      "end_sec": 30.0,
       "speaker": "narrator",
-      "text": "Everything was looking completely normal until he did the math...",
+      "text": "it sprays red bull into 150 degree air, instantly drying it into powder. so, in theory, all that should be left is the flavor, caffeine, and vitamins.",
       "bgm_action": "normal"
     },
     {
-      "start_sec": 18.0,
-      "end_sec": 23.5,
+      "start_sec": 30.0,
+      "end_sec": 47.0,
+      "speaker": "narrator",
+      "text": "and after running the machine for hours, he finally started collecting actual powdered red bull. but when he weighed the powder, something weird happened. he expected the equivalent of 100 cans, but instead, he only had about 2/3 of it, meaning 33 cans of red bull literally evaporated into the air.",
+      "bgm_action": "normal"
+    },
+    {
+      "start_sec": 47.0,
+      "end_sec": 55.0,
+      "speaker": "narrator",
+      "text": "so, he rebuilt the drink using what was left. he ended up with a bottle containing the energy of 66 cans of red bull, which means just one tiny sip equals an entire can.",
+      "bgm_action": "normal"
+    },
+    {
+      "start_sec": 55.0,
+      "end_sec": 56.5,
+      "speaker": "narrator",
+      "text": "so, he tried it.",
+      "bgm_action": "ducked"
+    },
+    {
+      "start_sec": 56.5,
+      "end_sec": 61.0,
       "speaker": "creator",
-      "text": "33 and a half cans of Red Bull was just pumped into the air!",
+      "text": "woah. that's crazy. crazy good.",
       "bgm_action": "silence"
-    },
-    {
-      "start_sec": 23.5,
-      "end_sec": 32.0,
-      "speaker": "narrator",
-      "text": "Over 30 cans had vanished, but he adjusted the condenser pressure and saved the batch...",
-      "bgm_action": "normal"
-    },
-    {
-      "start_sec": 32.0,
-      "end_sec": 38.0,
-      "speaker": "creator",
-      "text": "The sheer weird chemical taste is actually really good!",
-      "bgm_action": "silence"
-    },
-    {
-      "start_sec": 38.0,
-      "end_sec": 42.0,
-      "speaker": "narrator",
-      "text": "Making this the most potent energy drink on earth, which is why everyone wonders...",
-      "bgm_action": "normal"
     }
   ],
-  "keywords": ["red bull", "experiment", "shorts"]
+  "keywords": ["red bull", "nileblue", "experiment", "shorts", "testednproved"]
 }
 """
 
@@ -228,65 +238,63 @@ def generate_deterministic_fallback_script(
     c_lower = channel_name.lower()
 
     if "red bull" in t_lower or "nile" in c_lower or "7arjh-sgwfm" in t_lower:
-        # Ground-truth verified Jack Craig & Isla benchmark short
+        # Ground-truth verified Isla 16M Short benchmark (testednproved 0iGzOHBbzFo)
         scenes = [
-            VideoSceneCut(name="setup", start_sec=76.0, end_sec=88.0, description="100 cans setup"),
-            VideoSceneCut(name="conflict", start_sec=1655.0, end_sec=1673.0, description="scale math & 33.5 cans vanished"),
-            VideoSceneCut(name="payoff", start_sec=2355.0, end_sec=2367.0, description="taste syrup reaction"),
+            VideoSceneCut(name="hook", start_sec=2118.0, end_sec=2122.0, description="pouring brown syrup into orange funnel"),
+            VideoSceneCut(name="setup", start_sec=240.0, end_sec=253.0, description="pouring 100 cans into bucket"),
+            VideoSceneCut(name="process", start_sec=524.0, end_sec=537.0, description="150 degree spray dryer running"),
+            VideoSceneCut(name="conflict", start_sec=1655.0, end_sec=1672.0, description="scale math & 33 cans vanished"),
+            VideoSceneCut(name="rebuild", start_sec=2100.0, end_sec=2108.0, description="mixing concentrate into bottle"),
+            VideoSceneCut(name="payoff", start_sec=2192.0, end_sec=2198.0, description="blue spoon tasting reaction"),
         ]
-        hook = "What would happen if you compressed 100 cans of Red Bull into one drink?"
+        hook = "what would happen if you compressed 100 cans of red bull into one drink?"
         loop = "which is why everyone wonders..."
         segments = [
             AudioCutSegment(
-                start_sec=0.0, end_sec=3.5, speaker="narrator",
+                start_sec=0.0, end_sec=4.0, speaker="narrator",
                 text=hook, bgm_action="normal"
             ),
             AudioCutSegment(
-                start_sec=3.5, end_sec=12.0, speaker="narrator",
-                text="NileBlue wanted to find out, so he loaded an entire pyramid of Red Bull into a massive vacuum evaporator to boil away all the liquid.",
+                start_sec=4.0, end_sec=17.0, speaker="narrator",
+                text="this guy bought 100 cans of sugar-free red bull and poured every single one into a giant bucket. that's 25 liters of energy drink, and the goal was simple: concentrate all of it into the size of one can. to do that, he used this insane machine that removes all the water from liquids.",
                 bgm_action="normal"
             ),
             AudioCutSegment(
-                start_sec=12.0, end_sec=18.0, speaker="narrator",
-                text="Everything was looking completely normal, until he put the flask on the scale and did the math.",
+                start_sec=17.0, end_sec=30.0, speaker="narrator",
+                text="it sprays red bull into 150 degree air, instantly drying it into powder. so, in theory, all that should be left is the flavor, caffeine, and vitamins.",
                 bgm_action="normal"
             ),
             AudioCutSegment(
-                start_sec=18.0, end_sec=23.5, speaker="creator",
-                text="33 and a half cans of Red Bull was just pumped into the air!",
+                start_sec=30.0, end_sec=47.0, speaker="narrator",
+                text="and after running the machine for hours, he finally started collecting actual powdered red bull. but when he weighed the powder, something weird happened. he expected the equivalent of 100 cans, but instead, he only had about 2/3 of it, meaning 33 cans of red bull literally evaporated into the air.",
+                bgm_action="normal"
+            ),
+            AudioCutSegment(
+                start_sec=47.0, end_sec=55.0, speaker="narrator",
+                text="so, he rebuilt the drink using what was left. he ended up with a bottle containing the energy of 66 cans of red bull, which means just one tiny sip equals an entire can.",
+                bgm_action="normal"
+            ),
+            AudioCutSegment(
+                start_sec=55.0, end_sec=56.5, speaker="narrator",
+                text="so, he tried it.",
+                bgm_action="ducked"
+            ),
+            AudioCutSegment(
+                start_sec=56.5, end_sec=61.0, speaker="creator",
+                text="woah. that's crazy. crazy good.",
                 bgm_action="silence"
-            ),
-            AudioCutSegment(
-                start_sec=23.5, end_sec=30.0, speaker="narrator",
-                text="Over 30 cans had evaporated straight into the room, but he adjusted the condenser pressure and saved the remaining batch.",
-                bgm_action="normal"
-            ),
-            AudioCutSegment(
-                start_sec=30.0, end_sec=35.0, speaker="narrator",
-                text="What was left was a thick, pitch-black syrup packed with 8,000 milligrams of caffeine.",
-                bgm_action="normal"
-            ),
-            AudioCutSegment(
-                start_sec=35.0, end_sec=38.5, speaker="creator",
-                text="The sheer weird chemical taste is actually really good!",
-                bgm_action="silence"
-            ),
-            AudioCutSegment(
-                start_sec=38.5, end_sec=42.0, speaker="narrator",
-                text=f"Making this the most potent energy drink on earth, {loop}",
-                bgm_action="normal"
             ),
         ]
         return LoopedArcScript(
-            title="He thought this out, compressed 100 Red Bulls into one drink 😱😱 #shorts #science",
+            title="He Compressed 100 RedBulls into 1 Drink 😳 (@NileRed/YT) #shorts",
             concept="Compressing 100 Red Bulls into an ultra-concentrated syrup and tasting the result.",
             hook_text=hook,
             loop_connector=loop,
             segments=segments,
-            raw_clip_start=76.0,
-            raw_clip_end=118.0,
-            estimated_duration=42.0,
-            keywords=["red bull", "nileblue", "experiment", "shorts", "science"],
+            raw_clip_start=2118.0,
+            raw_clip_end=2198.0,
+            estimated_duration=61.0,
+            keywords=["red bull", "nileblue", "nilered", "experiment", "shorts", "testednproved"],
             scenes=scenes,
         )
 

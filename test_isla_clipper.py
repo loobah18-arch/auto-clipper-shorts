@@ -157,17 +157,33 @@ Language: en
             temp_ass = Path(f.name)
 
         try:
-            build_isla_karaoke_ass(script, temp_ass, video_width=1080, video_height=1920)
+            build_isla_karaoke_ass(script, temp_ass, video_width=1080, video_height=1440)
             content = temp_ass.read_text(encoding="utf-8")
             self.assertIn("[Script Info]", content)
             self.assertIn("PlayResX: 1080", content)
-            self.assertIn("PlayResY: 1920", content)
+            self.assertIn("PlayResY: 1440", content)
             self.assertIn("Dialogue:", content)
-            self.assertIn("420", content)
-            self.assertIn("&H0000FFFF&", content)
+            self.assertIn("380", content)
+            self.assertIn("&H00FFFFFF", content)
         finally:
             if temp_ass.exists():
                 temp_ass.unlink()
+
+    def test_reframe_to_isla_canvas(self):
+        from isla_video_engine import reframe_to_isla_canvas_cmd
+        cmd = reframe_to_isla_canvas_cmd(
+            input_video=Path("test_in.mp4"),
+            output_video=Path("test_out.mp4"),
+            start_sec=5.0,
+            duration_sec=60.0,
+            canvas_width=1080,
+            canvas_height=1440,
+        )
+        cmd_str = " ".join(cmd)
+        self.assertIn("boxblur=25:5", cmd_str)
+        self.assertIn("scale=1080:1440:force_original_aspect_ratio=increase", cmd_str)
+        self.assertIn("-ss 5.00", cmd_str)
+        self.assertIn("-t 60.00", cmd_str)
 
     def test_nile_blue_redbull_benchmark_script(self):
         script = generate_deterministic_fallback_script(
@@ -175,15 +191,13 @@ Language: en
             channel_name="NileBlue",
             duration_sec=2533.0,
         )
-        self.assertGreaterEqual(len(script.scenes), 3)
-        self.assertEqual(script.scenes[0].name, "setup")
-        self.assertEqual(script.scenes[1].name, "conflict")
-        self.assertEqual(script.scenes[2].name, "payoff")
-        self.assertEqual(script.scenes[0].start_sec, 76.0)
-        self.assertEqual(script.scenes[1].start_sec, 1655.0)
-        self.assertEqual(script.scenes[2].start_sec, 2355.0)
-        self.assertIn("100 Red Bulls into one drink", script.title)
-        self.assertIn("What would happen", script.hook_text)
+        self.assertGreaterEqual(len(script.scenes), 6)
+        self.assertEqual(script.scenes[0].name, "hook")
+        self.assertEqual(script.scenes[1].name, "setup")
+        self.assertEqual(script.scenes[0].start_sec, 2118.0)
+        self.assertEqual(script.scenes[1].start_sec, 240.0)
+        self.assertIn("100 RedBulls into 1 Drink", script.title)
+        self.assertIn("what would happen", script.hook_text.lower())
 
     def test_upload_guard_dry_run(self):
         script = generate_deterministic_fallback_script("Test", "Creator", 200.0)

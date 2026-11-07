@@ -61,7 +61,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Isla Value-Add YouTube Shorts Generator")
     parser.add_argument("--url", type=str, default=None, help="Target YouTube video URL")
     parser.add_argument("--niche", type=str, default="science_experiments", help="Niche from catalog")
-    parser.add_argument("--voice", type=str, default="en-US-ChristopherNeural", help="TTS voice override")
+    parser.add_argument("--voice", type=str, default="en-US-AvaNeural", help="TTS voice override")
+    parser.add_argument("--aspect-ratio", type=str, default="3:4", choices=["3:4", "9:16"], help="Video canvas aspect ratio (3:4 Isla signature or 9:16 vertical)")
     parser.add_argument("--dry-run", action="store_true", help="Render video without uploading")
     parser.add_argument("--privacy", type=str, default="public", choices=["public", "unlisted", "private"])
     args = parser.parse_args()
@@ -115,8 +116,10 @@ def main() -> int:
             output_path=section_file,
         )
 
-    # 4. Assemble 9:16 Full-Bleed Short with Kinetic Subtitles & Audio Mix
-    log("Step 4/5: Rendering 1080x1920 full-bleed Short with subtitles & audio mix...")
+    # 4. Assemble Isla Signature Short with Kinetic Subtitles & Audio Mix
+    canvas_w = 1080
+    canvas_h = 1440 if args.aspect_ratio == "3:4" else 1920
+    log(f"Step 4/5: Rendering {canvas_w}x{canvas_h} ({args.aspect_ratio} Isla signature) Short with subtitles & audio mix...")
     rendered_short = assemble_isla_short(
         source_video=section_file,
         script=script,
@@ -124,6 +127,8 @@ def main() -> int:
         voice=args.voice,
         bgm_path=DEFAULT_BGM if DEFAULT_BGM.exists() else None,
         is_pre_sliced=True,
+        canvas_width=canvas_w,
+        canvas_height=canvas_h,
     )
 
     # 5. Upload to YouTube
