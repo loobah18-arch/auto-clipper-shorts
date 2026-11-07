@@ -417,7 +417,11 @@ def assemble_isla_short(
 
     clip_start = 0.0 if is_pre_sliced else script.raw_clip_start
     total_target_dur = max(40.0, script.segments[-1].end_sec if script.segments else 60.0)
-    clip_dur = total_target_dur if is_pre_sliced else min(63.0, max(58.0, script.raw_clip_end - script.raw_clip_start))
+    if is_pre_sliced:
+        source_dur = _probe_local_duration(source_video)
+        clip_dur = source_dur if source_dur > 10.0 else total_target_dur
+    else:
+        clip_dur = min(63.0, max(58.0, script.raw_clip_end - script.raw_clip_start))
 
     # 1. Generate master narration audio track with creator reaction cut-ins
     vo_path = output_dir / f"{slug}_voiceover.mp3"
