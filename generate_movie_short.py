@@ -255,11 +255,13 @@ def upload_movie_to_youtube(
     movie_data: dict,
     dry_run: bool = False,
     is_short: bool = True,
-) -> str | None:
+    return_guard_info: bool = False,
+    bgm_path: str | Path | None = None,
+) -> str | None | tuple[str | None, dict[str, Any]]:
     """Uploads the movie explanation short or normal long video to YouTube."""
     if dry_run:
         log("ℹ️ Dry-run mode enabled: Skipping YouTube upload.")
-        return None
+        return (None, {"dry_run": True}) if return_guard_info else None
 
     client_id = os.environ.get("CLIENT_ID")
     client_secret = os.environ.get("CLIENT_SECRET")
@@ -267,11 +269,11 @@ def upload_movie_to_youtube(
 
     if not (client_id and client_secret and refresh_token):
         log("⚠️ YouTube OAuth credentials not fully found in environment (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN). Skipping upload.")
-        return None
+        return (None, {"error": "missing_credentials"}) if return_guard_info else None
 
     if not Credentials or not build:
         log("⚠️ Google API Client library not installed. Skipping upload.")
-        return None
+        return (None, {"error": "no_google_api_client"}) if return_guard_info else None
 
     title_clean = movie_data.get("title", "Movie Explained")
     part_num = movie_data.get("part_number")
@@ -374,11 +376,16 @@ Narration and commentary are original to this channel. Visuals are sourced only 
             is_short=is_short,
             dry_run=dry_run,
             media_upload_cls=MediaFileUpload,
+            bgm_path=bgm_path,
         )
+        if return_guard_info:
+            return vid_id, guard_info
         return vid_id
 
     except Exception as e:
         log(f"❌ YouTube upload failed: {e}")
+        if return_guard_info:
+            return None, {"error": str(e)}
         return None
 
 
@@ -397,6 +404,8 @@ def run_pipeline(
     allow_unreviewed_rights: bool = False,
     allow_duplicate: bool = False,
     quick_test: bool = False,
+    style_restart_count: int = 0,
+    max_style_restarts: int = 1,
 ) -> Path:
     """Execute the Cinerush movie scene Short pipeline and persist its outcome."""
     if quick_test:
@@ -479,6 +488,8 @@ def run_pipeline(
             max_duration=max_duration,
             profile=profile,
             movie_meta=movie_data,
+            style_restart_count=style_restart_count,
+            max_style_restarts=max_style_restarts,
         )
 
         # Step 5: Update Series Sequence Progression & Upload History
@@ -987,7 +998,38 @@ def run_pipeline(
     upload_group_id = episode_key(movie_id, part_number)
     if upload_requested and current_state == RunStatus.PUBLISH_READY:
         assert_upload_cadence_allowed(history)
-        youtube_id = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=True)
+        upload_res = upload_movie_to_youtube(final_short_path, thumb_path, movie_data, is_short=True, return_guard_info=True)
+        guard_info: dict[str, Any] = {}
+        if isinstance(upload_res, tuple):
+            youtube_id, guard_info = upload_res
+        else:
+            youtube_id = upload_res
+
+        # If the uploaded video got blocked by YouTube and remained blocked after retrying:
+        # restart the pipeline in a different style and attempt upload of the newly styled video.
+        if not youtube_id and guard_info.get("blocked") and style_restart_count < max_style_restarts:
+            alternate_profile = "shorts_9x16" if profile == "cinerush_style" else "cinerush_style"
+            log(f"🛑 [MovieEngine] Video remained blocked on YouTube after retrying ({guard_info.get('rejection_reason')}).")
+            log(f"🔄 [MovieEngine] Restarting pipeline in DIFFERENT style ({alternate_profile}) and re-attempting upload...")
+            return run_pipeline(
+                movie_name=movie_name,
+                part=part,
+                voice=voice,
+                lang=lang,
+                dry_run=dry_run,
+                force_upload=force_upload,
+                video_file=video_file,
+                audio_file=audio_file,
+                watermark=watermark,
+                max_duration=max_duration,
+                profile=alternate_profile,
+                allow_unreviewed_rights=allow_unreviewed_rights,
+                allow_duplicate=allow_duplicate,
+                quick_test=quick_test,
+                style_restart_count=style_restart_count + 1,
+                max_style_restarts=max_style_restarts,
+            )
+
         if youtube_id:
             normal_path = final_short_path.parent / f"{final_short_path.stem}_normal.mp4"
             from cinerush_pipeline import render_cinerush_normal_landscape_video

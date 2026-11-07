@@ -182,6 +182,40 @@ def delete_blocked_youtube_video(youtube: Any, video_id: str) -> bool:
         return False
 
 
+def classify_block_reason(
+    rejection_reason: str | None = None,
+    raw_status: dict[str, Any] | None = None,
+    bgm_path: str | Path | None = None,
+) -> str:
+    """Classifies YouTube block/rejection cause into 'audio', 'clip', or 'both'.
+
+    - 'audio': audio match, sound recording claim, or commercial non-NCS audio used.
+    - 'clip': video match, visual footage claim, or audio was already verified NCS.
+    - 'both': mixed or generic claim where both audio and video require remediation.
+    """
+    raw_status = raw_status or {}
+    corpus = f"{rejection_reason or ''} {json.dumps(raw_status)}".lower()
+
+    audio_signals = ["audio", "music", "sound", "song", "track", "melody", "phonk", "sound_recording", "audio_fingerprint", "audiomatch"]
+    video_signals = ["video", "visual", "footage", "clip", "scene", "audiovisual", "videomatch", "visual_fingerprint"]
+
+    has_audio = any(s in corpus for s in audio_signals)
+    has_video = any(s in corpus for s in video_signals)
+
+    if has_audio and not has_video:
+        return "audio"
+    if has_video and not has_audio:
+        return "clip"
+
+    # If already using an authentic NCS track, audio cannot be the block cause -> must be the video clip!
+    bgm_lower = str(bgm_path or "").lower()
+    if any(ncs_kw in bgm_lower for ncs_kw in ("ncs", "cradles", "aerohead", "nocopyright")):
+        return "clip"
+
+    # If generic "copyright" with non-NCS audio, audio is the dominant content ID claim
+    return "audio" if not has_video else "both"
+
+
 def remediate_metadata_for_block(
     meta: dict[str, Any],
     attempt: int = 1,
@@ -340,6 +374,7 @@ def upload_video_with_remediation_retry(
     verify_timeout_sec: float | None = None,
     dry_run: bool = False,
     media_upload_cls: Any = None,
+    bgm_path: str | Path | None = None,
 ) -> tuple[str | None, dict[str, Any]]:
     """Uploads a video to YouTube with automatic Content ID / block detection, deletion of blocked uploads,
 
@@ -488,13 +523,16 @@ def upload_video_with_remediation_retry(
 
         # Video WAS BLOCKED!
         last_block_reason = rejection_reason or "unknown_rejection"
-        log(f"🛑 [UploadGuard] Detected YouTube BLOCK on video {youtube_id}: '{last_block_reason}'.")
+        block_type = classify_block_reason(last_block_reason, raw_status, bgm_path)
+        log(f"🛑 [UploadGuard] Detected YouTube BLOCK on video {youtube_id}: '{last_block_reason}' (diagnosed cause: '{block_type}').")
         # Immediately delete the blocked video to prevent channel strikes
         delete_blocked_youtube_video(youtube, youtube_id)
 
-    log(f"❌ [UploadGuard] Video remained blocked after {max_retries} remediation retries. Aborting upload to protect channel standing.")
+    block_type = classify_block_reason(last_block_reason, raw_status, bgm_path)
+    log(f"❌ [UploadGuard] Video remained blocked after {max_retries} remediation retries ({block_type}). Aborting upload to protect channel standing.")
     return None, {
         "blocked": True,
         "rejection_reason": last_block_reason,
+        "block_type": block_type,
         "attempts": max_retries + 1,
     }

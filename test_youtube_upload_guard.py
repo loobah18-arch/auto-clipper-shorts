@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 
 from movie_upload_guard import (
     check_youtube_video_status,
+    classify_block_reason,
     delete_blocked_youtube_video,
     pick_alternative_bgm,
     remediate_metadata_for_block,
@@ -268,6 +269,102 @@ class TestYouTubeUploadGuard(unittest.TestCase):
             self.assertEqual(info["rejection_reason"], "copyright")
             # Both blocked videos should have been deleted
             self.assertEqual(mock_youtube.videos().delete.call_count, 2)
+
+    def test_cinerush_upload_return_guard_info_on_block(self):
+        from cinerush_pipeline import upload_cinerush_to_youtube
+
+        mock_guard_info = {"blocked": True, "rejection_reason": "copyright", "attempts": 2}
+        with patch("cinerush_pipeline.Credentials"), \
+             patch("cinerush_pipeline.build"), \
+             patch("os.environ.get", side_effect=lambda k, d=None: "dummy_val" if "CLIENT" in k or "REFRESH" in k else d), \
+             patch("movie_upload_guard.upload_video_with_remediation_retry", return_value=(None, mock_guard_info)):
+
+            res = upload_cinerush_to_youtube(
+                video_path=Path("test.mp4"),
+                thumb_path=Path("thumb.jpg"),
+                meta={"title": "Test Title"},
+                dry_run=False,
+                is_short=True,
+                return_guard_info=True,
+            )
+
+            self.assertIsInstance(res, tuple)
+            yt_id, g_info = res
+            self.assertIsNone(yt_id)
+            self.assertTrue(g_info["blocked"])
+            self.assertEqual(g_info["rejection_reason"], "copyright")
+
+    def test_classify_block_reason(self):
+        # Audio signals -> audio
+        self.assertEqual(
+            classify_block_reason("copyright", {"details": "audio_fingerprint match"}, bgm_path="custom.mp3"),
+            "audio"
+        )
+        self.assertEqual(
+            classify_block_reason("song claim detected", {}, bgm_path="custom.mp3"),
+            "audio"
+        )
+
+        # Video signals -> clip
+        self.assertEqual(
+            classify_block_reason("videomatch detected", {}, bgm_path="custom.mp3"),
+            "clip"
+        )
+        self.assertEqual(
+            classify_block_reason("visual_fingerprint match", {}, bgm_path="custom.mp3"),
+            "clip"
+        )
+
+        # NCS track used -> audio cannot be the cause, so must be clip
+        self.assertEqual(
+            classify_block_reason("copyright", {}, bgm_path="assets/bgm/cradles.mp3"),
+            "clip"
+        )
+        self.assertEqual(
+            classify_block_reason("terms_of_service", {}, bgm_path="assets/bgm/aerohead_fragments_recap.mp3"),
+            "clip"
+        )
+
+        # Both signals -> both
+        self.assertEqual(
+            classify_block_reason("videomatch and audio_fingerprint match", {}, bgm_path="custom.mp3"),
+            "both"
+        )
+
+    def test_upload_with_remediation_retry_diagnoses_block_type(self):
+        mock_youtube = MagicMock()
+        mock_req = MagicMock()
+        mock_req.next_chunk.return_value = (None, {"id": "blocked_1"})
+        mock_youtube.videos().insert.return_value = mock_req
+
+        status_blocked = {
+            "items": [
+                {
+                    "status": {"uploadStatus": "rejected", "rejectionReason": "audio_fingerprint"},
+                    "processingDetails": {},
+                    "contentDetails": {},
+                }
+            ]
+        }
+        mock_youtube.videos().list().execute.return_value = status_blocked
+
+        with patch("movie_upload_guard.MediaFileUpload"), \
+             patch("movie_upload_guard.remediate_video_for_block", return_value=Path("dummy_remediated.mp4")):
+
+            vid_id, info = upload_video_with_remediation_retry(
+                youtube=mock_youtube,
+                video_path=Path("dummy.mp4"),
+                thumb_path=None,
+                meta={"title": "Test Title", "description": "Test Desc", "tags": []},
+                is_short=True,
+                max_retries=0,
+                verify_timeout_sec=0.0,
+                bgm_path="custom_audio.mp3",
+            )
+
+            self.assertIsNone(vid_id)
+            self.assertTrue(info["blocked"])
+            self.assertEqual(info["block_type"], "audio")
 
 
 if __name__ == "__main__":

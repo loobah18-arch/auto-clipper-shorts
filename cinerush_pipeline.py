@@ -102,11 +102,13 @@ def upload_cinerush_to_youtube(
     meta: dict[str, Any],
     dry_run: bool = False,
     is_short: bool = True,
-) -> str | None:
+    return_guard_info: bool = False,
+    bgm_path: str | Path | None = None,
+) -> str | None | tuple[str | None, dict[str, Any]]:
     """Upload one rendered clip using Shorts or ordinary-video metadata."""
     if dry_run:
         log("ℹ️ Dry-run mode enabled: Skipping YouTube upload.")
-        return None
+        return (None, {"dry_run": True}) if return_guard_info else None
 
     client_id = os.environ.get("CLIENT_ID")
     client_secret = os.environ.get("CLIENT_SECRET")
@@ -114,11 +116,11 @@ def upload_cinerush_to_youtube(
 
     if not (client_id and client_secret and refresh_token):
         log("⚠️ YouTube OAuth credentials not found in environment (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN). Skipping upload.")
-        return None
+        return (None, {"error": "missing_credentials"}) if return_guard_info else None
 
     if not Credentials or not build:
         log("⚠️ Google API client library not installed. Skipping upload.")
-        return None
+        return (None, {"error": "no_google_api_client"}) if return_guard_info else None
 
     try:
         creds = Credentials(
@@ -169,10 +171,15 @@ def upload_cinerush_to_youtube(
             is_short=is_short,
             dry_run=dry_run,
             media_upload_cls=MediaFileUpload,
+            bgm_path=bgm_path,
         )
+        if return_guard_info:
+            return youtube_id, guard_info
         return youtube_id
     except Exception as e:
         log(f"❌ YouTube upload failed: {e}")
+        if return_guard_info:
+            return None, {"error": str(e)}
         return None
 
 
@@ -212,6 +219,10 @@ def run_cinerush_pipeline(
     gdrive_file_id: str | None = None,
     gdrive_file_name: str | None = None,
     source_meta: dict[str, Any] | None = None,
+    style_restart_count: int = 0,
+    max_style_restarts: int = 1,
+    bgm_override: Path | str | None = None,
+    remove_copyrighted_clip: bool = False,
 ) -> dict[str, Any]:
     """
     Executes the full end-to-end Cinerush pipeline with active face-tracking reframer and karaoke subtitles.
@@ -275,6 +286,39 @@ def run_cinerush_pipeline(
         minimum_duration=min_duration if not quick_test else None,
     )
 
+    # Anti-Copyright Remediation: Drop or shift copyrighted footage clip
+    if remove_copyrighted_clip:
+        log("✂️ [Cinerush] Removing copyrighted footage cut from timeline sequence...")
+        if len(keep_intervals) > 1:
+            excluded_interval = keep_intervals[0]
+            keep_intervals = keep_intervals[1:]
+            log(f"✂️ [Cinerush] Dropped copyrighted cut [{excluded_interval[0]:.2f}s - {excluded_interval[1]:.2f}s], remaining cuts: {len(keep_intervals)}")
+            new_shifted_words = []
+            accum_shift = 0.0
+            for start_iv, end_iv in keep_intervals:
+                iv_dur = end_iv - start_iv
+                for w in all_words:
+                    ws = float(w.get("start", 0.0))
+                    we = float(w.get("end", 0.0))
+                    if ws >= start_iv and we <= end_iv:
+                        shifted_w = dict(w)
+                        shifted_w["start"] = round(accum_shift + (ws - start_iv), 3)
+                        shifted_w["end"] = round(accum_shift + (we - start_iv), 3)
+                        new_shifted_words.append(shifted_w)
+                accum_shift += iv_dur
+            shifted_words = new_shifted_words
+            trimmed_dur = accum_shift
+        else:
+            shift_offset = (clip_end - clip_start) * 0.30
+            clip_start = min(clip_end - 5.0, clip_start + shift_offset)
+            log(f"✂️ [Cinerush] Shifted clip start past copyrighted section to {clip_start:.2f}s")
+            keep_intervals, shifted_words, trimmed_dur = build_trimmed_timeline(
+                all_words=all_words,
+                clip_start=clip_start,
+                clip_end=clip_end,
+                minimum_duration=min_duration if not quick_test else None,
+            )
+
     # Step 4: Active Face-Tracking Reframer (1:1 square for cinerush_style, 9:16 for shorts_9x16)
     reframed_path = output_dir / f"cinerush_reframed_{timestamp_str}.mp4"
     render_shot_locked_cinerush_video(
@@ -322,6 +366,7 @@ def run_cinerush_pipeline(
     bgm_result = apply_cinerush_bgm(
         video_path=reframed_path,
         output_path=reframed_with_bgm,
+        bgm_path=bgm_override,
         bgm_volume=float(os.environ.get("CINERUSH_BGM_VOLUME", "0.06")),
         speech_intervals=speech_intervals,
         raw_clip_volume=float(os.environ.get("CINERUSH_RAW_CLIP_VOLUME", "1.40")),
@@ -379,16 +424,96 @@ def run_cinerush_pipeline(
                 "cinema",
             ])
         youtube_id = _pending_short_id(history_path, movie_meta, upload_group_id)
+        guard_info: dict[str, Any] = {}
         if youtube_id:
             log(f"♻️ Retrying the missing normal-video upload for group {upload_group_id}; keeping Short {youtube_id}.")
         else:
-            youtube_id = upload_cinerush_to_youtube(
+            upload_res = upload_cinerush_to_youtube(
                 video_path=final_short_path,
                 thumb_path=thumb_path,
                 meta=viral_data,
                 dry_run=dry_run,
                 is_short=True,
+                return_guard_info=True,
+                bgm_path=bgm_override or "assets/bgm/cradles.mp3",
             )
+            if isinstance(upload_res, tuple):
+                youtube_id, guard_info = upload_res
+            else:
+                youtube_id = upload_res
+
+        # If the uploaded video got blocked by YouTube and remained blocked after retrying:
+        # identify the block reason and restart the pipeline accordingly.
+        if not youtube_id and guard_info.get("blocked") and style_restart_count < max_style_restarts:
+            block_type = guard_info.get("block_type") or "both"
+            alternate_profile = "shorts_9x16" if profile == "cinerush_style" else "cinerush_style"
+            ncs_bgm = "assets/bgm/cradles.mp3"  # Sub Urban - Cradles (NCS Release)
+
+            log(f"🛑 [Cinerush] Short upload blocked by YouTube after retries ({guard_info.get('rejection_reason')}, diagnosed cause='{block_type}').")
+
+            if block_type == "audio":
+                log(f"🎵 [Cinerush] BGM audio flagged by Content ID. Swapping track to verified copyright-free NCS release ({ncs_bgm})...")
+                return run_cinerush_pipeline(
+                    query=query,
+                    url=url,
+                    video_file=video_file,
+                    dry_run=dry_run,
+                    test_mode=test_mode,
+                    quick_test=quick_test,
+                    max_duration=max_duration,
+                    output_dir=output_dir,
+                    profile=profile,
+                    movie_meta=movie_meta,
+                    gdrive_file_id=gdrive_file_id,
+                    gdrive_file_name=gdrive_file_name,
+                    source_meta=source_meta,
+                    style_restart_count=style_restart_count + 1,
+                    max_style_restarts=max_style_restarts,
+                    bgm_override=ncs_bgm,
+                    remove_copyrighted_clip=False,
+                )
+            elif block_type == "clip":
+                log(f"🎬 [Cinerush] Video footage clip flagged by Content ID. Removing copyrighted clip cut and switching style profile to '{alternate_profile}'...")
+                return run_cinerush_pipeline(
+                    query=query,
+                    url=url,
+                    video_file=video_file,
+                    dry_run=dry_run,
+                    test_mode=test_mode,
+                    quick_test=quick_test,
+                    max_duration=max_duration,
+                    output_dir=output_dir,
+                    profile=alternate_profile,
+                    movie_meta=movie_meta,
+                    gdrive_file_id=gdrive_file_id,
+                    gdrive_file_name=gdrive_file_name,
+                    source_meta=source_meta,
+                    style_restart_count=style_restart_count + 1,
+                    max_style_restarts=max_style_restarts,
+                    bgm_override=bgm_override or ncs_bgm,
+                    remove_copyrighted_clip=True,
+                )
+            else:  # "both"
+                log(f"🛡️ [Cinerush] Both clip and audio flagged. Removing clip cut, switching style to '{alternate_profile}', and swapping to NCS BGM ({ncs_bgm})...")
+                return run_cinerush_pipeline(
+                    query=query,
+                    url=url,
+                    video_file=video_file,
+                    dry_run=dry_run,
+                    test_mode=test_mode,
+                    quick_test=quick_test,
+                    max_duration=max_duration,
+                    output_dir=output_dir,
+                    profile=alternate_profile,
+                    movie_meta=movie_meta,
+                    gdrive_file_id=gdrive_file_id,
+                    gdrive_file_name=gdrive_file_name,
+                    source_meta=source_meta,
+                    style_restart_count=style_restart_count + 1,
+                    max_style_restarts=max_style_restarts,
+                    bgm_override=ncs_bgm,
+                    remove_copyrighted_clip=True,
+                )
         if youtube_id:
             normal_video_id = upload_cinerush_to_youtube(
                 video_path=final_normal_path if final_normal_path.exists() else final_short_path,
@@ -396,6 +521,7 @@ def run_cinerush_pipeline(
                 meta=viral_data,
                 dry_run=dry_run,
                 is_short=False,
+                bgm_path=bgm_override or "assets/bgm/cradles.mp3",
             )
 
     # Save manifest
@@ -425,6 +551,7 @@ def run_cinerush_pipeline(
         "gdrive_file_id": (source_meta or scene_meta).get("gdrive_file_id", gdrive_file_id),
         "gdrive_file_name": (source_meta or scene_meta).get("gdrive_file_name", gdrive_file_name),
         "profile": profile,
+        "style_restart_count": style_restart_count,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     manifest_path = output_dir / f"render_manifest_cinerush_{timestamp_str}.json"
