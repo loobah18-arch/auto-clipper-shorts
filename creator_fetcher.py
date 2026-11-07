@@ -391,3 +391,83 @@ def download_creator_section(
 
     log(f"✅ Targeted section downloaded successfully: {output_path.name} ({output_path.stat().st_size} bytes)")
     return output_path
+
+
+def download_creator_scenes(
+    url: str,
+    scenes: list[Any],
+    output_path: Path,
+) -> Path:
+    """
+    Downloads and stitches multiple narrative scenes into a unified video.
+    Used for Isla-style multi-scene short storytelling across long-form videos.
+    """
+    if not scenes or len(scenes) == 1:
+        start = scenes[0].start_sec if scenes else 0.0
+        dur = (scenes[0].end_sec - scenes[0].start_sec) if scenes else 45.0
+        return download_creator_section(url, start, dur, output_path)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_dir = output_path.parent / f"scenes_{output_path.stem}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    scene_files: list[Path] = []
+    for i, sc in enumerate(scenes):
+        sc_file = temp_dir / f"scene_{i:02d}.mp4"
+        start_sec = getattr(sc, "start_sec", 0.0)
+        end_sec = getattr(sc, "end_sec", start_sec + 15.0)
+        dur = max(2.5, end_sec - start_sec)
+        log(f"🎬 Downloading scene {i+1}/{len(scenes)} [{getattr(sc, 'name', f'scene_{i}')}]: {start_sec:.1f}s -> {start_sec + dur:.1f}s...")
+        download_creator_section(url, start_sec, dur, sc_file)
+        if sc_file.exists() and sc_file.stat().st_size > 30_000:
+            scene_files.append(sc_file)
+
+    if not scene_files:
+        raise RuntimeError("No scenes were successfully downloaded.")
+
+    if len(scene_files) == 1:
+        import shutil
+        shutil.copyfile(scene_files[0], output_path)
+        return output_path
+
+    # Concatenate using FFmpeg filter_complex concat to normalize timestamps
+    inputs = []
+    filter_parts_v = []
+    filter_parts_a = []
+    for idx, f in enumerate(scene_files):
+        inputs.extend(["-i", str(f)])
+        filter_parts_v.append(f"[{idx}:v]")
+        filter_parts_a.append(f"[{idx}:a]")
+
+    n = len(scene_files)
+    v_in = "".join(filter_parts_v)
+    a_in = "".join(filter_parts_a)
+    concat_filter = f"{v_in}{a_in}concat=n={n}:v=1:a=1[vconcat][aconcat]"
+
+    cmd_concat = [
+        "ffmpeg", "-y",
+        *inputs,
+        "-filter_complex", concat_filter,
+        "-map", "[vconcat]",
+        "-map", "[aconcat]",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "18",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        str(output_path),
+    ]
+    log(f"🔗 Concatenating {n} scenes into master timeline -> {output_path.name}...")
+    res = subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    if res.returncode != 0 or not output_path.exists() or output_path.stat().st_size < 50_000:
+        log(f"⚠️ Concat filter failed ({res.stderr[:200]}); falling back to concat demuxer.")
+        list_file = temp_dir / "concat_list.txt"
+        list_file.write_text("\n".join(f"file '{f.resolve()}'" for f in scene_files), encoding="utf-8")
+        cmd_demux = [
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+            "-i", str(list_file), "-c", "copy", str(output_path)
+        ]
+        subprocess.run(cmd_demux, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+
+    log(f"✅ Multi-scene video stitched successfully: {output_path.name} ({output_path.stat().st_size} bytes)")
+    return output_path

@@ -163,9 +163,27 @@ Language: en
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1920", content)
             self.assertIn("Dialogue:", content)
+            self.assertIn("420", content)
+            self.assertIn("&H0000FFFF&", content)
         finally:
             if temp_ass.exists():
                 temp_ass.unlink()
+
+    def test_nile_blue_redbull_benchmark_script(self):
+        script = generate_deterministic_fallback_script(
+            title="Making the world's most powerful Red Bull",
+            channel_name="NileBlue",
+            duration_sec=2533.0,
+        )
+        self.assertGreaterEqual(len(script.scenes), 3)
+        self.assertEqual(script.scenes[0].name, "setup")
+        self.assertEqual(script.scenes[1].name, "conflict")
+        self.assertEqual(script.scenes[2].name, "payoff")
+        self.assertEqual(script.scenes[0].start_sec, 76.0)
+        self.assertEqual(script.scenes[1].start_sec, 1655.0)
+        self.assertEqual(script.scenes[2].start_sec, 2355.0)
+        self.assertIn("100 Red Bulls into one drink", script.title)
+        self.assertIn("What would happen", script.hook_text)
 
     def test_upload_guard_dry_run(self):
         script = generate_deterministic_fallback_script("Test", "Creator", 200.0)

@@ -13,7 +13,11 @@ import random
 import sys
 from pathlib import Path
 
-from creator_fetcher import download_creator_section, fetch_creator_metadata
+from creator_fetcher import (
+    download_creator_section,
+    download_creator_scenes,
+    fetch_creator_metadata,
+)
 from isla_story_engine import generate_looped_arc_script
 from isla_upload_guard import upload_isla_short
 from isla_video_engine import DEFAULT_BGM, assemble_isla_short
@@ -91,16 +95,25 @@ def main() -> int:
     )
     log(f"📝 Script generated: '{script.title}' (Hook: '{script.hook_text}')")
 
-    # 3. Precision Section Download (Phase 3)
-    clip_dur = min(58.0, max(42.0, script.raw_clip_end - script.raw_clip_start))
-    section_file = output_dir / f"clip_{metadata.video_id}_{int(script.raw_clip_start)}.mp4"
-    log(f"Step 3/5: Precision download of viral window ({script.raw_clip_start:.1f}s -> {script.raw_clip_start + clip_dur:.1f}s)...")
-    download_creator_section(
-        url=target_url,
-        start_sec=script.raw_clip_start,
-        duration_sec=clip_dur,
-        output_path=section_file,
-    )
+    # 3. Precision Section or Multi-Scene Download (Phase 3)
+    if script.scenes and len(script.scenes) > 1:
+        log(f"Step 3/5: Precision multi-scene download ({len(script.scenes)} narrative beats across video)...")
+        section_file = output_dir / f"multi_scene_{metadata.video_id}.mp4"
+        download_creator_scenes(
+            url=target_url,
+            scenes=script.scenes,
+            output_path=section_file,
+        )
+    else:
+        clip_dur = min(58.0, max(42.0, script.raw_clip_end - script.raw_clip_start))
+        section_file = output_dir / f"clip_{metadata.video_id}_{int(script.raw_clip_start)}.mp4"
+        log(f"Step 3/5: Precision download of viral window ({script.raw_clip_start:.1f}s -> {script.raw_clip_start + clip_dur:.1f}s)...")
+        download_creator_section(
+            url=target_url,
+            start_sec=script.raw_clip_start,
+            duration_sec=clip_dur,
+            output_path=section_file,
+        )
 
     # 4. Assemble 9:16 Full-Bleed Short with Kinetic Subtitles & Audio Mix
     log("Step 4/5: Rendering 1080x1920 full-bleed Short with subtitles & audio mix...")
