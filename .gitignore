@@ -27,3 +27,11 @@ token.pickle
 token.json
 .DS_Store
 
+# Hypit & Node dependencies
+node_modules/
+.hypit/
+bun.lockb
+bun.lock
+package-lock.json
+
+

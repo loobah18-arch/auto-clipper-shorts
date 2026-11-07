@@ -1,0 +1,17 @@
+{
+  "name": "auto-clipper-shorts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Auto Clipper Shorts with Hypit video authoring and DSL workflow engine",
+  "hypit": {
+    "project": true
+  },
+  "scripts": {
+    "hypit": "hypit",
+    "test": "python3 -m unittest discover -s . -p 'test_*.py'"
+  },
+  "devDependencies": {
+    "@hypit/hypit": "^0.3.1"
+  }
+}
