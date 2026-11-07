@@ -71,7 +71,7 @@ STRICT EDITING RULES:
    - BEAT 6 (55-61s): HAND-OFF & CREATOR PAYOFF. Narrator speaks the hand-off ("so, he tried it."), narrator goes COMPLETELY SILENT, and original creator speaks the genuine payoff reaction with full audio ("woah. that's crazy. crazy good.").
 3. MULTI-SCENE TIMESTAMPS:
    - Identify 5-6 distinct timestamp ranges across the source video:
-     * hook: Payoff preview action (3-4s)
+     * hook: Payoff preview action (3-4s). CRITICAL: NEVER pick talking head or intro footage. ALWAYS select the peak visual climax action from the end of the video (e.g. pouring syrup, chemical reaction, final reveal) to hook the viewer in-media-res before cutting back to beat 2.
      * setup: Starting action / scale (10-14s)
      * process: Technical machine or method (10-14s)
      * conflict: The failure, math, or surprise (15-18s)
