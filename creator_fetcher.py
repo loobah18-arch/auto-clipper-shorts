@@ -196,17 +196,15 @@ def fetch_creator_metadata(
     sub_output_template = str(output_dir / "sub_%(id)s")
 
     client_strategies = [
-        # Strategy 1: android (highest bypass rate on datacenter IPs)
+        # Strategy 1: android (bypasses datacenter bot checks without cookies)
         ["--extractor-args", "youtube:player_client=android"],
         # Strategy 2: android + mweb
         ["--extractor-args", "youtube:player_client=android,mweb"],
-        # Strategy 3: with cookies and android
-        [*cookie_args, "--extractor-args", "youtube:player_client=android"] if cookie_args else None,
-        # Strategy 4: ios + android
+        # Strategy 3: ios + android
         ["--extractor-args", "youtube:player_client=ios,android"],
-        # Strategy 5: mweb
-        ["--extractor-args", "youtube:player_client=mweb"],
-        # Strategy 6: default
+        # Strategy 4: mweb with cookies if present
+        [*cookie_args, "--extractor-args", "youtube:player_client=mweb"] if cookie_args else None,
+        # Strategy 5: default vanilla
         [],
     ]
 
@@ -216,8 +214,10 @@ def fetch_creator_metadata(
             continue
         cmd = [
             "yt-dlp",
+            "--js-runtimes", "node",
             "--skip-download",
             "--dump-json",
+            "--ignore-no-formats-error",
             "--write-auto-sub",
             "--sub-lang", "en",
             "--sub-format", "vtt",
@@ -351,16 +351,16 @@ def download_creator_section(
     log(f"📥 Downloading targeted {duration_sec:.1f}s section [{_format_time_sec(start_sec)} -> {_format_time_sec(end_sec)}] -> {output_path.name}...")
 
     download_strategies = [
-        # Strategy 1: android (highest reliability for downloading streams without SABR block)
-        ["--extractor-args", "youtube:player_client=android"],
+        # Strategy 1: android (bypasses datacenter block, supports format 18/best)
+        ["--extractor-args", "youtube:player_client=android", "-f", "best/18/b/w"],
         # Strategy 2: android + mweb
-        ["--extractor-args", "youtube:player_client=android,mweb"],
-        # Strategy 3: with cookies and android
-        [*cookie_args, "--extractor-args", "youtube:player_client=android"] if cookie_args else None,
-        # Strategy 4: ios + android
-        ["--extractor-args", "youtube:player_client=ios,android"],
+        ["--extractor-args", "youtube:player_client=android,mweb", "-f", "best/18/b/w"],
+        # Strategy 3: ios + android
+        ["--extractor-args", "youtube:player_client=ios,android", "-f", "best/18/b/w"],
+        # Strategy 4: mweb with cookies
+        [*cookie_args, "--extractor-args", "youtube:player_client=mweb", "-f", "best/b/18"] if cookie_args else None,
         # Strategy 5: default vanilla
-        [],
+        ["-f", "best/b/18"],
     ]
 
     res_dl = None
@@ -369,8 +369,8 @@ def download_creator_section(
             continue
         cmd = [
             "yt-dlp",
+            "--js-runtimes", "node",
             "--download-sections", section_arg,
-            "-f", "best[ext=mp4]/b/bv*+ba/best",
             "--merge-output-format", "mp4",
             "-o", str(output_path),
             *strat,
