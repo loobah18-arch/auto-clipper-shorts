@@ -4,7 +4,7 @@ Creator Source Fetcher for Isla Value-Add Clipper.
 Uses two-phase fetching via yt-dlp:
 1. Metadata & Subtitles extraction (fast, lightweight, no media download)
 2. Precision Section Download (--download-sections) for only the targeted 45-55s clip.
-Bypasses datacenter bot blocks using Android/iOS client spoofing.
+Handles YOUTUBE_COOKIES with base64 decoding, CRLF normalization, and Netscape validation.
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
+
+_COOKIES_FILE: Optional[str] = None
 
 
 def log(msg: str) -> None:
@@ -54,12 +56,65 @@ def _clean_vtt_text(vtt_path: Path) -> str:
         line = line.strip()
         if not line or "-->" in line or line.startswith("WEBVTT") or line.isdigit():
             continue
-        # Strip inline tags like <00:00:00.000><c>
         clean_line = re.sub(r"<[^>]+>", "", line).strip()
         if clean_line and clean_line not in seen:
             seen.add(clean_line)
             cleaned.append(clean_line)
     return " ".join(cleaned)
+
+
+def setup_cookies_file() -> Optional[str]:
+    """
+    Reads the YOUTUBE_COOKIES env var (base64-encoded Netscape cookies.txt content)
+    and writes it to a temporary file for yt-dlp.
+    """
+    global _COOKIES_FILE
+    if _COOKIES_FILE and os.path.exists(_COOKIES_FILE):
+        return _COOKIES_FILE
+
+    raw = os.environ.get("YOUTUBE_COOKIES", "").strip()
+    if not raw:
+        log("Notice: YOUTUBE_COOKIES env var is not set; proceeding without cookies.")
+        return None
+
+    try:
+        decoded = base64.b64decode(raw).decode("utf-8", errors="ignore")
+        decoded = decoded.replace("\r\n", "\n").replace("\r", "\n")
+
+        first_line = decoded.split("\n", 1)[0].strip()
+        valid_headers = ["# Netscape HTTP Cookie File", "# HTTP Cookie File"]
+        if first_line not in valid_headers:
+            decoded = "# Netscape HTTP Cookie File\n" + decoded
+
+        cookie_lines = [
+            l for l in decoded.strip().split("\n")
+            if l.strip() and not l.startswith("#") and "\t" in l
+        ]
+        if not cookie_lines:
+            log("⚠️ YOUTUBE_COOKIES decoded but contains no valid tab-separated cookie entries.")
+            return None
+
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix="_yt_cookies.txt", delete=False, encoding="utf-8", newline="\n"
+        )
+        tmp.write(decoded)
+        tmp.flush()
+        tmp.close()
+        _COOKIES_FILE = tmp.name
+        os.chmod(_COOKIES_FILE, 0o600)
+        log(f"🍪 Authenticated YouTube cookies loaded: {len(cookie_lines)} entries -> {_COOKIES_FILE}")
+        return _COOKIES_FILE
+    except Exception as e:
+        log(f"⚠️ Failed to decode YOUTUBE_COOKIES: {e}")
+        return None
+
+
+def get_ytdlp_cookie_args() -> list[str]:
+    """Returns ['--cookies', '<path>'] if cookies are available, else []."""
+    cf = setup_cookies_file()
+    if cf:
+        return ["--cookies", cf]
+    return []
 
 
 def fetch_creator_metadata(
@@ -73,7 +128,9 @@ def fetch_creator_metadata(
     output_dir.mkdir(parents=True, exist_ok=True)
     log(f"Extracting metadata and subtitles for: {url}")
 
+    cookie_args = get_ytdlp_cookie_args()
     sub_output_template = str(output_dir / "sub_%(id)s")
+
     cmd = [
         "yt-dlp",
         "--skip-download",
@@ -82,22 +139,28 @@ def fetch_creator_metadata(
         "--sub-lang", "en",
         "--sub-format", "vtt",
         "-o", sub_output_template,
-        "--extractor-args", "youtube:player_client=android,ios",
+        *cookie_args,
+        "--extractor-args", "youtube:player_client=android,ios,web",
         "--no-playlist",
         url,
     ]
 
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
     if res.returncode != 0:
-        log(f"Notice: Primary yt-dlp call failed; retrying with basic android client...")
-        cmd_alt = [
+        log(f"Notice: Primary call with cookies returned code {res.returncode}; retrying without cookies...")
+        cmd_fallback = [
             "yt-dlp",
-            "--dump-json",
             "--skip-download",
-            "--extractor-args", "youtube:player_client=android",
+            "--dump-json",
+            "--write-auto-sub",
+            "--sub-lang", "en",
+            "--sub-format", "vtt",
+            "-o", sub_output_template,
+            "--extractor-args", "youtube:player_client=android,ios",
+            "--no-playlist",
             url,
         ]
-        res = subprocess.run(cmd_alt, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+        res = subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
         if res.returncode != 0:
             raise RuntimeError(f"Failed to extract creator video metadata: {res.stderr[:300]}")
 
@@ -154,6 +217,7 @@ def download_creator_section(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     end_sec = start_sec + duration_sec
     section_arg = f"*{_format_time_sec(start_sec)}-{_format_time_sec(end_sec)}"
+    cookie_args = get_ytdlp_cookie_args()
 
     log(f"📥 Downloading targeted {duration_sec:.1f}s section [{_format_time_sec(start_sec)} -> {_format_time_sec(end_sec)}] -> {output_path.name}...")
 
@@ -163,19 +227,20 @@ def download_creator_section(
         "-f", "best[ext=mp4]/b/bv*+ba",
         "--merge-output-format", "mp4",
         "-o", str(output_path),
-        "--extractor-args", "youtube:player_client=android,ios",
+        *cookie_args,
+        "--extractor-args", "youtube:player_client=android,ios,web",
         "--no-playlist",
         url,
     ]
 
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
     if res.returncode != 0:
-        log(f"Notice: Section download failed ({res.stderr[:200]}); trying general format...")
+        log(f"Notice: Section download with cookies failed; retrying without cookies...")
         cmd_fb = [
             "yt-dlp",
             "--download-sections", section_arg,
             "-o", str(output_path),
-            "--extractor-args", "youtube:player_client=android",
+            "--extractor-args", "youtube:player_client=android,ios",
             url,
         ]
         res_fb = subprocess.run(cmd_fb, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
@@ -183,7 +248,6 @@ def download_creator_section(
             raise RuntimeError(f"Section download failed: {res_fb.stderr[:300]}")
 
     if not output_path.exists() or output_path.stat().st_size < 50_000:
-        # Check if yt-dlp added a part suffix
         parts = list(output_path.parent.glob(f"{output_path.stem}*"))
         mp4_parts = [p for p in parts if p.suffix.lower() == ".mp4"]
         if mp4_parts:
