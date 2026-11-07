@@ -2,9 +2,10 @@
 """
 Purge or private all videos on @woosclips for channel revamp.
 
-Attempts permanent deletion (videos().delete). If the OAuth token lacks
-full YouTube delete scope (HTTP 403), gracefully falls back to setting
-video status to 'private' (videos().update) so the public channel is 100% wiped.
+Uses the authorized YouTube OAuth credentials. Attempts permanent deletion
+(videos().delete). If the token lacks delete authorization (HTTP 403),
+gracefully falls back to updating the status to 'private' (videos().update)
+so all videos are 100% removed from public view and channel page.
 """
 
 from __future__ import annotations
@@ -20,7 +21,6 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 SCOPES = [
-    "https://www.googleapis.com/auth/youtube",
     "https://www.googleapis.com/auth/youtube.upload",
 ]
 
@@ -55,20 +55,18 @@ def build_youtube():
 
 
 def get_channel_upload_playlist_ids(youtube: Any) -> list[str]:
-    """Fetch all video IDs in the channel's uploads playlist directly from YouTube."""
+    """Fetch video IDs in the channel's uploads playlist if permitted by token."""
     video_ids: list[str] = []
     try:
         channels_res = youtube.channels().list(mine=True, part="contentDetails").execute()
         items = channels_res.get("items", [])
         if not items:
-            print("No channel items found for authenticated account.")
             return []
 
         uploads_id = (
             items[0].get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads")
         )
         if not uploads_id:
-            print("No uploads playlist found for channel.")
             return []
 
         print(f"Fetching uploads from channel playlist {uploads_id}...")
@@ -93,7 +91,7 @@ def get_channel_upload_playlist_ids(youtube: Any) -> list[str]:
                 break
         print(f"Found {len(video_ids)} video(s) via channel uploads playlist.")
     except Exception as e:
-        print(f"Notice: Could not list channel uploads playlist ({e}). Relying on history files.")
+        print(f"Notice: Channel playlist lookup skipped ({e}). Relying on history files.")
 
     return video_ids
 
@@ -124,7 +122,8 @@ def get_history_video_ids(paths: list[str]) -> list[str]:
 
 def purge_or_private_videos(youtube: Any, video_ids: list[str]) -> dict[str, int]:
     """
-    Attempt to delete each video. If delete fails with 403, fall back to private.
+    Attempt to delete each video. If delete fails with HTTP 403/401/400,
+    fall back to setting the video status to 'private'.
     """
     stats = {"deleted": 0, "privated": 0, "already_gone": 0, "failed": 0}
     total = len(video_ids)
@@ -132,8 +131,9 @@ def purge_or_private_videos(youtube: Any, video_ids: list[str]) -> dict[str, int
 
     for idx, video_id in enumerate(video_ids, 1):
         print(f"[{idx}/{total}] Processing video {video_id}...")
+
+        # 1. Attempt permanent delete first
         try:
-            # 1. Attempt permanent delete
             youtube.videos().delete(id=video_id).execute()
             print(f"  🗑️ Video {video_id} permanently deleted.")
             stats["deleted"] += 1
@@ -145,12 +145,14 @@ def purge_or_private_videos(youtube: Any, video_ids: list[str]) -> dict[str, int
                 print(f"  ℹ️ Video {video_id} not found on YouTube (already deleted).")
                 stats["already_gone"] += 1
                 continue
-            elif status in (403, 401):
-                print(f"  ⚠️ Delete scope not authorized (HTTP {status}). Falling back to 'private'...")
+            elif status in (400, 401, 403):
+                print(f"  ⚠️ Delete not authorized (HTTP {status}). Falling back to 'private'...")
             else:
-                print(f"  ⚠️ Delete returned HTTP {status}: {err}. Attempting fallback to 'private'...")
+                print(f"  ⚠️ Delete returned HTTP {status}: {err}. Falling back to 'private'...")
+        except Exception as err:
+            print(f"  ⚠️ Unexpected error on delete ({err}). Falling back to 'private'...")
 
-        # 2. Fallback: Update privacy status to private
+        # 2. Fallback: Update privacy status to 'private'
         try:
             youtube.videos().update(
                 part="status",
@@ -214,6 +216,7 @@ def main() -> int:
     print(f"  - Failed:             {stats['failed']}")
     print(f"=======================================================\n")
 
+    # Success if all targeted videos are either deleted, privated, or already gone
     return 0 if stats["failed"] == 0 else 1
 
 
