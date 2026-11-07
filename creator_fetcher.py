@@ -215,7 +215,8 @@ def fetch_creator_metadata(
         cmd = [
             "yt-dlp",
             "--remote-components", "ejs:github",
-            "--js-runtimes", "deno,node",
+            "--js-runtimes", "deno",
+            "--js-runtimes", "node",
             "--skip-download",
             "--dump-json",
             "--ignore-no-formats-error",
@@ -372,7 +373,8 @@ def download_creator_section(
         cmd = [
             "yt-dlp",
             "--remote-components", "ejs:github",
-            "--js-runtimes", "deno,node",
+            "--js-runtimes", "deno",
+            "--js-runtimes", "node",
             "--download-sections", section_arg,
             "--merge-output-format", "mp4",
             "-o", str(output_path),
