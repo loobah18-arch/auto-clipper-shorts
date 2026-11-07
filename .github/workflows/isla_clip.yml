@@ -60,6 +60,11 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: 🦕 Set up Deno for yt-dlp JavaScript challenge solver
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
       - name: 🎥 Install FFmpeg & Fonts
         run: |
           set -euo pipefail
@@ -70,7 +75,7 @@ jobs:
       - name: 📦 Install Python Dependencies
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip yt-dlp
           pip install -r requirements.txt
 
       - name: 🚀 Run Isla Value-Add Clipper

@@ -147,7 +147,7 @@ def fetch_creator_metadata(
 
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
     if res.returncode != 0:
-        log(f"Notice: Primary call with cookies returned code {res.returncode}; retrying without cookies...")
+        log(f"Notice: Primary call with cookies failed (code {res.returncode}): {res.stderr[:400]}; retrying...")
         cmd_fallback = [
             "yt-dlp",
             "--skip-download",
