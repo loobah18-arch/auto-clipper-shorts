@@ -80,6 +80,52 @@ def build_youtube_client():
     return build("youtube", "v3", credentials=credentials)
 
 
+def resolve_next_creator_rotation(
+    history_file: Path = DEFAULT_HISTORY_FILE,
+    catalog_file: Path = DEFAULT_CATALOG_FILE,
+) -> Dict[str, Any]:
+    """Determines the next creator in rotation based on recent upload history."""
+    catalog = load_creator_catalog(catalog_file)
+    creators_dict = catalog.get("creators", {})
+    creator_keys = list(creators_dict.keys())
+    if not creator_keys:
+        return {
+            "creator_id": "mrbeast",
+            "name": "MrBeast",
+            "svml_source": "sources/mrbeast_challenge.svml",
+            "output_filename": "hypit_mrbeast_short.mp4",
+        }
+
+    last_creator = None
+    if history_file.exists():
+        try:
+            records = json.loads(history_file.read_text(encoding="utf-8"))
+            if records and isinstance(records, list):
+                for rec in reversed(records):
+                    c = rec.get("creator")
+                    if c in creator_keys:
+                        last_creator = c
+                        break
+        except Exception:
+            pass
+
+    if last_creator and last_creator in creator_keys:
+        idx = (creator_keys.index(last_creator) + 1) % len(creator_keys)
+        next_creator = creator_keys[idx]
+    else:
+        next_creator = creator_keys[0]
+
+    info = creators_dict.get(next_creator, {})
+    return {
+        "creator_id": next_creator,
+        "name": info.get("name", next_creator),
+        "svml_source": info.get("svml_source", f"sources/{next_creator}.svml"),
+        "default_title": info.get("default_title", f"Challenge Short (@{next_creator})"),
+        "default_description": info.get("default_description", f"Watch this viral Short by {next_creator}!"),
+        "output_filename": f"hypit_{next_creator}_short.mp4",
+    }
+
+
 class YouTubeUploader:
     """Manages YouTube Shorts upload lifecycle with Tested&Proved packaging."""
 
@@ -223,16 +269,23 @@ class YouTubeUploader:
             except Exception as e:
                 log(f"Warning: Failed to parse metadata file {metadata_path}: {e}")
 
-        raw_title = meta.get("title", f"Challenge Short (@{creator_id})")
-        raw_desc = meta.get("description", f"Watch this high-stakes Short by {creator_id}!")
-        tags = meta.get("tags", ["shorts", "viral", creator_id])
-
-        title = self.format_title(raw_title, creator_id)
-        description = self.format_description(raw_desc, creator_id, meta)
-
         creators = self.catalog.get("creators", {})
         creator_info = creators.get(creator_id, {})
         category_id = creator_info.get("packaging", {}).get("category_id", "24")
+
+        # Determine raw title and description
+        meta_attribution = meta.get("creator_attribution", "")
+        if creator_id in meta_attribution.lower() or (creator_id == "mrbeast" and "mrbeast" in meta_attribution.lower()):
+            raw_title = meta.get("title", creator_info.get("default_title", f"Challenge Short (@{creator_id})"))
+            raw_desc = meta.get("description", creator_info.get("default_description", f"Watch this high-stakes Short by {creator_id}!"))
+        else:
+            raw_title = creator_info.get("default_title", meta.get("title", f"Challenge Short (@{creator_id})"))
+            raw_desc = creator_info.get("default_description", meta.get("description", f"Watch this high-stakes Short by {creator_id}!"))
+
+        tags = meta.get("tags", creator_info.get("packaging", {}).get("hashtags", ["shorts", "viral", creator_id]))
+
+        title = self.format_title(raw_title, creator_id)
+        description = self.format_description(raw_desc, creator_id, meta)
 
         log(f"📋 Title: '{title}'")
         log(f"🔒 Privacy: {privacy_status} | Category: {category_id} | Dry-Run: {dry_run}")

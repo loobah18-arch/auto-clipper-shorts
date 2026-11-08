@@ -7,7 +7,7 @@ Validates formatting, Candle Gate enforcement, and dry-run flows.
 import json
 import unittest
 from pathlib import Path
-from youtube_uploader import YouTubeUploader
+from youtube_uploader import YouTubeUploader, resolve_next_creator_rotation
 
 ROOT_DIR = Path(__file__).resolve().parent
 
@@ -53,6 +53,22 @@ class TestYouTubeUploader(unittest.TestCase):
         self.uploader.run_timer(seconds=1800, interval=600, sleep_fn=mock_sleep)
         self.assertEqual(sum(sleep_calls), 1800)
         self.assertEqual(len(sleep_calls), 3)
+
+    def test_resolve_next_creator_rotation(self):
+        # Empty history defaults to first creator (mrbeast)
+        res = resolve_next_creator_rotation(history_file=self.test_history)
+        self.assertEqual(res["creator_id"], "mrbeast")
+
+        # After mrbeast, next in rotation is nileblue
+        self.test_history.write_text(json.dumps([{"creator": "mrbeast", "video_id": "test1"}]), encoding="utf-8")
+        res2 = resolve_next_creator_rotation(history_file=self.test_history)
+        self.assertEqual(res2["creator_id"], "nileblue")
+        self.assertEqual(res2["output_filename"], "hypit_nileblue_short.mp4")
+
+        # After ruhi_cenet (last creator), it loops back to mrbeast
+        self.test_history.write_text(json.dumps([{"creator": "ruhi_cenet", "video_id": "test2"}]), encoding="utf-8")
+        res3 = resolve_next_creator_rotation(history_file=self.test_history)
+        self.assertEqual(res3["creator_id"], "mrbeast")
 
     def test_dry_run_upload_and_history(self):
         video_sample = ROOT_DIR / "test_sample_video.mp4"

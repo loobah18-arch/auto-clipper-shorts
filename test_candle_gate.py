@@ -45,6 +45,14 @@ class TestCandleGate(unittest.TestCase):
         self.assertEqual(res["decision"], "UPLOAD_BLOCKED_ACTIVE_PUSH")
         self.assertEqual(res["current_hourly_rate"], 2800)
 
+    def test_layer2_low_velocity_without_viral_spike_cleared(self):
+        # Video never had a viral surge (e.g. 40 views/hr at 12 hours) -> Layer 2 cleared
+        hourly_views = [40]
+        res = self.gate.evaluate_hourly_candles(hourly_views)
+        self.assertTrue(res["can_upload"])
+        self.assertEqual(res["decision"], "UPLOAD_CLEARED")
+        self.assertEqual(res["current_hourly_rate"], 40)
+
     def test_layer1_early_momentum_blocks_upload(self):
         # Video reaches 2,200 views in 6 hours (>= 2k in 12h) -> Layer 1 must block upload
         res = self.gate.evaluate_early_momentum(total_views=2200, elapsed_hours=6.0)

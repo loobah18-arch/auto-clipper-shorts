@@ -142,21 +142,29 @@ class CandleGate:
             else:
                 break
 
-        can_upload = consecutive_below >= required_hours
-
-        if can_upload:
+        # If the video never breached the viral threshold, there is no active push to cool down
+        if peak_rate < threshold:
+            can_upload = True
             decision = "UPLOAD_CLEARED"
             recommendation = (
-                f"Active Short has stabilized below {threshold:,} views/hr for {consecutive_below} consecutive hours. "
-                f"Cleared to upload next video without cannibalizing active push."
+                f"Active Short velocity ({current_rate:,} views/hr, peak: {peak_rate:,}/hr) "
+                f"is below {threshold:,} views/hr threshold. Cleared to upload next video."
             )
         else:
-            decision = "UPLOAD_BLOCKED_ACTIVE_PUSH"
-            recommendation = (
-                f"Active push in progress! Current rate: {current_rate:,} views/hr (Peak: {peak_rate:,}/hr). "
-                f"Only {consecutive_below}/{required_hours} hours below threshold. "
-                f"DO NOT upload yet — rushing now will flatline algorithm momentum."
-            )
+            can_upload = consecutive_below >= required_hours
+            if can_upload:
+                decision = "UPLOAD_CLEARED"
+                recommendation = (
+                    f"Active Short has stabilized below {threshold:,} views/hr for {consecutive_below} consecutive hours. "
+                    f"Cleared to upload next video without cannibalizing active push."
+                )
+            else:
+                decision = "UPLOAD_BLOCKED_ACTIVE_PUSH"
+                recommendation = (
+                    f"Active push in progress! Current rate: {current_rate:,} views/hr (Peak: {peak_rate:,}/hr). "
+                    f"Only {consecutive_below}/{required_hours} hours below threshold. "
+                    f"DO NOT upload yet — rushing now will flatline algorithm momentum."
+                )
 
         return {
             "decision": decision,
@@ -301,7 +309,7 @@ class CandleGate:
             # Layer 1: Early Momentum Gate (>= 2,000 views within 12 hours)
             layer1_eval = self.evaluate_early_momentum(total_views, elapsed_hours)
 
-            # Layer 2: 5,000 views/hour sustained velocity candle monitoring
+            # Layer 2: 2k-3k views/hour sustained velocity candle monitoring
             layer2_eval = self.evaluate_hourly_candles(history_candles)
             if elapsed_hours <= 48 and hourly_velocity >= VIEW_THRESHOLD_PER_HOUR:
                 layer2_eval["can_upload"] = False
@@ -324,7 +332,7 @@ class CandleGate:
                 final_decision = layer2_eval["decision"]
                 can_upload = False
                 final_recommendation = layer2_eval["recommendation"]
-                active_layer = "Layer 2 (Viral Velocity Gate: >=5k views/hr)"
+                active_layer = f"Layer 2 (Viral Velocity Gate: >={VIEW_THRESHOLD_PER_HOUR:,} views/hr)"
             else:
                 final_decision = "UPLOAD_CLEARED"
                 can_upload = True

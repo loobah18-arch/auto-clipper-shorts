@@ -88,13 +88,46 @@ jobs:
           python3 test_catalog.py
           python3 test_youtube_uploader.py
 
+      - name: 🔄 Resolve Creator & Manifest Rotation
+        id: resolve
+        run: |
+          set -euo pipefail
+          python3 -c "
+          import os
+          from youtube_uploader import resolve_next_creator_rotation
+
+          manual_creator = '${{ inputs.creator }}'.strip()
+          manual_manifest = '${{ inputs.manifest }}'.strip()
+          manual_output = '${{ inputs.output_filename }}'.strip()
+
+          if manual_creator:
+              creator = manual_creator
+              manifest = manual_manifest if manual_manifest else 'sources/production.svrun'
+              out_name = manual_output if manual_output else f'hypit_{creator}_short.mp4'
+          else:
+              rot = resolve_next_creator_rotation()
+              creator = rot['creator_id']
+              manifest = 'sources/production.svrun'
+              out_name = rot['output_filename']
+
+          print(f'🎯 Selected Creator: {creator}')
+          print(f'📄 Manifest: {manifest}')
+          print(f'📦 Output filename: {out_name}')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'creator={creator}\n')
+              f.write(f'manifest={manifest}\n')
+              f.write(f'output_filename={out_name}\n')
+          "
+
       - name: 🎬 Render Hypit Deliverable
         run: |
           set -euo pipefail
           mkdir -p output
-          MANIFEST="${{ inputs.manifest || 'sources/production.svrun' }}"
-          OUTPUT_NAME="${{ inputs.output_filename || 'hypit_mrbeast_short.mp4' }}"
-          python3 hypit_engine.py "$MANIFEST" --output "output/$OUTPUT_NAME"
+          MANIFEST="${{ steps.resolve.outputs.manifest }}"
+          CREATOR_ID="${{ steps.resolve.outputs.creator }}"
+          OUTPUT_NAME="${{ steps.resolve.outputs.output_filename }}"
+          python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" --output "output/$OUTPUT_NAME"
 
       - name: 📦 Upload Generated Video Artifact
         if: always()
@@ -113,8 +146,8 @@ jobs:
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
         run: |
           set -euo pipefail
-          OUTPUT_NAME="${{ inputs.output_filename || 'hypit_mrbeast_short.mp4' }}"
-          CREATOR_ID="${{ inputs.creator || 'mrbeast' }}"
+          OUTPUT_NAME="${{ steps.resolve.outputs.output_filename }}"
+          CREATOR_ID="${{ steps.resolve.outputs.creator }}"
           PRIVACY="${{ inputs.privacy_status || 'public' }}"
           EXTRA_ARGS=()
           if [ "${{ inputs.force_upload }}" = "true" ]; then

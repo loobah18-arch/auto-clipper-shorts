@@ -11,6 +11,8 @@
       "niche": "extreme_challenges",
       "description": "High-budget spectacles, survival challenges, and million-dollar stakes",
       "svml_source": "sources/mrbeast_challenge.svml",
+      "default_title": "Can He Escape 100 Real Cops For $500,000?",
+      "default_description": "Can Nolan outrun and outsmart 100 real cops to take home $500,000 cash? Watch the full looped chase!",
       "narrator_voice": "en-US-BrianMultilingualNeural",
       "voice_style": "Deep, authentic cinema baritone with warm 110Hz chest resonance",
       "packaging": {
@@ -38,6 +40,8 @@
       "niche": "science_experiments",
       "description": "Extreme chemistry, dangerous transformations, and mind-bending science experiments",
       "svml_source": "sources/nileblue_experiment.svml",
+      "default_title": "Can We Turn Red Bull Into Pure Drinking Water?",
+      "default_description": "Can NileBlue actually turn canned Red Bull into 100% pure drinking water through vacuum distillation?",
       "narrator_voice": "en-US-ChristopherNeural",
       "voice_style": "Intrigued, inquisitive scientific pacing with high clarity",
       "packaging": {
@@ -65,6 +69,8 @@
       "niche": "engineering_gadgets",
       "description": "Ex-NASA engineer building insane revenge traps, squirrel mazes, and world-record machines",
       "svml_source": "sources/mark_rober_gadget.svml",
+      "default_title": "Can An Engineer Stop Porch Thieves With Glitter?",
+      "default_description": "Ex-NASA engineer Mark Rober builds the ultimate high-tech glitter bomb revenge trap to outsmart porch thieves!",
       "narrator_voice": "en-US-GuyNeural",
       "voice_style": "Friendly, fast-paced engineer enthusiasm with sharp comedic timing",
       "packaging": {
@@ -92,6 +98,8 @@
       "niche": "irl_viral_stunts",
       "description": "Explosive energy IRL livestreams, superstar encounters, and heart-pounding physical stunts",
       "svml_source": "sources/ishowspeed_viral.svml",
+      "default_title": "Can Speed Jump Over Two Moving Supercars?",
+      "default_description": "IShowSpeed attempts the impossible viral stunt — leaping over two high-speed moving supercars in real life!",
       "narrator_voice": "en-US-AndrewMultilingualNeural",
       "voice_style": "High-octane, punchy modern delivery matching chaotic hype moments",
       "packaging": {
@@ -119,6 +127,8 @@
       "niche": "extreme_investigations",
       "description": "Deep-dive investigative documentaries exploring the world's most dangerous, forbidden, and extreme locations",
       "svml_source": "sources/ruhi_cenet_investigation.svml",
+      "default_title": "Can You Survive 24 Hours In -71°C Coldest City?",
+      "default_description": "Ruhi Çenet investigates Yakutsk, the coldest inhabited city on Earth where air freezes instantly!",
       "narrator_voice": "en-US-BrianMultilingualNeural",
       "voice_style": "Grave, atmospheric documentary baritone building suspense and geopolitical mystery",
       "packaging": {
