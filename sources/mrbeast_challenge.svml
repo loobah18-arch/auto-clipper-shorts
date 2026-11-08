@@ -15,10 +15,12 @@
 
   <script id="story">
     <intro><NARRATOR>CAN HE ESCAPE 100 REAL COPS FOR $500,000?</NARRATOR></intro>
-    <opening><HOST>BEHIND ME ARE 100 COPS! AND IF THEY ARREST US, THEY WIN A MILLION DOLLARS!</HOST></opening>
-    <setup><HOST>WE GOT TO GET OUT OF HERE! WHERE DO WE GO?! IT'S A TRAP!</HOST></setup>
+    <opening><HOST>BEHIND ME ARE 100 COPS! AND IF THEY ARREST US, THEY WIN HALF A MILLION DOLLARS!</HOST></opening>
+    <setup><HOST>WE GOT TO GET OUT! GO GO GO! LET'S BLOW IT UP! WE JUST ESCAPED!</HOST></setup>
     <conflict><HOST>FOR THIS NEXT DIVERSION... A LOT OF EXPLOSIONS! MAN DOES IT LOOK EPIC!</HOST></conflict>
-    <climax><HOST>DUDE, JIMMY! WE'RE SURROUNDED! IT'S A DEAD END! LOCK IT UP!</HOST></climax>
+    <comeback><HOST>OH NO, IT'S A DEAD END! SET A PERIMETER! WE ARE SURROUNDED BY COPS!</HOST></comeback>
+    <climax><HOST>STATE POLICE! STAY DOWN! PUT HIM IN HANDCUFFS! WE WERE SO CLOSE!</HOST></climax>
+    <payoff><HOST>THEY OFFICIALLY CAUGHT ALL FIVE OF US AND WON THAT HALF A MILLION DOLLARS! CONGRATULATIONS!</HOST></payoff>
   </script>
 
   <space:Canvas id="canvas" width="1080" height="1440"/>
@@ -33,10 +35,12 @@
 
   <time:Timeline id="timeline" clock="{clock}" end="60.0s">
     <time:Window id="title-hook" from="0.0s" for="3.75s"/>
-    <time:Window id="hook" from="3.75s" for="14.0s"/>
-    <time:Window id="setup" from="17.75s" for="14.0s"/>
-    <time:Window id="conflict" from="31.75s" for="14.0s"/>
-    <time:Window id="climax" from="45.75s" for="14.25s"/>
+    <time:Window id="hook" from="3.75s" for="9.75s"/>
+    <time:Window id="setup" from="13.50s" for="10.0s"/>
+    <time:Window id="conflict" from="23.50s" for="10.0s"/>
+    <time:Window id="comeback" from="33.50s" for="9.5s"/>
+    <time:Window id="climax" from="43.00s" for="7.25s"/>
+    <time:Window id="payoff" from="50.25s" for="9.75s"/>
   </time:Timeline>
 
   <visual:Track id="main-video" timeline="{timeline.timeline}">

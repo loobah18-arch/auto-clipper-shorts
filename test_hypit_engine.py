@@ -32,9 +32,13 @@ class TestHypitEngine(unittest.TestCase):
         self.assertEqual(parser.timeline_duration, 60.0)
         self.assertIn("title-hook", parser.windows)
         self.assertIn("hook", parser.windows)
+        self.assertIn("comeback", parser.windows)
         self.assertIn("climax", parser.windows)
+        self.assertIn("payoff", parser.windows)
         self.assertIn("intro", parser.script_segments)
         self.assertIn("opening", parser.script_segments)
+        self.assertIn("comeback", parser.script_segments)
+        self.assertIn("payoff", parser.script_segments)
 
     def test_svrun_parser(self):
         run_parser = HypitRunParser(self.svrun_path).parse()
@@ -55,6 +59,7 @@ class TestHypitEngine(unittest.TestCase):
             self.assertIn("PlayResY: 1440", content)
             self.assertIn("CAN HE ESCAPE", content)
             self.assertIn("BEHIND ME ARE 100 COPS!", content)
+            self.assertIn("AND WON HALF A MILLION DOLLARS!", content)
             self.assertIn("Style: TitleYellow", content)
             self.assertIn("Style: Highlight", content)
         finally:

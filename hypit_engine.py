@@ -148,48 +148,50 @@ class HypitEngine:
         """Returns word-level cues matched to the active SVML document."""
         svml_name = self.svrun.author_svml.name.lower()
         if "challenge" in svml_name or "cops" in svml_name:
-            # MrBeast: Escape 100 Cops, Win $500,000 (60s Looped Arc with Intro Narration)
+            # MrBeast: Escape 100 Cops, Win $500,000 (Tested&Proved 6-Stage Completion Compulsion Curve)
             return [
-                # Intro Title Hook: Deep Voice Narration (0.0s - 3.75s)
+                # Intro Title Hook: Deep Voice Narration (0.00s - 3.75s)
                 (0.00, 1.10, "CAN HE ESCAPE"),
                 (1.10, 2.30, "100 REAL COPS... 🚔"),
                 (2.30, 3.75, "FOR $500,000?! 😳"),
 
-                # Beat 1: Main Video Starts - Hook & Stakes (3.75s - 17.75s)
-                (3.75, 6.00, "BEHIND ME ARE 100 COPS! 🚔"),
-                (6.00, 7.80, "IF THEY ARREST US..."),
-                (7.80, 10.20, "THEY WIN A MILLION DOLLARS! 💰"),
-                (10.20, 12.20, "BUT IF WE ESCAPE..."),
-                (12.20, 13.80, "START THE TIMER! ⏱️"),
-                (13.80, 15.00, "THEY ARE RIGHT ON US!"),
-                (15.00, 16.50, "DON'T WORRY, I HAVE A PLAN!"),
-                (16.50, 17.75, "RUN! GO GO GO! 😱"),
+                # Stage 1: HOOK - Jimmy introduces stakes (3.75s - 13.50s)
+                (3.75, 5.80, "BEHIND ME ARE 100 COPS! 🚔"),
+                (5.80, 7.80, "IF THEY ARREST US..."),
+                (7.80, 10.00, "THEY WIN HALF A MILLION DOLLARS! 💰"),
+                (10.00, 12.00, "BUT IF WE ESCAPE, THEY GET NOTHING!"),
+                (12.00, 13.50, "START THE TIMER! ⏱️"),
 
-                # Beat 2: Setup & Traps (17.75s - 31.75s)
-                (17.75, 20.00, "WE GOT TO GET OUT!"),
-                (20.00, 22.00, "WHERE DO WE GO?!"),
-                (22.00, 24.50, "GO! MOVE MOVE!"),
-                (24.50, 26.50, "THE BALL IS OFF!"),
-                (26.50, 28.50, "THAT'S THE FIRE! 🔥"),
-                (28.50, 30.20, "IT'S A TRAP!"),
-                (30.20, 31.75, "WE JUST ESCAPED!"),
+                # Stage 2: RISING ACTION - Building traps & escape (13.50s - 23.50s)
+                (13.50, 15.50, "WE GOT TO GET OUT! 🏃"),
+                (15.50, 17.50, "GO GO GO! MOVE!"),
+                (17.50, 19.50, "LET'S BLOW IT UP! 🔥"),
+                (19.50, 21.50, "THAT'LL BUY US SOME TIME!"),
+                (21.50, 23.50, "WE JUST ESCAPED! 😱"),
 
-                # Beat 3: Conflict & Explosions (31.75s - 45.75s)
-                (31.75, 34.00, "FOR THIS NEXT DIVERSION..."),
-                (34.00, 36.00, "I WANTED TO HAVE A LOT OF..."),
-                (36.00, 38.50, "EXPLOSIONS! 💥💥"),
-                (38.50, 41.00, "MAN DOES IT LOOK EPIC!"),
-                (41.00, 43.50, "WE CAN'T SEE ANYTHING!"),
-                (43.50, 45.75, "THEY'RE NOT GONNA CATCH HIM!"),
+                # Stage 3: CONFLICT - Massive explosions diversion (23.50s - 33.50s)
+                (23.50, 26.00, "FOR THIS NEXT DIVERSION..."),
+                (26.00, 28.50, "A LOT OF EXPLOSIONS! 💥💥"),
+                (28.50, 31.00, "MAN DOES IT LOOK EPIC!"),
+                (31.00, 33.50, "BOOM! THEY CAN'T SEE US!"),
 
-                # Beat 4: Climax & Swarm Loop (45.75s - 60.00s)
-                (45.75, 48.00, "DUDE, JIMMY!"),
-                (48.00, 50.00, "WE'RE SURROUNDED! 🚨"),
-                (50.00, 52.00, "LET'S GO DEEPER!"),
-                (52.00, 55.00, "IT'S A DEAD END! 😱"),
-                (55.00, 57.00, "I MADE A MISTAKE!"),
-                (57.00, 58.80, "SET A PERIMETER! 🚔"),
-                (58.80, 60.00, "LOCK IT UP! THEY'RE SURROUNDED!"),
+                # Stage 4: COMEBACK - Nolan dead end twist (33.50s - 43.00s)
+                (33.50, 35.50, "OH NO! IT'S A DEAD END! 😱"),
+                (35.50, 37.50, "IT'S A DEAD END!!"),
+                (37.50, 39.50, "SET A PERIMETER! 🚨"),
+                (39.50, 41.50, "TAKE THEM OUT!"),
+                (41.50, 43.00, "WE'RE SURROUNDED BY COPS! 🚔"),
+
+                # Stage 5: CLIMAX ENCOUNTER - State Police tactical breach (43.00s - 50.25s)
+                (43.00, 45.20, "STATE POLICE! STAY DOWN! 🚨"),
+                (45.20, 47.50, "PUT HIM IN HANDCUFFS! 🔒"),
+                (47.50, 50.25, "WE WERE SO CLOSE! 😭"),
+
+                # Stage 6: PAYOFF - Jimmy & 100 cops $500,000 cash victory (50.25s - 60.00s)
+                (50.25, 52.20, "SO MANY COPS! 🚔"),
+                (52.20, 54.50, "THEY OFFICIALLY CAUGHT US..."),
+                (54.50, 57.50, "AND WON HALF A MILLION DOLLARS! 💰"),
+                (57.50, 60.00, "CONGRATULATIONS!! 🎉🏆"),
             ]
         elif "fall" in svml_name:
             # MrBeast: Last To Fall Wins challenge

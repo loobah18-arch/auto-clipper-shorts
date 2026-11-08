@@ -21,7 +21,16 @@
   "aspect_ratio": "3:4",
   "resolution": "1080x1440",
   "duration_seconds": 60.0,
-  "arc_type": "6-beat looped arc (hook -> setup -> conflict -> climax -> seamless loop)",
-  "hook": "Behind me are 100 cops, and if they arrest us, they win a million dollars!",
-  "loop_trigger": "Dead end corner surrounded by 100 cops loops back to opening title hook"
+  "arc_type": "Tested&Proved 6-Stage Completion Compulsion Curve (Hook -> Rising Action -> Conflict -> Comeback -> Climax Encounter -> Payoff)",
+  "stages": {
+    "intro_title": "0.00s - 3.75s: Deep voice baritone title narration reading 'Can he escape 100 real cops for 500,000 dollars?'",
+    "stage_1_hook": "3.75s - 13.50s: Jimmy introduces 100 cops & $500,000 stakes ('Behind me are 100 cops, if they arrest us they win half a million dollars!')",
+    "stage_2_rising_action": "13.50s - 23.50s: Sprinting into building, triggering traps and fire to buy escape time",
+    "stage_3_conflict": "23.50s - 33.50s: Massive cinematic explosion diversion to break line of sight",
+    "stage_4_comeback": "33.50s - 43.00s: Less Predictable twist — Nolan corners into a dead end, cops set perimeter",
+    "stage_5_climax_encounter": "43.00s - 50.25s: State Police tactical breach, arrest, and handcuff takedown",
+    "stage_6_payoff": "50.25s - 60.00s: Jimmy & 100 cops celebrate winning $500,000 cash with flashing sirens"
+  },
+  "hook": "Behind me are 100 cops, and if they arrest us, they win half a million dollars!",
+  "loop_trigger": "100 cops celebrate winning $500,000 cash at 60.0s, looping seamlessly back to the opening question: 'Can he escape 100 real cops for $500,000?'"
 }
