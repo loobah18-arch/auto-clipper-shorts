@@ -59,9 +59,9 @@ class TestHypitEngine(unittest.TestCase):
             self.assertIn("PlayResY: 1440", content)
             self.assertIn("CAN HE ESCAPE", content)
             self.assertIn("BEHIND ME ARE 100 COPS!", content)
-            self.assertIn("AND WON HALF A MILLION DOLLARS!", content)
+            self.assertIn("AND WON THAT HALF A MILLION DOLLARS!", content)
             self.assertIn("Style: TitleYellow", content)
-            self.assertIn("Style: Highlight", content)
+            self.assertIn("Style: SimpleWhite", content)
         finally:
             if test_ass.exists():
                 test_ass.unlink()

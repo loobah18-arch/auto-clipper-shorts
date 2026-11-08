@@ -151,47 +151,51 @@ class HypitEngine:
             # MrBeast: Escape 100 Cops, Win $500,000 (Tested&Proved 6-Stage Completion Compulsion Curve)
             return [
                 # Intro Title Hook: Deep Voice Narration (0.00s - 3.75s)
-                (0.00, 1.10, "CAN HE ESCAPE"),
-                (1.10, 2.30, "100 REAL COPS... 🚔"),
-                (2.30, 3.75, "FOR $500,000?! 😳"),
+                (0.15, 1.80, "CAN HE ESCAPE 100 REAL COPS"),
+                (1.85, 3.50, "FOR $500,000?"),
 
-                # Stage 1: HOOK - Jimmy introduces stakes (3.75s - 13.50s)
-                (3.75, 5.80, "BEHIND ME ARE 100 COPS! 🚔"),
-                (5.80, 7.80, "IF THEY ARREST US..."),
-                (7.80, 10.00, "THEY WIN HALF A MILLION DOLLARS! 💰"),
-                (10.00, 12.00, "BUT IF WE ESCAPE, THEY GET NOTHING!"),
-                (12.00, 13.50, "START THE TIMER! ⏱️"),
+                # Stage 1: HOOK - Jimmy introduces 100 cops & stakes (3.75s - 13.52s)
+                (3.95, 5.60, "BEHIND ME ARE 100 COPS!"),
+                (5.65, 7.70, "AND IF THEY ARREST US BY THE END OF THE DAY,"),
+                (7.75, 9.55, "THEY WIN HALF A MILLION DOLLARS!"),
+                (9.62, 11.75, "BUT IF WE ESCAPE, THEY GET NOTHING."),
+                (11.78, 12.80, "START THE TIMER!"),
+                (12.82, 13.50, "DRIVE, JIMMY! DRIVE!"),
 
-                # Stage 2: RISING ACTION - Building traps & escape (13.50s - 23.50s)
-                (13.50, 15.50, "WE GOT TO GET OUT! 🏃"),
-                (15.50, 17.50, "GO GO GO! MOVE!"),
-                (17.50, 19.50, "LET'S BLOW IT UP! 🔥"),
-                (19.50, 21.50, "THAT'LL BUY US SOME TIME!"),
-                (21.50, 23.50, "WE JUST ESCAPED! 😱"),
+                # Stage 2: RISING ACTION - Traps and fast escape (13.52s - 23.55s)
+                (13.79, 15.10, "WE GOTTA GET OUTTA HERE!"),
+                (15.70, 16.45, "GO, GO!"),
+                (16.50, 17.20, "OH, MY GOSH!"),
+                (17.25, 18.60, "LET'S BLOW IT UP!"),
+                (21.89, 23.47, "THAT SHOULD BUY US SOME TIME!"),
 
-                # Stage 3: CONFLICT - Massive explosions diversion (23.50s - 33.50s)
-                (23.50, 26.00, "FOR THIS NEXT DIVERSION..."),
-                (26.00, 28.50, "A LOT OF EXPLOSIONS! 💥💥"),
-                (28.50, 31.00, "MAN DOES IT LOOK EPIC!"),
-                (31.00, 33.50, "BOOM! THEY CAN'T SEE US!"),
+                # Stage 3: CONFLICT - Explosion diversion (23.55s - 33.62s)
+                (23.78, 25.35, "FOR THIS NEXT DIVERSION,"),
+                (25.52, 27.20, "I REALLY JUST WANTED TO HAVE"),
+                (27.20, 29.30, "A LOT OF EXPLOSIONS!"),
+                (30.18, 31.77, "IT MIGHT NOT MAKE MUCH SENSE,"),
+                (31.88, 33.55, "BUT MAN, DOES IT LOOK EPIC!"),
 
-                # Stage 4: COMEBACK - Nolan dead end twist (33.50s - 43.00s)
-                (33.50, 35.50, "OH NO! IT'S A DEAD END! 😱"),
-                (35.50, 37.50, "IT'S A DEAD END!!"),
-                (37.50, 39.50, "SET A PERIMETER! 🚨"),
-                (39.50, 41.50, "TAKE THEM OUT!"),
-                (41.50, 43.00, "WE'RE SURROUNDED BY COPS! 🚔"),
+                # Stage 4: COMEBACK - Nolan dead end corner (33.62s - 43.15s)
+                (34.84, 35.65, "OH, NO!"),
+                (35.90, 36.55, "IT'S A DEAD END."),
+                (36.60, 37.75, "IT'S A DEAD END!!"),
+                (39.44, 40.50, "HEY, SET A PERIMETER!"),
+                (40.57, 43.12, "WE ARE SURROUNDED BY COPS!"),
 
-                # Stage 5: CLIMAX ENCOUNTER - State Police tactical breach (43.00s - 50.25s)
-                (43.00, 45.20, "STATE POLICE! STAY DOWN! 🚨"),
-                (45.20, 47.50, "PUT HIM IN HANDCUFFS! 🔒"),
-                (47.50, 50.25, "WE WERE SO CLOSE! 😭"),
+                # Stage 5: CLIMAX ENCOUNTER - State Police tactical breach (43.15s - 50.42s)
+                (43.35, 44.12, "STATE POLICE!"),
+                (44.12, 45.55, "STATE POLICE, STAY DOWN!"),
+                (47.68, 48.35, "NO, NO!"),
+                (48.42, 49.77, "PUT HIM IN HANDCUFFS!"),
+                (49.77, 50.40, "WE WERE SO CLOSE!"),
 
-                # Stage 6: PAYOFF - Jimmy & 100 cops $500,000 cash victory (50.25s - 60.00s)
-                (50.25, 52.20, "SO MANY COPS! 🚔"),
-                (52.20, 54.50, "THEY OFFICIALLY CAUGHT US..."),
-                (54.50, 57.50, "AND WON HALF A MILLION DOLLARS! 💰"),
-                (57.50, 60.00, "CONGRATULATIONS!! 🎉🏆"),
+                # Stage 6: PAYOFF - Outcome & $500,000 cash celebration (50.42s - 60.00s)
+                (50.60, 52.40, "THERE ARE SO MANY COPS!"),
+                (52.44, 54.22, "WITH AN HOUR AND A HALF REMAINING,"),
+                (54.30, 56.36, "THEY HAVE OFFICIALLY CAUGHT ALL FIVE OF US,"),
+                (56.44, 57.95, "AND WON THAT HALF A MILLION DOLLARS!"),
+                (58.00, 60.00, "CONGRATULATIONS!!"),
             ]
         elif "fall" in svml_name:
             # MrBeast: Last To Fall Wins challenge
@@ -235,17 +239,15 @@ class HypitEngine:
 
     def generate_subtitles(self, output_ass_path: Path) -> Path:
         """Generates dynamic kinetic subtitles following Hypit typography tokens."""
-        font_name = "Montserrat" if FONT_PATH.exists() else "DejaVu Sans"
+        font_name = "Source Sans Pro" if (FONTS_DIR / "SourceSansPro-Bold.ttf").exists() else ("Montserrat" if FONT_PATH.exists() else "DejaVu Sans")
         cues = self.get_cues()
 
-        # Responsive layout tokens derived from canvas bounds
+        # Responsive layout tokens derived from canvas bounds (Simple, clean, modern subtitle design)
         w = self.svml.canvas_width
         h = self.svml.canvas_height
-        font_size = int(w * 0.072)
-        font_size_hl = int(w * 0.078)
-        font_size_title = int(w * 0.082)
-        font_size_title_hl = int(w * 0.090)
-        margin_v = int(h * 0.19)
+        font_size = int(w * 0.054)
+        font_size_title = int(w * 0.062)
+        margin_v = int(h * 0.16)
 
         ass_content = f"""[Script Info]
 Title: Hypit Dynamic Kinetic Subtitles
@@ -256,10 +258,11 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6.5,3.0,2,60,60,{margin_v},1
-Style: Highlight,{font_name},{font_size_hl},&H0000E6FF,&H00000000,&H00000000,&H80000000,-1,0,0,0,106,106,0,0,1,7.5,4.0,2,60,60,{margin_v},1
-Style: TitleWhite,{font_name},{font_size_title},&H00FFFFFF,&H00000000,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,7.5,4.0,5,60,60,0,1
-Style: TitleYellow,{font_name},{font_size_title_hl},&H0000E6FF,&H00000000,&H00000000,&H90000000,-1,0,0,0,106,106,0,0,1,8.5,5.0,5,60,60,0,1
+Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.8,1.2,2,40,40,{margin_v},1
+Style: SimpleWhite,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.8,1.2,2,40,40,{margin_v},1
+Style: Highlight,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.8,1.2,2,40,40,{margin_v},1
+Style: TitleWhite,{font_name},{font_size_title},&H00FFFFFF,&H00000000,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,3.2,1.5,5,50,50,0,1
+Style: TitleYellow,{font_name},{font_size_title},&H0000E6FF,&H00000000,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,3.2,1.5,5,50,50,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -268,9 +271,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             start_fmt = self._sec_to_ass_time(start)
             end_fmt = self._sec_to_ass_time(end)
             if end <= 3.75:
-                style = "TitleYellow" if ("100" in text or "$" in text or "😳" in text or "🚔" in text) else "TitleWhite"
+                style = "TitleYellow" if "$" in text else "TitleWhite"
             else:
-                style = "Highlight" if (i % 2 == 1 or "!" in text or "$" in text or "😱" in text or "😂" in text or "🔥" in text or "💥" in text or "🚨" in text or "🚔" in text) else "Default"
+                style = "SimpleWhite"
             ass_content += f"Dialogue: 0,{start_fmt},{end_fmt},{style},,0,0,0,,{text}\n"
 
         output_ass_path.write_text(ass_content, encoding="utf-8")
