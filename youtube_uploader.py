@@ -143,10 +143,17 @@ class YouTubeUploader:
 
         return f"{raw_description}{stages_breakdown}{fair_use_notice}"
 
-    def check_candle_gate(self, force: bool = False) -> Tuple[bool, str]:
+    def check_candle_gate(self, force: bool = False, youtube_client=None) -> Tuple[bool, str]:
         """Verifies if upload is permitted under the 5k views/hour candle gate rule."""
         if force:
             return True, "Upload forced by user override (--force)."
+
+        if youtube_client is not None:
+            live_result = self.candle_gate.evaluate_live_channel(youtube_client)
+            candle_eval = live_result.get("candle_evaluation", {})
+            can_upload = candle_eval.get("can_upload", True)
+            recommendation = candle_eval.get("recommendation", live_result.get("reason", "Clearance granted."))
+            return can_upload, recommendation
 
         gate_state = self.candle_gate.load_state()
         if not gate_state:
@@ -193,8 +200,16 @@ class YouTubeUploader:
         log(f"📋 Title: '{title}'")
         log(f"🔒 Privacy: {privacy_status} | Category: {category_id} | Dry-Run: {dry_run}")
 
-        # 1. Check Candle Gate
-        can_upload, gate_msg = self.check_candle_gate(force=force)
+        # 1. Connect to API or check cached state for Candle Gate
+        youtube = None
+        if not dry_run:
+            try:
+                log("🚀 Connecting to YouTube Data API v3...")
+                youtube = build_youtube_client()
+            except Exception as e:
+                log(f"Warning: Could not build live YouTube client: {e}")
+
+        can_upload, gate_msg = self.check_candle_gate(force=force, youtube_client=youtube)
         log(f"🚦 Candle Gate: {gate_msg}")
         if not can_upload and not force:
             log("🛑 Upload aborted by Candle Gate to prevent algorithm suppression.")
@@ -219,8 +234,8 @@ class YouTubeUploader:
             }
 
         # 3. Live API Upload
-        log("🚀 Connecting to YouTube Data API v3...")
-        youtube = build_youtube_client()
+        if youtube is None:
+            youtube = build_youtube_client()
 
         body = {
             "snippet": {

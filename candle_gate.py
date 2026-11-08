@@ -129,6 +129,93 @@ class CandleGate:
         except Exception:
             return {}
 
+    def evaluate_live_channel(self, youtube_client=None) -> Dict[str, Any]:
+        """
+        Polls YouTube Data API v3 for the channel's most recent video performance.
+        Computes velocity and blocks uploads if an active push is in progress.
+        """
+        if youtube_client is None:
+            return self.load_state()
+
+        try:
+            from datetime import datetime, timezone
+
+            channels_response = youtube_client.channels().list(mine=True, part="contentDetails").execute()
+            items = channels_response.get("items", [])
+            if not items:
+                return {"can_upload": True, "reason": "No channel found; initial upload cleared"}
+
+            uploads_id = items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
+            playlist_items = youtube_client.playlistItems().list(
+                playlistId=uploads_id, part="snippet", maxResults=1
+            ).execute()
+            video_items = playlist_items.get("items", [])
+            if not video_items:
+                return {"can_upload": True, "reason": "No prior uploads found; initial upload cleared"}
+
+            vid_id = video_items[0]["snippet"]["resourceId"]["videoId"]
+            title = video_items[0]["snippet"]["title"]
+            published_at_str = video_items[0]["snippet"]["publishedAt"]
+
+            vid_stats = youtube_client.videos().list(id=vid_id, part="statistics").execute()
+            v_items = vid_stats.get("items", [])
+            if not v_items:
+                return {"can_upload": True, "reason": "Could not fetch video stats"}
+
+            total_views = int(v_items[0]["statistics"].get("viewCount", 0))
+            published_at = datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+            now = datetime.now(timezone.utc)
+            elapsed_hours = max((now - published_at).total_seconds() / 3600.0, 0.1)
+
+            # Load previous snapshot from state
+            state = self.load_state()
+            history_candles = state.get("hourly_candles", [])
+            last_snapshot = state.get("last_snapshot", {})
+
+            # Calculate hourly delta
+            if last_snapshot.get("video_id") == vid_id and "timestamp" in last_snapshot:
+                prev_views = last_snapshot.get("total_views", 0)
+                try:
+                    prev_time = datetime.fromisoformat(last_snapshot["timestamp"])
+                    delta_hours = max((now - prev_time).total_seconds() / 3600.0, 0.1)
+                    hourly_velocity = max(int((total_views - prev_views) / delta_hours), 0)
+                except Exception:
+                    hourly_velocity = int(total_views / elapsed_hours)
+            else:
+                hourly_velocity = int(total_views / elapsed_hours)
+
+            history_candles.append(hourly_velocity)
+            history_candles = history_candles[-48:]
+
+            candle_eval = self.evaluate_hourly_candles(history_candles)
+
+            # If video was uploaded less than 48 hours ago and velocity exceeds threshold:
+            if elapsed_hours <= 48 and hourly_velocity >= VIEW_THRESHOLD_PER_HOUR:
+                candle_eval["can_upload"] = False
+                candle_eval["decision"] = "UPLOAD_BLOCKED_ACTIVE_PUSH"
+                candle_eval["recommendation"] = (
+                    f"🔥 Active Short '{title}' is performing well ({hourly_velocity:,} views/hr)! "
+                    f"Letting it perform on the algorithm before uploading another."
+                )
+
+            updated_state = {
+                "candle_evaluation": candle_eval,
+                "hourly_candles": history_candles,
+                "last_snapshot": {
+                    "video_id": vid_id,
+                    "title": title,
+                    "total_views": total_views,
+                    "timestamp": now.isoformat(),
+                    "hourly_velocity": hourly_velocity,
+                    "elapsed_hours": round(elapsed_hours, 2),
+                }
+            }
+            self.save_state(updated_state)
+            return updated_state
+
+        except Exception as e:
+            return {"can_upload": True, "reason": f"Live query fallback ({e}); clearance granted"}
+
 
 def main():
     parser = argparse.ArgumentParser(description="Jack Craig Candle Gate & Upload Cadence Evaluator")
