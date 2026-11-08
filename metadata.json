@@ -11,12 +11,12 @@
   "creator_attribution": "@MrBeast/YT",
   "intro_narration": {
     "enabled": true,
-    "voice": "en-US-ChristopherNeural",
-    "pitch": "-8Hz",
-    "rate": "+22%",
+    "voice": "en-US-BrianMultilingualNeural",
+    "pitch": "-2Hz",
+    "rate": "+14%",
     "spoken_text": "Can he escape 100 real cops for 500,000 dollars?",
-    "duration_seconds": 3.75,
-    "style": "Deep authoritative baritone hook reading the title before the main video starts"
+    "duration_seconds": 3.74,
+    "style": "Deep, authentic, human cinema baritone with warm 110Hz chest resonance and broadcast mastering"
   },
   "aspect_ratio": "3:4",
   "resolution": "1080x1440",
