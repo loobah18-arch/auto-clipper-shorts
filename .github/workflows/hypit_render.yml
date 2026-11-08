@@ -1,8 +1,23 @@
-name: 🎬 Hypit Cloud Render Pipeline
+name: 🎬 Hypit Cloud Render & YouTube Upload Pipeline
 
 on:
+  schedule:
+    # Daily upload cadence: runs at 14:00 UTC (7:30 PM IST / 9:00 AM EST)
+    - cron: '0 14 * * *'
+
   workflow_dispatch:
     inputs:
+      creator:
+        description: 'Target creator to clip'
+        required: false
+        default: 'mrbeast'
+        type: choice
+        options:
+          - 'mrbeast'
+          - 'nileblue'
+          - 'mark_rober'
+          - 'ishowspeed'
+          - 'ruhi_cenet'
       manifest:
         description: 'Path to Hypit .svrun manifest'
         required: false
@@ -13,18 +28,39 @@ on:
         required: false
         default: 'hypit_mrbeast_short.mp4'
         type: string
+      upload_to_youtube:
+        description: 'Enable automatic upload to YouTube (@woosclips)'
+        required: false
+        default: true
+        type: boolean
+      privacy_status:
+        description: 'YouTube video privacy status'
+        required: false
+        default: 'public'
+        type: choice
+        options:
+          - 'public'
+          - 'unlisted'
+          - 'private'
+      force_upload:
+        description: 'Force upload bypassing 48-Hour Candle Gate'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  hypit_build_and_render:
+  hypit_build_render_and_publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     steps:
       - name: 📥 Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 🐍 Set up Python 3.11
         uses: actions/setup-python@v5
@@ -44,20 +80,67 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🧪 Run Hypit Unit Tests
+      - name: 🧪 Run Hypit & Packaging Unit Tests
         run: |
           set -euo pipefail
           python3 test_hypit_engine.py
+          python3 test_candle_gate.py
+          python3 test_catalog.py
+          python3 test_youtube_uploader.py
 
       - name: 🎬 Render Hypit Deliverable
         run: |
           set -euo pipefail
           mkdir -p output
-          python3 hypit_engine.py "${{ inputs.manifest }}" --output "output/${{ inputs.output_filename }}"
+          MANIFEST="${{ inputs.manifest || 'sources/production.svrun' }}"
+          OUTPUT_NAME="${{ inputs.output_filename || 'hypit_mrbeast_short.mp4' }}"
+          python3 hypit_engine.py "$MANIFEST" --output "output/$OUTPUT_NAME"
 
       - name: 📦 Upload Generated Video Artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: hypit-render-output
           path: output/*.mp4
           retention-days: 7
+          if-no-files-found: warn
+
+      - name: 🚀 Publish Short to YouTube (@woosclips)
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.upload_to_youtube == true || inputs.upload_to_youtube == 'true')) }}
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          OUTPUT_NAME="${{ inputs.output_filename || 'hypit_mrbeast_short.mp4' }}"
+          CREATOR_ID="${{ inputs.creator || 'mrbeast' }}"
+          PRIVACY="${{ inputs.privacy_status || 'public' }}"
+          EXTRA_ARGS=()
+          if [ "${{ inputs.force_upload }}" = "true" ]; then
+            EXTRA_ARGS+=(--force)
+          fi
+
+          python3 youtube_uploader.py \
+            --video "output/$OUTPUT_NAME" \
+            --metadata metadata.json \
+            --creator "$CREATOR_ID" \
+            --privacy "$PRIVACY" \
+            "${EXTRA_ARGS[@]}"
+
+      - name: 💾 Commit Updated Upload State
+        if: always() && (github.event_name == 'schedule' || inputs.upload_to_youtube == true)
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          TARGET_BRANCH="${GITHUB_REF_NAME:-main}"
+          git add upload_history.json candle_gate_state.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No state changes to commit"
+            exit 0
+          fi
+          git commit -m "🤖 Update upload history & candle gate state [skip ci]"
+          git fetch origin "$TARGET_BRANCH"
+          git rebase "origin/$TARGET_BRANCH"
+          git push origin "HEAD:$TARGET_BRANCH"

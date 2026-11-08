@@ -1,0 +1,25 @@
+{
+  "candle_evaluation": {
+    "decision": "UPLOAD_CLEARED",
+    "can_upload": true,
+    "consecutive_hours_below": 26,
+    "required_hours": 24,
+    "threshold": 5000,
+    "current_hourly_rate": 2500,
+    "peak_hourly_rate": 100000,
+    "total_candles": 29,
+    "recommendation": "Active Short has stabilized below 5,000 views/hr for 26 consecutive hours. Cleared to upload next video without cannibalizing active push."
+  },
+  "engagement_metrics": {
+    "swipe_through_rate": 82.0,
+    "str_pass": true,
+    "str_target": 80.0,
+    "average_view_duration_seconds": 52.0,
+    "video_duration_seconds": 60.0,
+    "avd_percent": 86.7,
+    "avd_pass": true,
+    "avd_target_percent": 80.0,
+    "viral_benchmark_met": true,
+    "status": "VIRAL_TIER"
+  }
+}

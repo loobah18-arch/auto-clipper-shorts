@@ -198,6 +198,82 @@ class HypitEngine:
                 (56.44, 57.95, "AND WON THAT HALF A MILLION DOLLARS!"),
                 (58.00, 60.00, "CONGRATULATIONS!!"),
             ]
+        elif "nileblue" in svml_name or "experiment" in svml_name:
+            # NileBlue: Can you turn Red Bull into pure drinking water?
+            return [
+                (0.15, 1.80, "CAN NILEBLUE TURN RED BULL"),
+                (1.85, 3.50, "INTO PURE DRINKING WATER?"),
+                (3.95, 6.20, "CAN WE ACTUALLY TURN CANNED RED BULL"),
+                (6.25, 9.50, "INTO 100% PURE DRINKING WATER?"),
+                (9.60, 11.50, "FIRST STEP IS BOILING OFF THE LIQUID"),
+                (11.55, 13.50, "AND TRAPPING THE CONDENSED VAPORS!"),
+                (13.60, 17.50, "THE REACTION SUDDENLY TURNED PITCH BLACK"),
+                (17.55, 23.50, "AND RELEASED INTENSE VOLATILE FUMES!"),
+                (23.55, 28.50, "WE RUN IT THROUGH ACTIVATED CHARCOAL VACUUM"),
+                (28.55, 33.50, "TO STRIP ALL ARTIFICIAL COLOR DYES!"),
+                (33.60, 38.00, "AFTER THREE ROUNDS OF VACUUM DISTILLATION..."),
+                (38.05, 43.00, "LOOK AT THIS CRYSTAL CLEAR DROPLET!"),
+                (43.10, 48.00, "TESTING TOTAL DISSOLVED SOLIDS: ZERO PPM!"),
+                (48.05, 50.25, "IT TASTES COMPLETELY NEUTRAL AND FRESH!"),
+                (50.30, 60.00, "WE OFFICIALLY TURNED RED BULL INTO PURE WATER!"),
+            ]
+        elif "mark_rober" in svml_name or "gadget" in svml_name:
+            # Mark Rober: Squirrel Ninja Warrior Obstacle Course 2.0
+            return [
+                (0.15, 1.80, "CAN SQUIRRELS BEAT A"),
+                (1.85, 3.50, "NASA-DESIGNED OBSTACLE COURSE?"),
+                (3.95, 6.20, "I BUILT A FULL NINJA WARRIOR COURSE"),
+                (6.25, 9.50, "JUST TO PROTECT MY BIRD SEED FROM SQUIRRELS!"),
+                (9.60, 11.50, "FIRST UP IS THE ROPE BRIDGE"),
+                (11.55, 13.50, "AND THE HIGH VELOCITY LAUNCH PAD!"),
+                (13.60, 17.50, "THE FIRST SQUIRREL GOT COMPLETELY LAUNCHED"),
+                (17.55, 23.50, "STRAIGHT INTO THE SOFT LANDING NET!"),
+                (23.55, 28.50, "BUT THEN PHANTASM FOUND A MICRO-GAP"),
+                (28.55, 33.50, "IN THE ACRYLIC MAZE WALL!"),
+                (33.60, 38.00, "HE BALANCES ACROSS THE SPINNING CYLINDERS!"),
+                (38.05, 43.00, "LOOK AT THAT ACROBATIC JUMP!"),
+                (43.10, 48.00, "HE REACHED THE WALNUT FORTRESS"),
+                (48.05, 50.25, "AND WON ALL THE FOOD!"),
+                (50.30, 60.00, "SQUIRRELS ARE UNSTOPPABLE ACROBATS!"),
+            ]
+        elif "speed" in svml_name or "viral" in svml_name:
+            # IShowSpeed: Jumping over two speeding supercars
+            return [
+                (0.15, 1.80, "CAN ISHOWSPEED ACTUALLY JUMP"),
+                (1.85, 3.50, "OVER TWO MOVING SUPERCARS?"),
+                (3.95, 6.20, "CHAT IF I DO NOT TIME THIS PERFECTLY..."),
+                (6.25, 9.50, "THIS IS REAL LIFE DANGER!"),
+                (9.60, 11.50, "THE FIRST LAMBORGHINI IS ACCELERATING"),
+                (11.55, 13.50, "AT OVER SIXTY MILES AN HOUR!"),
+                (13.60, 17.50, "HE SPEEDS TOWARDS ME! OH MY GOD!"),
+                (17.55, 23.50, "GET READY SPEED! HERE HE COMES!"),
+                (23.55, 28.50, "THREE... TWO... ONE... JUMP!"),
+                (28.55, 33.50, "HE CLEARS BOTH HOODS AIRBORNE!"),
+                (33.60, 38.00, "LOOK AT THAT SLOW MOTION ELEVATION!"),
+                (38.05, 43.00, "HE LANDS ON BOTH FEET SAFELY!"),
+                (43.10, 48.00, "SPRINT CELEBRATING ACROSS THE TRACK!"),
+                (48.05, 50.25, "SIUUUU! HE ACTUALLY SURVIVED!"),
+                (50.30, 60.00, "SPEED JUMPED OVER TWO REAL SUPERCARS!"),
+            ]
+        elif "ruhi" in svml_name or "investigation" in svml_name:
+            # Ruhi Çenet: Surviving 24 Hours in Yakutsk (-71°C)
+            return [
+                (0.15, 1.80, "WHAT HAPPENS IN 24 HOURS"),
+                (1.85, 3.50, "IN THE COLDEST CITY ON EARTH?"),
+                (3.95, 6.20, "WE ARE IN YAKUTSK, SIBERIA,"),
+                (6.25, 9.50, "WHERE TEMPERATURES HIT -71 DEGREES!"),
+                (9.60, 11.50, "EXPOSING BARE SKIN FOR 5 MINUTES"),
+                (11.55, 13.50, "CAUSES PERMANENT TISSUE DAMAGE!"),
+                (13.60, 17.50, "OUR CAMERA BATTERIES INSTANTLY DIED"),
+                (17.55, 23.50, "AND MY EYELASHES FROZE SOLID!"),
+                (23.55, 28.50, "EMERGENCY SHELTER IN A PERMAFROST CAVE"),
+                (28.55, 33.50, "TO SURVIVE THE ARCTIC BLIZZARD!"),
+                (33.60, 38.00, "THROWING BOILING WATER INTO THE AIR..."),
+                (38.05, 43.00, "IT EXPLODES INTO THOUSANDS OF ICE CRYSTALS!"),
+                (43.10, 48.00, "THIS IS HOW HUMANS SURVIVE"),
+                (48.05, 50.25, "AT THE EDGE OF THE FROZEN EARTH!"),
+                (50.30, 60.00, "ARCTIC EXPEDITION COMPLETED!"),
+            ]
         elif "fall" in svml_name:
             # MrBeast: Last To Fall Wins challenge
             return [
@@ -250,6 +326,46 @@ class HypitEngine:
                 (33.62, 43.15, "🚨 CORNERED | DEAD END"),
                 (43.15, 50.42, "🚔 STATE POLICE TACTICAL RAID"),
                 (50.42, 60.00, "🏆 OUTCOME: COPS WIN $500,000"),
+            ]
+        elif "nileblue" in svml_name or "experiment" in svml_name:
+            return [
+                (0.00, 3.75, "🧪 $1,000 CHEMICAL EXPERIMENT"),
+                (3.75, 13.52, "🔬 RED BULL CHEMICAL SEPARATION"),
+                (13.52, 23.55, "🌡️ THERMAL DISTILLATION BOIL"),
+                (23.55, 33.62, "⚠️ DANGEROUS VOLATILE VAPOR"),
+                (33.62, 43.15, "🧬 ACTIVATED CHARCOAL FILTER"),
+                (43.15, 50.42, "💧 VACUUM CONDENSATION EXTRACT"),
+                (50.42, 60.00, "🏆 100% PURE WATER CRYSTALLIZED"),
+            ]
+        elif "mark_rober" in svml_name or "gadget" in svml_name:
+            return [
+                (0.00, 3.75, "📐 NASA SQUIRREL OBSTACLE 2.0"),
+                (3.75, 13.52, "🐿️ CONTENDER ENTERS ARENA"),
+                (13.52, 23.55, "🚀 HIGH VELOCITY LAUNCH PAD"),
+                (23.55, 33.62, "💨 GLITTER DEFENSE DETONATION"),
+                (33.62, 43.15, "⚡ TITANIUM ROTATING BARRELS"),
+                (43.15, 50.42, "🎯 ACROBATIC LEDGE RECOVERY"),
+                (50.42, 60.00, "🏆 SQUIRREL CONQUERS FORTRESS"),
+            ]
+        elif "speed" in svml_name or "viral" in svml_name:
+            return [
+                (0.00, 3.75, "⚡ SPEED EXTREME STUNT"),
+                (3.75, 13.52, "🏎️ LAMBORGHINI ACCELERATION"),
+                (13.52, 23.55, "🏃 TAKEOFF SPRINT RUNWAY"),
+                (23.55, 33.62, "😱 MID-AIR JUMP MOMENT"),
+                (33.62, 43.15, "🔥 CLEARANCE ACHIEVED"),
+                (43.15, 50.42, "💨 TWO-CAR CLEARANCE"),
+                (50.42, 60.00, "🏆 SPEED CELEBRATION SIUUU"),
+            ]
+        elif "ruhi" in svml_name or "investigation" in svml_name:
+            return [
+                (0.00, 3.75, "❄️ YAKUTSK: -71°C RECORD COLD"),
+                (3.75, 13.52, "🧤 ARCTIC SURVIVAL GEAR CHECK"),
+                (13.52, 23.55, "⚠️ SEVERE FROSTBITE ZONE"),
+                (23.55, 33.62, "🫁 INSTANT BREATH FREEZE"),
+                (33.62, 43.15, "🚨 EQUIPMENT BATTERIES DYING"),
+                (43.15, 50.42, "💨 BOILING WATER VAPORIZATION"),
+                (50.42, 60.00, "🏆 ARCTIC EXPEDITION COMPLETE"),
             ]
         return []
 
@@ -520,12 +636,24 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Hypit Video Authoring & Render Engine")
     parser.add_argument("manifest", nargs="?", default="sources/production.svrun", help="Path to .svrun manifest")
+    parser.add_argument("--creator", choices=["mrbeast", "nileblue", "mark_rober", "ishowspeed", "ruhi_cenet"], help="Override creator SVML source")
     parser.add_argument("--output", "-o", help="Custom output destination path")
     parser.add_argument("--check", action="store_true", help="Validate SVML / SVRun without rendering")
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve()
     engine = HypitEngine(manifest_path)
+
+    if args.creator:
+        catalog_path = ROOT_DIR / "creator_catalog.json"
+        if catalog_path.exists():
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            creator_data = catalog.get("creators", {}).get(args.creator, {})
+            svml_src = creator_data.get("svml_source")
+            if svml_src:
+                resolved_svml = (ROOT_DIR / svml_src).resolve()
+                engine.svrun.author_svml = resolved_svml
+                engine.svml = HypitSVMLParser(resolved_svml).parse()
 
     if args.check:
         print(f"[Hypit] ✅ Validation passed for {manifest_path}")

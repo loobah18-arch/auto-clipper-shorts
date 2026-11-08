@@ -1,0 +1,142 @@
+{
+  "version": "2.0",
+  "description": "Creator Catalog for Hypit Tested&Proved Shorts Clipper",
+  "default_creator": "mrbeast",
+  "creators": {
+    "mrbeast": {
+      "id": "mrbeast",
+      "name": "MrBeast",
+      "channel_handle": "@MrBeast",
+      "channel_url": "https://www.youtube.com/@MrBeast",
+      "niche": "extreme_challenges",
+      "description": "High-budget spectacles, survival challenges, and million-dollar stakes",
+      "svml_source": "sources/mrbeast_challenge.svml",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "Deep, authentic cinema baritone with warm 110Hz chest resonance",
+      "packaging": {
+        "shock_emojis": "😳😳",
+        "hashtags": ["#shorts", "#challenge", "#mrbeast", "#viral"],
+        "category_id": "24",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "gold_stakes",
+        "badge_prefix": "💰"
+      },
+      "sample_topics": [
+        "Escape 100 Real Cops",
+        "$1 vs $1,000,000,000 Yacht",
+        "Last To Fall Wins $500,000",
+        "Survive 100 Days In Circle"
+      ]
+    },
+    "nileblue": {
+      "id": "nileblue",
+      "name": "NileBlue / NileRed",
+      "channel_handle": "@NileBlue",
+      "channel_url": "https://www.youtube.com/@NileBlue",
+      "niche": "science_experiments",
+      "description": "Extreme chemistry, dangerous transformations, and mind-bending science experiments",
+      "svml_source": "sources/nileblue_experiment.svml",
+      "narrator_voice": "en-US-ChristopherNeural",
+      "voice_style": "Intrigued, inquisitive scientific pacing with high clarity",
+      "packaging": {
+        "shock_emojis": "🧪😱",
+        "hashtags": ["#shorts", "#science", "#chemistry", "#viral"],
+        "category_id": "28",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "chemical_lab",
+        "badge_prefix": "🧪"
+      },
+      "sample_topics": [
+        "Turning Red Bull Into Pure Water",
+        "Making Plastic From Milk",
+        "Dissolving Gold in Acid",
+        "Creating Diamond From Peanut Butter"
+      ]
+    },
+    "mark_rober": {
+      "id": "mark_rober",
+      "name": "Mark Rober",
+      "channel_handle": "@MarkRober",
+      "channel_url": "https://www.youtube.com/@MarkRober",
+      "niche": "engineering_gadgets",
+      "description": "Ex-NASA engineer building insane revenge traps, squirrel mazes, and world-record machines",
+      "svml_source": "sources/mark_rober_gadget.svml",
+      "narrator_voice": "en-US-GuyNeural",
+      "voice_style": "Friendly, fast-paced engineer enthusiasm with sharp comedic timing",
+      "packaging": {
+        "shock_emojis": "🐿️🚀",
+        "hashtags": ["#shorts", "#engineering", "#markrober", "#viral"],
+        "category_id": "28",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "blueprint_tech",
+        "badge_prefix": "📐"
+      },
+      "sample_topics": [
+        "Glitter Bomb Porch Thief Revenge",
+        "Backyard Squirrel Obstacle Course 2.0",
+        "World's Largest Super Soaker",
+        "Automatic Bullseye Dartboard"
+      ]
+    },
+    "ishowspeed": {
+      "id": "ishowspeed",
+      "name": "IShowSpeed",
+      "channel_handle": "@IShowSpeed",
+      "channel_url": "https://www.youtube.com/@IShowSpeed",
+      "niche": "irl_viral_stunts",
+      "description": "Explosive energy IRL livestreams, superstar encounters, and heart-pounding physical stunts",
+      "svml_source": "sources/ishowspeed_viral.svml",
+      "narrator_voice": "en-US-AndrewMultilingualNeural",
+      "voice_style": "High-octane, punchy modern delivery matching chaotic hype moments",
+      "packaging": {
+        "shock_emojis": "⚡🔥",
+        "hashtags": ["#shorts", "#ishowspeed", "#speed", "#viral"],
+        "category_id": "24",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "neon_hype",
+        "badge_prefix": "⚡"
+      },
+      "sample_topics": [
+        "Speed Jumps Over Two Moving Supercars",
+        "Speed Meets Cristiano Ronaldo In Real Life",
+        "IShowSpeed Extreme Robot Dog Encounter",
+        "Speed Full Sprint Race Against Olympic Sprinter"
+      ]
+    },
+    "ruhi_cenet": {
+      "id": "ruhi_cenet",
+      "name": "Ruhi Çenet",
+      "channel_handle": "@RuhiCenetInvestigates",
+      "channel_url": "https://www.youtube.com/@RuhiCenetInvestigates",
+      "niche": "extreme_investigations",
+      "description": "Deep-dive investigative documentaries exploring the world's most dangerous, forbidden, and extreme locations",
+      "svml_source": "sources/ruhi_cenet_investigation.svml",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "Grave, atmospheric documentary baritone building suspense and geopolitical mystery",
+      "packaging": {
+        "shock_emojis": "🥶🚨",
+        "hashtags": ["#shorts", "#documentary", "#survival", "#viral"],
+        "category_id": "19",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "expedition_hud",
+        "badge_prefix": "❄️"
+      },
+      "sample_topics": [
+        "Surviving 24 Hours in Yakutsk (-71°C Coldest City)",
+        "Inside The World's Deadliest Toxic Acid Volcano",
+        "Touching The North Korea Border Fence",
+        "The Isolated Tribe That Rejects Modern Civilisation"
+      ]
+    }
+  }
+}

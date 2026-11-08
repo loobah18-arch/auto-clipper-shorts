@@ -1,0 +1,80 @@
+<?svml using="@hypit/markup@1"?>
+<svml>
+  <import as="audio" from="@hypit/audio-track@1"/>
+  <import as="visual" from="@hypit/visual-track@1"/>
+  <import from="@hypit/script@1"/>
+  <import as="text" from="@hypit/text@1"/>
+  <import as="mediaop" from="@hypit/media-operations@1"/>
+  <import as="time" from="@hypit/timeline-author@1"/>
+  <import as="space" from="@hypit/spatial@1"/>
+  <import as="fonts" from="@hypit/fontsource@1"/>
+  <import as="typo" from="@hypit/text-fine@1"/>
+  <import as="film" from="@hypit/film@1"/>
+  <import as="html" from="@hypit/html-video@1"/>
+  <import as="look" source="./look.svs"/>
+
+  <script id="story">
+    <intro><NARRATOR>CAN NILEBLUE TURN RED BULL INTO PURE DRINKING WATER?</NARRATOR></intro>
+    <opening><HOST>CAN WE ACTUALLY TURN CANNED RED BULL INTO ONE HUNDRED PERCENT PURE DRINKING WATER?</HOST></opening>
+    <setup><HOST>FIRST STEP IS BOILING OFF THE LIQUID AND TRAPPING THE CONDENSED CHEMICAL VAPORS!</HOST></setup>
+    <conflict><HOST>THE REACTION SUDDENLY TURNED PITCH BLACK AND STARTED RELEASING INTENSE VOLATILE FUMES!</HOST></conflict>
+    <comeback><HOST>WE HAVE TO RUN IT THROUGH AN ACTIVATED CHARCOAL VACUUM CHAMBER TO STRIP ALL DYES!</HOST></comeback>
+    <climax><HOST>AND AFTER THREE ROUNDS OF VACUUM DISTILLATION... LOOK AT THIS CRYSTAL CLEAR DROPLET!</HOST></climax>
+    <payoff><HOST>IT TASTES COMPLETELY NEUTRAL! WE OFFICIALLY TURNED RED BULL INTO PURE WATER!</HOST></payoff>
+  </script>
+
+  <space:Canvas id="canvas" width="1080" height="1440"/>
+  <time:Clock id="clock" frame-rate="30"/>
+
+  <space:Frame id="viewport" within="{canvas.bounds}"
+    left="0%" top="0%" right="100%" bottom="100%"/>
+  <space:Frame id="title-frame" within="{canvas.bounds}"
+    left="5%" top="35%" right="95%" bottom="65%"/>
+  <space:Frame id="subtitle-frame" within="{canvas.bounds}"
+    left="5%" top="65%" right="95%" bottom="90%"/>
+
+  <time:Timeline id="timeline" clock="{clock}" end="60.0s">
+    <time:Window id="title-hook" from="0.0s" for="3.75s"/>
+    <time:Window id="hook" from="3.75s" for="9.75s"/>
+    <time:Window id="setup" from="13.50s" for="10.0s"/>
+    <time:Window id="conflict" from="23.50s" for="10.0s"/>
+    <time:Window id="comeback" from="33.50s" for="9.5s"/>
+    <time:Window id="climax" from="43.00s" for="7.25s"/>
+    <time:Window id="payoff" from="50.25s" for="9.75s"/>
+  </time:Timeline>
+
+  <visual:Track id="main-video" timeline="{timeline.timeline}">
+    <visual:Clip id="intro-teaser" source="creator_raw" during="{timeline.title-hook}"
+      frame="{viewport}" fit="cover" z="10"/>
+    <visual:Clip id="creator-clip" source="creator_raw" during="{timeline.window}"
+      frame="{viewport}" fit="cover" z="10"/>
+  </visual:Track>
+
+  <audio:Track id="narrator-audio" timeline="{timeline.timeline}">
+    <audio:Clip id="title-narration" source="narrator_intro" during="{timeline.title-hook}" volume="1.40"/>
+  </audio:Track>
+
+  <audio:Track id="main-audio" timeline="{timeline.timeline}">
+    <audio:Clip id="creator-sound" source="creator_raw" during="{timeline.window}" volume="1.10"/>
+  </audio:Track>
+
+  <fonts:Face id="primary-font" package="@fontsource/montserrat" weight="800" style="normal"/>
+
+  <typo:Style id="title-style" recipe="{look.text.title.hook}" font="{primary-font}">
+    <typo:Fill color="#00E5FF"/>
+    <typo:Stroke color="#000000" width="8.0"/>
+  </typo:Style>
+
+  <typo:Style id="caption-style" recipe="{look.text.caption.highlight}" font="{primary-font}">
+    <typo:Fill color="#00E5FF"/>
+    <typo:Stroke color="#000000" width="6.0"/>
+  </typo:Style>
+
+  <film:Film id="main" canvas="{canvas.canvas}" timeline="{timeline.timeline}" appearance="{look.film.main}">
+    <film:Track source="{main-video.visual}"/>
+    <film:Track source="{narrator-audio.audio}"/>
+    <film:Track source="{main-audio.audio}"/>
+  </film:Film>
+
+  <html:Video id="final" composition="{main.composition}" timeline="{timeline.timeline}"/>
+</svml>
