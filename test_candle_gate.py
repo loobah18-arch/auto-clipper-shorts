@@ -57,6 +57,15 @@ class TestCandleGate(unittest.TestCase):
         self.assertTrue(res["can_upload"])
         self.assertEqual(res["decision"], "LAYER_1_CLEARED")
 
+    def test_layer1_near_threshold_sets_1hour_timer(self):
+        # Video reaches 1,900 views in 10.5 hours (approaching 2k threshold before 12h) -> 1h timer required
+        res = self.gate.evaluate_early_momentum(total_views=1900, elapsed_hours=10.5)
+        self.assertFalse(res["can_upload"])
+        self.assertTrue(res["requires_timer"])
+        self.assertEqual(res["timer_seconds"], 3600)
+        self.assertEqual(res["decision"], "RETRY_TIMER_REQUIRED")
+        self.assertTrue(res["is_near_threshold"])
+
     def test_engagement_metrics_pass(self):
         # Jack Craig's metrics from video: 82% STR, 52s AVD on 61s short
         metrics = self.gate.evaluate_engagement_metrics(

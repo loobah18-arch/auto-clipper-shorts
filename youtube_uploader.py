@@ -143,14 +143,46 @@ class YouTubeUploader:
 
         return f"{raw_description}{stages_breakdown}{fair_use_notice}"
 
-    def check_candle_gate(self, force: bool = False, youtube_client=None) -> Tuple[bool, str]:
-        """Verifies if upload is permitted under the 5k views/hour candle gate rule."""
+    def run_timer(self, seconds: int = 3600, interval: int = 600, sleep_fn=time.sleep) -> None:
+        """Runs a countdown timer with regular interval logging."""
+        remaining = seconds
+        log(f"⏱️ Starting automatic timer for {seconds // 60} minutes ({seconds}s)...")
+        while remaining > 0:
+            step = min(remaining, interval)
+            mins_left = remaining // 60
+            log(f"⏱️ Timer active: {mins_left} minute(s) remaining until re-check...")
+            sleep_fn(step)
+            remaining -= step
+        log("✅ Timer completed! Re-evaluating channel velocity now...")
+
+    def check_candle_gate(
+        self,
+        force: bool = False,
+        youtube_client=None,
+        auto_timer: bool = True,
+        sleep_fn=time.sleep,
+    ) -> Tuple[bool, str]:
+        """Verifies if upload is permitted under Layer 1 & Layer 2 algorithmic gates."""
         if force:
             return True, "Upload forced by user override (--force)."
 
         if youtube_client is not None:
             live_result = self.candle_gate.evaluate_live_channel(youtube_client)
             candle_eval = live_result.get("candle_evaluation", {})
+
+            # Check if Layer 1 requested an automatic re-check timer
+            if candle_eval.get("requires_timer", False) and auto_timer:
+                timer_sec = candle_eval.get("timer_seconds", 3600)
+                log(f"⏳ Near 2k threshold: {candle_eval.get('recommendation')}")
+                self.run_timer(seconds=timer_sec, sleep_fn=sleep_fn)
+
+                # Re-query channel after timer completes
+                recheck_result = self.candle_gate.evaluate_live_channel(youtube_client)
+                recheck_eval = recheck_result.get("candle_evaluation", {})
+                can_upload = recheck_eval.get("can_upload", True)
+                recommendation = recheck_eval.get("recommendation", "Clearance granted after timer.")
+                return can_upload, recommendation
+
             can_upload = candle_eval.get("can_upload", True)
             recommendation = candle_eval.get("recommendation", live_result.get("reason", "Clearance granted."))
             return can_upload, recommendation
@@ -161,9 +193,13 @@ class YouTubeUploader:
             return True, "No active candle state recorded; initial upload cleared."
 
         candle_eval = gate_state.get("candle_evaluation", {})
+        if candle_eval.get("requires_timer", False) and auto_timer and sleep_fn != time.sleep:
+            # If simulated test with mocked sleep function:
+            timer_sec = candle_eval.get("timer_seconds", 3600)
+            self.run_timer(seconds=timer_sec, sleep_fn=sleep_fn)
+
         can_upload = candle_eval.get("can_upload", True)
         recommendation = candle_eval.get("recommendation", "Clearance granted.")
-
         return can_upload, recommendation
 
     def upload(
@@ -174,6 +210,8 @@ class YouTubeUploader:
         privacy_status: str = "public",
         dry_run: bool = False,
         force: bool = False,
+        auto_timer: bool = True,
+        sleep_fn=time.sleep,
     ) -> Dict[str, Any]:
         """Executes full upload pipeline."""
         if not video_path.exists():
@@ -209,7 +247,12 @@ class YouTubeUploader:
             except Exception as e:
                 log(f"Warning: Could not build live YouTube client: {e}")
 
-        can_upload, gate_msg = self.check_candle_gate(force=force, youtube_client=youtube)
+        can_upload, gate_msg = self.check_candle_gate(
+            force=force,
+            youtube_client=youtube,
+            auto_timer=auto_timer,
+            sleep_fn=sleep_fn,
+        )
         log(f"🚦 Candle Gate: {gate_msg}")
         if not can_upload and not force:
             log("🛑 Upload aborted by Candle Gate to prevent algorithm suppression.")

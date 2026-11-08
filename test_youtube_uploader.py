@@ -47,6 +47,13 @@ class TestYouTubeUploader(unittest.TestCase):
         self.assertIn("#shorts", desc)
         self.assertIn("Hook step", desc)
 
+    def test_run_timer_mock_sleep(self):
+        sleep_calls = []
+        mock_sleep = lambda s: sleep_calls.append(s)
+        self.uploader.run_timer(seconds=1800, interval=600, sleep_fn=mock_sleep)
+        self.assertEqual(sum(sleep_calls), 1800)
+        self.assertEqual(len(sleep_calls), 3)
+
     def test_dry_run_upload_and_history(self):
         video_sample = ROOT_DIR / "test_sample_video.mp4"
         video_sample.write_bytes(b"dummy mp4 content")

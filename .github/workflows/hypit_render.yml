@@ -2,8 +2,8 @@ name: 🎬 Hypit Cloud Render & YouTube Upload Pipeline
 
 on:
   schedule:
-    # Daily upload cadence: runs at 14:00 UTC (7:30 PM IST / 9:00 AM EST)
-    - cron: '0 14 * * *'
+    # 12-hour evaluation cadence: runs at 02:00 UTC and 14:00 UTC (7:30 AM & 7:30 PM IST)
+    - cron: '0 2,14 * * *'
 
   workflow_dispatch:
     inputs:
@@ -54,7 +54,7 @@ permissions:
 jobs:
   hypit_build_render_and_publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 90
 
     steps:
       - name: 📥 Check out repository
