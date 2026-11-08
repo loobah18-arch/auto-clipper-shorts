@@ -53,6 +53,20 @@ class TestCandleGate(unittest.TestCase):
         self.assertEqual(res["decision"], "UPLOAD_CLEARED")
         self.assertEqual(res["current_hourly_rate"], 40)
 
+    def test_layer0_spacing_blocked_under_24h(self):
+        # Video was uploaded 14 hours ago (< 24h required) -> Layer 0 must block upload
+        res = self.gate.evaluate_upload_spacing(elapsed_hours=14.0)
+        self.assertFalse(res["can_upload"])
+        self.assertEqual(res["decision"], "UPLOAD_BLOCKED_24H_SPACING")
+        self.assertEqual(res["remaining_hours"], 10.0)
+
+    def test_layer0_spacing_cleared_after_24h(self):
+        # Video was uploaded 25.5 hours ago (>= 24h) -> Layer 0 clears
+        res = self.gate.evaluate_upload_spacing(elapsed_hours=25.5)
+        self.assertTrue(res["can_upload"])
+        self.assertEqual(res["decision"], "SPACING_CLEARED")
+        self.assertEqual(res["remaining_hours"], 0.0)
+
     def test_layer1_early_momentum_blocks_upload(self):
         # Video reaches 2,200 views in 6 hours (>= 2k in 12h) -> Layer 1 must block upload
         res = self.gate.evaluate_early_momentum(total_views=2200, elapsed_hours=6.0)

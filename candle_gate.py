@@ -36,12 +36,52 @@ NEAR_THRESHOLD_PERCENT = 0.85  # 85% of threshold (e.g. >= 1,700 views when thre
 NEAR_THRESHOLD_VIEWS = int(EARLY_VIEWS_THRESHOLD * NEAR_THRESHOLD_PERCENT)
 TIMER_DELAY_SECONDS = 3600     # 1 hour recheck timer
 
+# Layer 0 Constants: 24-Hour Minimum Upload Spacing Guard
+MIN_UPLOAD_SPACING_HOURS = 24.0  # Only trigger next upload after 24 hours of prior upload
+
 
 class CandleGate:
     """Evaluates YouTube Shorts hourly candles and multi-layer engagement benchmarks."""
 
     def __init__(self, state_file: Path = DEFAULT_STATE_FILE):
         self.state_file = state_file
+
+    def evaluate_upload_spacing(
+        self,
+        elapsed_hours: float,
+        min_spacing_hours: float = MIN_UPLOAD_SPACING_HOURS,
+    ) -> Dict[str, Any]:
+        """
+        Layer 0 - 24-Hour Spacing Gate:
+        Ensures the next upload is only triggered after at least 24 hours have elapsed
+        since the active video was uploaded.
+        """
+        can_upload = elapsed_hours >= min_spacing_hours
+        remaining_hours = max(min_spacing_hours - elapsed_hours, 0.0)
+
+        if not can_upload:
+            decision = "UPLOAD_BLOCKED_24H_SPACING"
+            recommendation = (
+                f"⏳ 24-Hour Spacing Guard: Active video was uploaded {elapsed_hours:.1f}h ago "
+                f"(< {min_spacing_hours:.0f}h required). Holding next upload to protect its initial 24h circulation window. "
+                f"Next upload permitted in {remaining_hours:.1f}h."
+            )
+        else:
+            decision = "SPACING_CLEARED"
+            recommendation = (
+                f"✅ 24-Hour Spacing Cleared: Active video has been up for {elapsed_hours:.1f}h "
+                f"(>= {min_spacing_hours:.0f}h). Evaluating performance under Layer 1 & Layer 2."
+            )
+
+        return {
+            "layer": 0,
+            "decision": decision,
+            "can_upload": can_upload,
+            "elapsed_hours": round(elapsed_hours, 2),
+            "min_spacing_hours": min_spacing_hours,
+            "remaining_hours": round(remaining_hours, 2),
+            "recommendation": recommendation,
+        }
 
     def evaluate_early_momentum(
         self,
@@ -306,6 +346,9 @@ class CandleGate:
             history_candles.append(hourly_velocity)
             history_candles = history_candles[-48:]
 
+            # Layer 0: 24-Hour Minimum Upload Spacing Guard
+            spacing_eval = self.evaluate_upload_spacing(elapsed_hours)
+
             # Layer 1: Early Momentum Gate (>= 2,000 views within 12 hours)
             layer1_eval = self.evaluate_early_momentum(total_views, elapsed_hours)
 
@@ -322,8 +365,16 @@ class CandleGate:
             requires_timer = layer1_eval.get("requires_timer", False)
             timer_seconds = layer1_eval.get("timer_seconds", 3600)
 
-            # Precedence: Layer 1 halts early momentum, then Layer 2 evaluates viral velocity
-            if not layer1_eval["can_upload"]:
+            # Precedence:
+            # 1. Layer 0: Strict 24h spacing guard (only trigger next upload after 24h)
+            # 2. Layer 1: Early momentum gate (>=2k in 12h or 1h timer)
+            # 3. Layer 2: Viral velocity gate (>=2.5k views/hr)
+            if not spacing_eval["can_upload"]:
+                final_decision = spacing_eval["decision"]
+                can_upload = False
+                final_recommendation = spacing_eval["recommendation"]
+                active_layer = "Layer 0 (24-Hour Minimum Spacing Guard)"
+            elif not layer1_eval["can_upload"]:
                 final_decision = layer1_eval["decision"]
                 can_upload = False
                 final_recommendation = layer1_eval["recommendation"]
@@ -346,6 +397,7 @@ class CandleGate:
                 "timer_seconds": timer_seconds,
                 "active_layer": active_layer,
                 "recommendation": final_recommendation,
+                "layer0": spacing_eval,
                 "layer1": layer1_eval,
                 "layer2": layer2_eval,
             }
