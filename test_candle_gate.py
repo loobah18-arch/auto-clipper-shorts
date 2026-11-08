@@ -37,6 +37,26 @@ class TestCandleGate(unittest.TestCase):
         self.assertEqual(res["decision"], "UPLOAD_CLEARED")
         self.assertGreaterEqual(res["consecutive_hours_below"], SUSTAINED_HOURS_REQUIRED)
 
+    def test_layer1_early_momentum_blocks_upload(self):
+        # Video reaches 2,200 views in 6 hours (>= 2k in 12h) -> Layer 1 must block upload
+        res = self.gate.evaluate_early_momentum(total_views=2200, elapsed_hours=6.0)
+        self.assertFalse(res["can_upload"])
+        self.assertEqual(res["decision"], "UPLOAD_BLOCKED_EARLY_MOMENTUM")
+        self.assertTrue(res["has_early_momentum"])
+
+    def test_layer1_low_views_cleared(self):
+        # Video has 850 views in 8 hours (< 2k threshold) -> Layer 1 cleared, advances to Layer 2
+        res = self.gate.evaluate_early_momentum(total_views=850, elapsed_hours=8.0)
+        self.assertTrue(res["can_upload"])
+        self.assertEqual(res["decision"], "LAYER_1_CLEARED")
+        self.assertFalse(res["has_early_momentum"])
+
+    def test_layer1_past_12h_window_cleared(self):
+        # Video reaches 2,500 views after 18 hours (past 12h window) -> Layer 1 cleared
+        res = self.gate.evaluate_early_momentum(total_views=2500, elapsed_hours=18.0)
+        self.assertTrue(res["can_upload"])
+        self.assertEqual(res["decision"], "LAYER_1_CLEARED")
+
     def test_engagement_metrics_pass(self):
         # Jack Craig's metrics from video: 82% STR, 52s AVD on 61s short
         metrics = self.gate.evaluate_engagement_metrics(

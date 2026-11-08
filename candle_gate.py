@@ -23,12 +23,67 @@ SUSTAINED_HOURS_REQUIRED = 24
 MIN_SWIPE_THROUGH_RATE = 80.0
 MIN_AVD_RATIO = 0.80
 
+# Layer 1 Constants: Early Momentum Gate
+EARLY_HOURS_WINDOW = 12.0
+EARLY_VIEWS_THRESHOLD = 2000
+
 
 class CandleGate:
-    """Evaluates YouTube Shorts hourly candles and engagement benchmarks."""
+    """Evaluates YouTube Shorts hourly candles and multi-layer engagement benchmarks."""
 
     def __init__(self, state_file: Path = DEFAULT_STATE_FILE):
         self.state_file = state_file
+
+    def evaluate_early_momentum(
+        self,
+        total_views: int,
+        elapsed_hours: float,
+        threshold_views: int = EARLY_VIEWS_THRESHOLD,
+        window_hours: float = EARLY_HOURS_WINDOW,
+    ) -> Dict[str, Any]:
+        """
+        Layer 1 - Early Momentum Gate:
+        Checks if the video reaches >= 2,000 views within its first 12 hours.
+        If reached, it pauses uploads to allow early viral growth to develop
+        before transitioning to Layer 2 (5,000 views/hour sustained velocity monitoring).
+        """
+        is_early_window = elapsed_hours <= window_hours
+        has_early_momentum = is_early_window and total_views >= threshold_views
+
+        if has_early_momentum:
+            decision = "UPLOAD_BLOCKED_EARLY_MOMENTUM"
+            can_upload = False
+            recommendation = (
+                f"🚀 Layer 1 Triggered: Early momentum detected! Video has reached {total_views:,} views "
+                f"in {elapsed_hours:.1f}h (>= {threshold_views:,} views in {window_hours:.0f}h). "
+                f"Pausing upload to let early algorithmic traction perform before moving to Layer 2."
+            )
+        else:
+            decision = "LAYER_1_CLEARED"
+            can_upload = True
+            if is_early_window:
+                recommendation = (
+                    f"Video has {total_views:,} views in {elapsed_hours:.1f}h (< {threshold_views:,} threshold). "
+                    f"Layer 1 cleared; evaluating under Layer 2."
+                )
+            else:
+                recommendation = (
+                    f"Video is past the initial {window_hours:.0f}h window ({elapsed_hours:.1f}h elapsed). "
+                    f"Layer 1 passed; evaluating under Layer 2."
+                )
+
+        return {
+            "layer": 1,
+            "decision": decision,
+            "can_upload": can_upload,
+            "total_views": total_views,
+            "elapsed_hours": round(elapsed_hours, 2),
+            "threshold_views": threshold_views,
+            "window_hours": window_hours,
+            "is_early_window": is_early_window,
+            "has_early_momentum": has_early_momentum,
+            "recommendation": recommendation,
+        }
 
     def evaluate_hourly_candles(
         self,
@@ -187,16 +242,44 @@ class CandleGate:
             history_candles.append(hourly_velocity)
             history_candles = history_candles[-48:]
 
-            candle_eval = self.evaluate_hourly_candles(history_candles)
+            # Layer 1: Early Momentum Gate (>= 2,000 views within 12 hours)
+            layer1_eval = self.evaluate_early_momentum(total_views, elapsed_hours)
 
-            # If video was uploaded less than 48 hours ago and velocity exceeds threshold:
+            # Layer 2: 5,000 views/hour sustained velocity candle monitoring
+            layer2_eval = self.evaluate_hourly_candles(history_candles)
             if elapsed_hours <= 48 and hourly_velocity >= VIEW_THRESHOLD_PER_HOUR:
-                candle_eval["can_upload"] = False
-                candle_eval["decision"] = "UPLOAD_BLOCKED_ACTIVE_PUSH"
-                candle_eval["recommendation"] = (
+                layer2_eval["can_upload"] = False
+                layer2_eval["decision"] = "UPLOAD_BLOCKED_ACTIVE_PUSH"
+                layer2_eval["recommendation"] = (
                     f"🔥 Active Short '{title}' is performing well ({hourly_velocity:,} views/hr)! "
                     f"Letting it perform on the algorithm before uploading another."
                 )
+
+            # Precedence: Layer 1 halts early momentum, then Layer 2 evaluates viral velocity
+            if not layer1_eval["can_upload"]:
+                final_decision = layer1_eval["decision"]
+                can_upload = False
+                final_recommendation = layer1_eval["recommendation"]
+                active_layer = "Layer 1 (Early Momentum Gate: >=2k views in 12h)"
+            elif not layer2_eval["can_upload"]:
+                final_decision = layer2_eval["decision"]
+                can_upload = False
+                final_recommendation = layer2_eval["recommendation"]
+                active_layer = "Layer 2 (Viral Velocity Gate: >=5k views/hr)"
+            else:
+                final_decision = "UPLOAD_CLEARED"
+                can_upload = True
+                final_recommendation = layer2_eval["recommendation"]
+                active_layer = "All Layers Cleared"
+
+            candle_eval = {
+                "decision": final_decision,
+                "can_upload": can_upload,
+                "active_layer": active_layer,
+                "recommendation": final_recommendation,
+                "layer1": layer1_eval,
+                "layer2": layer2_eval,
+            }
 
             updated_state = {
                 "candle_evaluation": candle_eval,
@@ -219,7 +302,7 @@ class CandleGate:
 
 def main():
     parser = argparse.ArgumentParser(description="Jack Craig Candle Gate & Upload Cadence Evaluator")
-    parser.add_argument("--simulate", choices=["active_push", "cleared"], help="Simulate a scenario")
+    parser.add_argument("--simulate", choices=["early_momentum", "active_push", "cleared"], help="Simulate a scenario")
     parser.add_argument("--status", action="store_true", help="Display current candle gate status")
     parser.add_argument("--str", type=float, default=82.0, help="Swipe through rate percentage")
     parser.add_argument("--avd", type=float, default=52.0, help="Average view duration in seconds")
@@ -227,6 +310,30 @@ def main():
     args = parser.parse_args()
 
     gate = CandleGate()
+
+    if args.simulate == "early_momentum":
+        # Simulate Layer 1 early momentum: video reaches 2,500 views in 7.0 hours (<12h)
+        total_views = 2500
+        elapsed_hours = 7.0
+        layer1 = gate.evaluate_early_momentum(total_views, elapsed_hours)
+        layer2 = gate.evaluate_hourly_candles([100, 200, 350, 450, 600, 800])
+        combined = {
+            "candle_evaluation": {
+                "decision": layer1["decision"],
+                "can_upload": layer1["can_upload"],
+                "active_layer": "Layer 1 (Early Momentum Gate: >=2k views in 12h)",
+                "recommendation": layer1["recommendation"],
+                "layer1": layer1,
+                "layer2": layer2,
+            },
+            "last_snapshot": {
+                "total_views": total_views,
+                "elapsed_hours": elapsed_hours,
+            }
+        }
+        gate.save_state(combined)
+        print(json.dumps(combined, indent=2))
+        return
 
     if args.simulate == "active_push":
         # Simulate active viral push: high hourly views, last hour at 18k
