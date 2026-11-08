@@ -30,8 +30,10 @@ class TestHypitEngine(unittest.TestCase):
         self.assertEqual(parser.canvas_height, 1440)
         self.assertEqual(parser.fps, 30)
         self.assertEqual(parser.timeline_duration, 60.0)
+        self.assertIn("title-hook", parser.windows)
         self.assertIn("hook", parser.windows)
         self.assertIn("climax", parser.windows)
+        self.assertIn("intro", parser.script_segments)
         self.assertIn("opening", parser.script_segments)
 
     def test_svrun_parser(self):
@@ -39,6 +41,7 @@ class TestHypitEngine(unittest.TestCase):
         self.assertIsNotNone(run_parser.author_svml)
         self.assertTrue(run_parser.author_svml.exists())
         self.assertIn("mrbeast_raw", run_parser.inputs)
+        self.assertIn("narrator_intro", run_parser.inputs)
         self.assertIsNotNone(run_parser.target_output)
 
     def test_subtitle_generation(self):
@@ -50,7 +53,9 @@ class TestHypitEngine(unittest.TestCase):
             content = ass_path.read_text(encoding="utf-8")
             self.assertIn("PlayResX: 1080", content)
             self.assertIn("PlayResY: 1440", content)
+            self.assertIn("CAN HE ESCAPE", content)
             self.assertIn("BEHIND ME ARE 100 COPS!", content)
+            self.assertIn("Style: TitleYellow", content)
             self.assertIn("Style: Highlight", content)
         finally:
             if test_ass.exists():

@@ -10,6 +10,17 @@
     alignment: center;
   }
 
+  text.title.hook {
+    font-family: "Montserrat";
+    font-size: 92;
+    font-weight: 800;
+    color: #FFE600;
+    stroke: #000000;
+    stroke-width: 8.0;
+    alignment: center;
+    transform: uppercase;
+  }
+
   text.caption.highlight {
     font-family: "Montserrat";
     font-size: 74;

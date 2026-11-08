@@ -4,11 +4,13 @@
   <look source="./look.svs"/>
   <inputs>
     <file id="mrbeast_raw" path="assets/videos/mrbeast_100_cops_raw.mp4"/>
+    <file id="narrator_intro" path="assets/intro_voice.wav"/>
   </inputs>
   <metadata>
     <title>Can He Escape 100 Real Cops For $500,000? 😳 (@MrBeast/YT)</title>
     <description>Can Nolan outrun and outsmart 100 real cops to take home $500,000 cash? Watch the full looped chase! #shorts #challenge #mrbeast</description>
     <creator>@MrBeast</creator>
+    <narrator_voice>en-US-ChristopherNeural (Deep Baritone, pitch=-8Hz, rate=+22%)</narrator_voice>
     <aspect-ratio>3:4</aspect-ratio>
     <duration>60.0s</duration>
   </metadata>

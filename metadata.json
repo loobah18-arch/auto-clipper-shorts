@@ -9,10 +9,19 @@
     "testednproved"
   ],
   "creator_attribution": "@MrBeast/YT",
+  "intro_narration": {
+    "enabled": true,
+    "voice": "en-US-ChristopherNeural",
+    "pitch": "-8Hz",
+    "rate": "+22%",
+    "spoken_text": "Can he escape 100 real cops for 500,000 dollars?",
+    "duration_seconds": 3.75,
+    "style": "Deep authoritative baritone hook reading the title before the main video starts"
+  },
   "aspect_ratio": "3:4",
   "resolution": "1080x1440",
   "duration_seconds": 60.0,
   "arc_type": "6-beat looped arc (hook -> setup -> conflict -> climax -> seamless loop)",
   "hook": "Behind me are 100 cops, and if they arrest us, they win a million dollars!",
-  "loop_trigger": "Dead end corner surrounded by 100 cops loops back to opening challenge"
+  "loop_trigger": "Dead end corner surrounded by 100 cops loops back to opening title hook"
 }

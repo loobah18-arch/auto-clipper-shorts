@@ -14,6 +14,7 @@
   <import as="look" source="./look.svs"/>
 
   <script id="story">
+    <intro><NARRATOR>CAN HE ESCAPE 100 REAL COPS FOR $500,000?</NARRATOR></intro>
     <opening><HOST>BEHIND ME ARE 100 COPS! AND IF THEY ARREST US, THEY WIN A MILLION DOLLARS!</HOST></opening>
     <setup><HOST>WE GOT TO GET OUT OF HERE! WHERE DO WE GO?! IT'S A TRAP!</HOST></setup>
     <conflict><HOST>FOR THIS NEXT DIVERSION... A LOT OF EXPLOSIONS! MAN DOES IT LOOK EPIC!</HOST></conflict>
@@ -25,26 +26,40 @@
 
   <space:Frame id="viewport" within="{canvas.bounds}"
     left="0%" top="0%" right="100%" bottom="100%"/>
+  <space:Frame id="title-frame" within="{canvas.bounds}"
+    left="5%" top="35%" right="95%" bottom="65%"/>
   <space:Frame id="subtitle-frame" within="{canvas.bounds}"
     left="5%" top="65%" right="95%" bottom="90%"/>
 
   <time:Timeline id="timeline" clock="{clock}" end="60.0s">
-    <time:Window id="hook" from="0.0s" for="15.0s"/>
-    <time:Window id="setup" from="15.0s" for="15.0s"/>
-    <time:Window id="conflict" from="30.0s" for="15.0s"/>
-    <time:Window id="climax" from="45.0s" for="15.0s"/>
+    <time:Window id="title-hook" from="0.0s" for="3.75s"/>
+    <time:Window id="hook" from="3.75s" for="14.0s"/>
+    <time:Window id="setup" from="17.75s" for="14.0s"/>
+    <time:Window id="conflict" from="31.75s" for="14.0s"/>
+    <time:Window id="climax" from="45.75s" for="14.25s"/>
   </time:Timeline>
 
   <visual:Track id="main-video" timeline="{timeline.timeline}">
+    <visual:Clip id="intro-teaser" source="mrbeast_raw" during="{timeline.title-hook}"
+      frame="{viewport}" fit="cover" z="10"/>
     <visual:Clip id="mrbeast-challenge" source="mrbeast_raw" during="{timeline.window}"
       frame="{viewport}" fit="cover" z="10"/>
   </visual:Track>
 
+  <audio:Track id="narrator-audio" timeline="{timeline.timeline}">
+    <audio:Clip id="title-narration" source="narrator_intro" during="{timeline.title-hook}" volume="1.40"/>
+  </audio:Track>
+
   <audio:Track id="main-audio" timeline="{timeline.timeline}">
-    <audio:Clip id="creator-sound" source="mrbeast_raw" during="{timeline.window}" volume="1.05"/>
+    <audio:Clip id="creator-sound" source="mrbeast_raw" during="{timeline.window}" volume="1.10"/>
   </audio:Track>
 
   <fonts:Face id="primary-font" package="@fontsource/montserrat" weight="800" style="normal"/>
+
+  <typo:Style id="title-style" recipe="{look.text.title.hook}" font="{primary-font}">
+    <typo:Fill color="#FFE600"/>
+    <typo:Stroke color="#000000" width="8.0"/>
+  </typo:Style>
 
   <typo:Style id="caption-style" recipe="{look.text.caption.highlight}" font="{primary-font}">
     <typo:Fill color="#FFE600"/>
@@ -53,6 +68,7 @@
 
   <film:Film id="main" canvas="{canvas.canvas}" timeline="{timeline.timeline}" appearance="{look.film.main}">
     <film:Track source="{main-video.visual}"/>
+    <film:Track source="{narrator-audio.audio}"/>
     <film:Track source="{main-audio.audio}"/>
   </film:Film>
 

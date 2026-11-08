@@ -76,8 +76,10 @@ class HypitSVMLParser:
         script_elem = root.find(".//script")
         if script_elem is not None:
             for child in script_elem:
-                host_elem = child.find("HOST")
-                text = host_elem.text if host_elem is not None and host_elem.text else child.text
+                voice_elem = child.find("HOST")
+                if voice_elem is None:
+                    voice_elem = child.find("NARRATOR")
+                text = voice_elem.text if voice_elem is not None and voice_elem.text else child.text
                 if text:
                     self.script_segments[child.tag] = text.strip()
 
@@ -146,43 +148,48 @@ class HypitEngine:
         """Returns word-level cues matched to the active SVML document."""
         svml_name = self.svrun.author_svml.name.lower()
         if "challenge" in svml_name or "cops" in svml_name:
-            # MrBeast: Escape 100 Cops, Win $500,000 (60s Looped Arc)
+            # MrBeast: Escape 100 Cops, Win $500,000 (60s Looped Arc with Intro Narration)
             return [
-                # Beat 1: Hook & Stakes (0.0s - 15.0s)
-                (0.00, 2.30, "BEHIND ME ARE 100 COPS! 🚔"),
-                (2.30, 4.10, "IF THEY ARREST US..."),
-                (4.10, 6.50, "THEY WIN A MILLION DOLLARS! 💰"),
-                (6.50, 8.50, "BUT IF WE ESCAPE..."),
-                (8.50, 10.00, "START THE TIMER! ⏱️"),
-                (10.00, 11.20, "THEY ARE RIGHT ON US!"),
-                (11.20, 13.10, "DON'T WORRY, I HAVE A PLAN!"),
-                (13.10, 15.00, "RUN! GO GO GO! 😱"),
+                # Intro Title Hook: Deep Voice Narration (0.0s - 3.75s)
+                (0.00, 1.10, "CAN HE ESCAPE"),
+                (1.10, 2.30, "100 REAL COPS... 🚔"),
+                (2.30, 3.75, "FOR $500,000?! 😳"),
 
-                # Beat 2: Setup & Traps (15.0s - 30.0s)
-                (15.00, 17.50, "WE GOT TO GET OUT!"),
-                (17.50, 19.50, "WHERE DO WE GO?!"),
-                (19.50, 22.00, "GO! MOVE MOVE!"),
-                (22.00, 24.80, "THE BALL IS OFF!"),
-                (24.80, 26.50, "THAT'S THE FIRE! 🔥"),
-                (26.50, 28.50, "IT'S A TRAP!"),
-                (28.50, 30.00, "WE JUST ESCAPED!"),
+                # Beat 1: Main Video Starts - Hook & Stakes (3.75s - 17.75s)
+                (3.75, 6.00, "BEHIND ME ARE 100 COPS! 🚔"),
+                (6.00, 7.80, "IF THEY ARREST US..."),
+                (7.80, 10.20, "THEY WIN A MILLION DOLLARS! 💰"),
+                (10.20, 12.20, "BUT IF WE ESCAPE..."),
+                (12.20, 13.80, "START THE TIMER! ⏱️"),
+                (13.80, 15.00, "THEY ARE RIGHT ON US!"),
+                (15.00, 16.50, "DON'T WORRY, I HAVE A PLAN!"),
+                (16.50, 17.75, "RUN! GO GO GO! 😱"),
 
-                # Beat 3: Conflict & Explosions (30.0s - 45.0s)
-                (30.00, 32.20, "FOR THIS NEXT DIVERSION..."),
-                (32.20, 34.20, "I WANTED TO HAVE A LOT OF..."),
-                (34.20, 36.50, "EXPLOSIONS! 💥💥"),
-                (36.50, 39.00, "MAN DOES IT LOOK EPIC!"),
-                (39.00, 41.50, "WE CAN'T SEE ANYTHING!"),
-                (41.50, 45.00, "THEY'RE NOT GONNA CATCH HIM!"),
+                # Beat 2: Setup & Traps (17.75s - 31.75s)
+                (17.75, 20.00, "WE GOT TO GET OUT!"),
+                (20.00, 22.00, "WHERE DO WE GO?!"),
+                (22.00, 24.50, "GO! MOVE MOVE!"),
+                (24.50, 26.50, "THE BALL IS OFF!"),
+                (26.50, 28.50, "THAT'S THE FIRE! 🔥"),
+                (28.50, 30.20, "IT'S A TRAP!"),
+                (30.20, 31.75, "WE JUST ESCAPED!"),
 
-                # Beat 4: Climax & Swarm Loop (45.0s - 60.17s)
-                (45.00, 47.50, "DUDE, JIMMY!"),
-                (47.50, 49.50, "WE'RE SURROUNDED! 🚨"),
-                (49.50, 51.50, "LET'S GO DEEPER!"),
-                (51.50, 54.50, "IT'S A DEAD END! 😱"),
-                (54.50, 56.50, "I MADE A MISTAKE!"),
-                (56.50, 58.50, "SET A PERIMETER! 🚔"),
-                (58.50, 60.17, "LOCK IT UP! THEY'RE SURROUNDED!"),
+                # Beat 3: Conflict & Explosions (31.75s - 45.75s)
+                (31.75, 34.00, "FOR THIS NEXT DIVERSION..."),
+                (34.00, 36.00, "I WANTED TO HAVE A LOT OF..."),
+                (36.00, 38.50, "EXPLOSIONS! 💥💥"),
+                (38.50, 41.00, "MAN DOES IT LOOK EPIC!"),
+                (41.00, 43.50, "WE CAN'T SEE ANYTHING!"),
+                (43.50, 45.75, "THEY'RE NOT GONNA CATCH HIM!"),
+
+                # Beat 4: Climax & Swarm Loop (45.75s - 60.00s)
+                (45.75, 48.00, "DUDE, JIMMY!"),
+                (48.00, 50.00, "WE'RE SURROUNDED! 🚨"),
+                (50.00, 52.00, "LET'S GO DEEPER!"),
+                (52.00, 55.00, "IT'S A DEAD END! 😱"),
+                (55.00, 57.00, "I MADE A MISTAKE!"),
+                (57.00, 58.80, "SET A PERIMETER! 🚔"),
+                (58.80, 60.00, "LOCK IT UP! THEY'RE SURROUNDED!"),
             ]
         elif "fall" in svml_name:
             # MrBeast: Last To Fall Wins challenge
@@ -234,6 +241,8 @@ class HypitEngine:
         h = self.svml.canvas_height
         font_size = int(w * 0.072)
         font_size_hl = int(w * 0.078)
+        font_size_title = int(w * 0.082)
+        font_size_title_hl = int(w * 0.090)
         margin_v = int(h * 0.19)
 
         ass_content = f"""[Script Info]
@@ -247,6 +256,8 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6.5,3.0,2,60,60,{margin_v},1
 Style: Highlight,{font_name},{font_size_hl},&H0000E6FF,&H00000000,&H00000000,&H80000000,-1,0,0,0,106,106,0,0,1,7.5,4.0,2,60,60,{margin_v},1
+Style: TitleWhite,{font_name},{font_size_title},&H00FFFFFF,&H00000000,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,7.5,4.0,5,60,60,0,1
+Style: TitleYellow,{font_name},{font_size_title_hl},&H0000E6FF,&H00000000,&H00000000,&H90000000,-1,0,0,0,106,106,0,0,1,8.5,5.0,5,60,60,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -254,7 +265,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for i, (start, end, text) in enumerate(cues):
             start_fmt = self._sec_to_ass_time(start)
             end_fmt = self._sec_to_ass_time(end)
-            style = "Highlight" if (i % 2 == 1 or "!" in text or "$" in text or "😱" in text or "😂" in text or "🔥" in text or "💥" in text or "🚨" in text) else "Default"
+            if end <= 3.75:
+                style = "TitleYellow" if ("100" in text or "$" in text or "😳" in text or "🚔" in text) else "TitleWhite"
+            else:
+                style = "Highlight" if (i % 2 == 1 or "!" in text or "$" in text or "😱" in text or "😂" in text or "🔥" in text or "💥" in text or "🚨" in text or "🚔" in text) else "Default"
             ass_content += f"Dialogue: 0,{start_fmt},{end_fmt},{style},,0,0,0,,{text}\n"
 
         output_ass_path.write_text(ass_content, encoding="utf-8")
@@ -279,6 +293,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if not raw_video or not raw_video.exists():
             raise FileNotFoundError(f"Input source video not found: {raw_video}")
 
+        narrator_audio = self.svrun.inputs.get("narrator_intro")
+        has_intro_narration = narrator_audio is not None and narrator_audio.exists()
+
         ass_path = dest.parent / "hypit_subtitles.ass"
         self.generate_subtitles(ass_path)
 
@@ -289,37 +306,70 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         print(f"[Hypit] 🎬 Compiling SVML project -> {dest.name}")
         print(f"[Hypit] 📐 Canvas: {w}x{h} @ {self.svml.fps}fps | Duration: {duration}s")
         print(f"[Hypit] 📥 Source: {raw_video}")
+        if has_intro_narration:
+            print(f"[Hypit] 🎙️ Intro Narration: {narrator_audio} (Deep Voice)")
 
         font_dir_arg = f":fontsdir={FONTS_DIR}" if FONTS_DIR.exists() else ""
         escaped_ass = str(ass_path).replace(":", "\\:").replace("'", "\\'")
 
-        # High quality filter: scales vertical source cleanly to canvas with subtle pop and burns in kinetic typography
-        filter_complex = (
-            f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
-            f"crop={w}:{h},"
-            f"eq=contrast=1.06:saturation=1.15,"
-            f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
-            f"[0:a]volume=1.10,alimiter=limit=0.95[a]"
-        )
-
-        cmd = [
-            "ffmpeg", "-y",
-            "-ss", "0.0",
-            "-t", str(duration),
-            "-i", str(raw_video),
-            "-filter_complex", filter_complex,
-            "-map", "[v]",
-            "-map", "[a]",
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "44100",
-            "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart",
-            str(dest)
-        ]
+        if has_intro_narration:
+            t_intro = 3.75
+            t_main = duration - t_intro
+            filter_complex = (
+                f"[0:v]trim=start=0:end={t_intro},setpts=PTS-STARTPTS,eq=contrast=1.12:brightness=-0.06:saturation=1.22[v_intro];"
+                f"[0:v]trim=start=0:end={t_main},setpts=PTS-STARTPTS,eq=contrast=1.06:saturation=1.15[v_main];"
+                f"[v_intro][v_main]concat=n=2:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+                f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
+                f"[0:a]atrim=start=0:end={t_intro},asetpts=PTS-STARTPTS,volume=0.20,lowpass=f=1200[a_amb];"
+                f"[1:a]volume=1.40[a_vox];"
+                f"[a_amb][a_vox]amix=inputs=2:duration=first:dropout_transition=2[a_intro];"
+                f"[0:a]atrim=start=0:end={t_main},asetpts=PTS-STARTPTS,volume=1.10[a_main];"
+                f"[a_intro][a_main]concat=n=2:v=0:a=1,alimiter=limit=0.95[a]"
+            )
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", str(raw_video),
+                "-i", str(narrator_audio),
+                "-filter_complex", filter_complex,
+                "-map", "[v]",
+                "-map", "[a]",
+                "-t", str(duration),
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "18",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-ar", "44100",
+                "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart",
+                str(dest)
+            ]
+        else:
+            filter_complex = (
+                f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
+                f"crop={w}:{h},"
+                f"eq=contrast=1.06:saturation=1.15,"
+                f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
+                f"[0:a]volume=1.10,alimiter=limit=0.95[a]"
+            )
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", "0.0",
+                "-t", str(duration),
+                "-i", str(raw_video),
+                "-filter_complex", filter_complex,
+                "-map", "[v]",
+                "-map", "[a]",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "18",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-ar", "44100",
+                "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart",
+                str(dest)
+            ]
 
         print("[Hypit] 🚀 Running render pipeline...")
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

@@ -17,6 +17,7 @@ pipeline_debug.log
 *.ass
 *.wav
 !assets/sfx/*.wav
+!assets/intro_voice.wav
 *.aac
 __pycache__/
 *.pyc
