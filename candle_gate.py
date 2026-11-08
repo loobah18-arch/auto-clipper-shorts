@@ -222,27 +222,56 @@ class CandleGate:
         try:
             from datetime import datetime, timezone
 
-            channels_response = youtube_client.channels().list(mine=True, part="contentDetails").execute()
-            items = channels_response.get("items", [])
-            if not items:
-                return {"can_upload": True, "reason": "No channel found; initial upload cleared"}
+            vid_id = None
+            title = "Previous Short"
+            published_at_str = None
 
-            uploads_id = items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
-            playlist_items = youtube_client.playlistItems().list(
-                playlistId=uploads_id, part="snippet", maxResults=1
-            ).execute()
-            video_items = playlist_items.get("items", [])
-            if not video_items:
+            # First priority: check upload_history.json
+            history_file = Path(__file__).resolve().parent / "upload_history.json"
+            if history_file.exists():
+                try:
+                    records = json.loads(history_file.read_text(encoding="utf-8"))
+                    if records and isinstance(records, list):
+                        for rec in reversed(records):
+                            raw_id = rec.get("video_id")
+                            if raw_id and not str(raw_id).startswith("dry_run"):
+                                vid_id = raw_id
+                                title = rec.get("title", title)
+                                published_at_str = rec.get("timestamp")
+                                break
+                except Exception:
+                    pass
+
+            # Second priority: query uploads playlist if vid_id not found in history
+            if not vid_id:
+                try:
+                    channels_response = youtube_client.channels().list(mine=True, part="contentDetails").execute()
+                    items = channels_response.get("items", [])
+                    if items:
+                        uploads_id = items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
+                        playlist_items = youtube_client.playlistItems().list(
+                            playlistId=uploads_id, part="snippet", maxResults=1
+                        ).execute()
+                        video_items = playlist_items.get("items", [])
+                        if video_items:
+                            vid_id = video_items[0]["snippet"]["resourceId"]["videoId"]
+                            title = video_items[0]["snippet"]["title"]
+                            published_at_str = video_items[0]["snippet"]["publishedAt"]
+                except Exception:
+                    pass
+
+            if not vid_id:
                 return {"can_upload": True, "reason": "No prior uploads found; initial upload cleared"}
 
-            vid_id = video_items[0]["snippet"]["resourceId"]["videoId"]
-            title = video_items[0]["snippet"]["title"]
-            published_at_str = video_items[0]["snippet"]["publishedAt"]
-
-            vid_stats = youtube_client.videos().list(id=vid_id, part="statistics").execute()
+            vid_stats = youtube_client.videos().list(id=vid_id, part="statistics,snippet").execute()
             v_items = vid_stats.get("items", [])
             if not v_items:
-                return {"can_upload": True, "reason": "Could not fetch video stats"}
+                return {"can_upload": True, "reason": f"Could not fetch stats for video {vid_id}"}
+
+            snippet = v_items[0].get("snippet", {})
+            title = snippet.get("title", title)
+            if not published_at_str or "publishedAt" in snippet:
+                published_at_str = snippet.get("publishedAt", published_at_str)
 
             total_views = int(v_items[0]["statistics"].get("viewCount", 0))
             published_at = datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
