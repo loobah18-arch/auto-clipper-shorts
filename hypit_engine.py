@@ -17,6 +17,7 @@ from typing import Dict, List, Any, Optional, Tuple
 ROOT_DIR = Path(__file__).resolve().parent
 FONTS_DIR = ROOT_DIR / "assets" / "fonts"
 FONT_PATH = FONTS_DIR / "Montserrat-ExtraBold.ttf"
+SFX_DIR = ROOT_DIR / "assets" / "sfx"
 
 
 class HypitSVMLParser:
@@ -237,10 +238,85 @@ class HypitEngine:
                 (17.50, 20.00, "WHILE THE $1 BOAT SANK!"),
             ]
 
+    def get_hud_badges(self) -> List[Tuple[float, float, str]]:
+        """Returns timeline HUD badges providing transformative value-add context."""
+        svml_name = self.svrun.author_svml.name.lower()
+        if "challenge" in svml_name or "cops" in svml_name:
+            return [
+                (0.00, 3.75, "💰 $500,000 ESCAPE CHALLENGE"),
+                (3.75, 13.52, "⏱️ TIMER STARTED | 100 COPS"),
+                (13.52, 23.55, "🏃 EVADING PERIMETER | TRAPS SET"),
+                (23.55, 33.62, "💥 DIVERSION ACTIVE | EXPLOSIONS"),
+                (33.62, 43.15, "🚨 CORNERED | DEAD END"),
+                (43.15, 50.42, "🚔 STATE POLICE TACTICAL RAID"),
+                (50.42, 60.00, "🏆 OUTCOME: COPS WIN $500,000"),
+            ]
+        return []
+
+    def generate_sfx_bed(self, output_wav_path: Path, duration: float = 60.0) -> Optional[Path]:
+        """Synthesizes a master continuous SFX bed for the 6 structural curve peaks."""
+        import wave, struct
+        sfx_dir = ROOT_DIR / "assets" / "sfx"
+        if not sfx_dir.exists():
+            return None
+
+        sr = 44100
+        total_samples = int(sr * duration)
+        bed = [0.0] * total_samples
+
+        events = [
+            (0.00, sfx_dir / "bass_impact.wav", 0.85),
+            (13.52, sfx_dir / "whoosh.wav", 0.80),
+            (23.55, sfx_dir / "boom_impact.wav", 0.90),
+            (33.62, sfx_dir / "tape_stop.wav", 0.85),
+            (43.15, sfx_dir / "radio_chirp.wav", 0.85),
+            (50.42, sfx_dir / "cash_chime.wav", 1.05),
+        ]
+
+        has_sfx = False
+        for t_start, wav_file, vol in events:
+            if not wav_file.exists():
+                continue
+            has_sfx = True
+            try:
+                with wave.open(str(wav_file), "rb") as w:
+                    n_ch = w.getnchannels()
+                    sw = w.getsampwidth()
+                    n_f = w.getnframes()
+                    raw = w.readframes(n_f)
+                    idx_start = int(t_start * sr)
+                    for i in range(n_f):
+                        idx = idx_start + i
+                        if idx >= total_samples:
+                            break
+                        if sw == 2:
+                            val = struct.unpack_from("<h", raw, i * n_ch * 2)[0] / 32768.0
+                        else:
+                            val = 0.0
+                        bed[idx] += val * vol
+            except Exception as e:
+                print(f"[Hypit] Warning: Could not mix SFX {wav_file.name}: {e}")
+
+        if not has_sfx:
+            return None
+
+        output_wav_path.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(output_wav_path), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(sr)
+            raw_out = bytearray()
+            for s in bed:
+                clamped = max(-32767, min(32767, int(s * 32767)))
+                raw_out.extend(struct.pack("<h", clamped))
+            w.writeframes(raw_out)
+        return output_wav_path
+
     def generate_subtitles(self, output_ass_path: Path) -> Path:
         """Generates dynamic kinetic subtitles following Hypit typography tokens."""
         font_name = "Source Sans Pro" if (FONTS_DIR / "SourceSansPro-Bold.ttf").exists() else ("Montserrat" if FONT_PATH.exists() else "DejaVu Sans")
         cues = self.get_cues()
+        badges = self.get_hud_badges()
 
         # Responsive layout tokens derived from canvas bounds (Simple, clean, modern subtitle design)
         w = self.svml.canvas_width
@@ -258,6 +334,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Badge,{font_name},32,&H0000E6FF,&H00000000,&H00000000,&HB0000000,-1,0,0,0,100,100,1,0,3,10,0,7,50,50,75,1
 Style: Default,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.8,1.2,2,40,40,{margin_v},1
 Style: SimpleWhite,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.8,1.2,2,40,40,{margin_v},1
 Style: Highlight,{font_name},{font_size},&H00FFFFFF,&H00000000,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.8,1.2,2,40,40,{margin_v},1
@@ -267,6 +344,13 @@ Style: TitleYellow,{font_name},{font_size_title},&H0000E6FF,&H00000000,&H0000000
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+        # Layer 1: Transformative Value-Add HUD Badges (Top-Left)
+        for start, end, text in badges:
+            start_fmt = self._sec_to_ass_time(start)
+            end_fmt = self._sec_to_ass_time(end)
+            ass_content += f"Dialogue: 1,{start_fmt},{end_fmt},Badge,,0,0,0,,  {text}  \n"
+
+        # Layer 0: Dialogue Subtitles & Hook Title (Bottom-Center & Mid-Screen)
         for i, (start, end, text) in enumerate(cues):
             start_fmt = self._sec_to_ass_time(start)
             end_fmt = self._sec_to_ass_time(end)
@@ -317,38 +401,78 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         font_dir_arg = f":fontsdir={FONTS_DIR}" if FONTS_DIR.exists() else ""
         escaped_ass = str(ass_path).replace(":", "\\:").replace("'", "\\'")
 
+        sfx_path = dest.parent / "hypit_sfx_bed.wav"
+        sfx_bed = self.generate_sfx_bed(sfx_path, duration)
+        has_sfx = sfx_bed is not None and sfx_bed.exists()
+        if has_sfx:
+            print(f"[Hypit] 🔊 Master SFX Bed: {sfx_bed} (6-Peak Audio Design)")
+
         if has_intro_narration:
             t_intro = 3.75
             t_main = duration - t_intro
-            filter_complex = (
-                f"[0:v]trim=start=0:end={t_intro},setpts=PTS-STARTPTS,eq=contrast=1.12:brightness=-0.06:saturation=1.22[v_intro];"
-                f"[0:v]trim=start=0:end={t_main},setpts=PTS-STARTPTS,eq=contrast=1.06:saturation=1.15[v_main];"
-                f"[v_intro][v_main]concat=n=2:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
-                f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
-                f"[0:a]atrim=start=0:end={t_intro},asetpts=PTS-STARTPTS,volume=0.20,lowpass=f=1200[a_amb];"
-                f"[1:a]volume=1.40[a_vox];"
-                f"[a_amb][a_vox]amix=inputs=2:duration=first:dropout_transition=2[a_intro];"
-                f"[0:a]atrim=start=0:end={t_main},asetpts=PTS-STARTPTS,volume=1.10[a_main];"
-                f"[a_intro][a_main]concat=n=2:v=0:a=1,alimiter=limit=0.95[a]"
-            )
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", str(raw_video),
-                "-i", str(narrator_audio),
-                "-filter_complex", filter_complex,
-                "-map", "[v]",
-                "-map", "[a]",
-                "-t", str(duration),
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "18",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-ar", "44100",
-                "-pix_fmt", "yuv420p",
-                "-movflags", "+faststart",
-                str(dest)
-            ]
+            if has_sfx:
+                filter_complex = (
+                    f"[0:v]trim=start=0:end={t_intro},setpts=PTS-STARTPTS,eq=contrast=1.12:brightness=-0.06:saturation=1.22[v_intro];"
+                    f"[0:v]trim=start=0:end={t_main},setpts=PTS-STARTPTS,eq=contrast=1.06:saturation=1.15[v_main];"
+                    f"[v_intro][v_main]concat=n=2:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+                    f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
+                    f"[0:a]atrim=start=0:end={t_intro},asetpts=PTS-STARTPTS,volume=0.20,lowpass=f=1200[a_amb];"
+                    f"[1:a]volume=1.40[a_vox];"
+                    f"[a_amb][a_vox]amix=inputs=2:duration=first:dropout_transition=2[a_intro];"
+                    f"[0:a]atrim=start=0:end={t_main},asetpts=PTS-STARTPTS,volume=1.10[a_main];"
+                    f"[a_intro][a_main]concat=n=2:v=0:a=1[a_dialogue];"
+                    f"[2:a]volume=0.90[a_sfx];"
+                    f"[a_dialogue][a_sfx]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.95[a]"
+                )
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", str(raw_video),
+                    "-i", str(narrator_audio),
+                    "-i", str(sfx_bed),
+                    "-filter_complex", filter_complex,
+                    "-map", "[v]",
+                    "-map", "[a]",
+                    "-t", str(duration),
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-crf", "18",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-ar", "44100",
+                    "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart",
+                    str(dest)
+                ]
+            else:
+                filter_complex = (
+                    f"[0:v]trim=start=0:end={t_intro},setpts=PTS-STARTPTS,eq=contrast=1.12:brightness=-0.06:saturation=1.22[v_intro];"
+                    f"[0:v]trim=start=0:end={t_main},setpts=PTS-STARTPTS,eq=contrast=1.06:saturation=1.15[v_main];"
+                    f"[v_intro][v_main]concat=n=2:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+                    f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
+                    f"[0:a]atrim=start=0:end={t_intro},asetpts=PTS-STARTPTS,volume=0.20,lowpass=f=1200[a_amb];"
+                    f"[1:a]volume=1.40[a_vox];"
+                    f"[a_amb][a_vox]amix=inputs=2:duration=first:dropout_transition=2[a_intro];"
+                    f"[0:a]atrim=start=0:end={t_main},asetpts=PTS-STARTPTS,volume=1.10[a_main];"
+                    f"[a_intro][a_main]concat=n=2:v=0:a=1,alimiter=limit=0.95[a]"
+                )
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", str(raw_video),
+                    "-i", str(narrator_audio),
+                    "-filter_complex", filter_complex,
+                    "-map", "[v]",
+                    "-map", "[a]",
+                    "-t", str(duration),
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-crf", "18",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-ar", "44100",
+                    "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart",
+                    str(dest)
+                ]
         else:
             filter_complex = (
                 f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
@@ -382,9 +506,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             print(f"[Hypit] ❌ FFmpeg error:\n{proc.stderr}")
             raise RuntimeError(f"FFmpeg rendering failed with exit code {proc.returncode}")
 
-        # Cleanup intermediate subtitle file
+        # Cleanup intermediate files
         if ass_path.exists():
             ass_path.unlink()
+        if sfx_path.exists():
+            sfx_path.unlink()
 
         print(f"[Hypit] ✅ Successfully rendered deliverable: {dest} ({dest.stat().st_size} bytes)")
         return dest

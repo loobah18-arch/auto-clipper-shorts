@@ -62,9 +62,23 @@ class TestHypitEngine(unittest.TestCase):
             self.assertIn("AND WON THAT HALF A MILLION DOLLARS!", content)
             self.assertIn("Style: TitleYellow", content)
             self.assertIn("Style: SimpleWhite", content)
+            self.assertIn("Style: Badge", content)
+            self.assertIn("$500,000 ESCAPE CHALLENGE", content)
         finally:
             if test_ass.exists():
                 test_ass.unlink()
+
+    def test_sfx_bed_generation(self):
+        engine = HypitEngine(self.svrun_path)
+        test_wav = ROOT_DIR / "test_sfx_bed.wav"
+        try:
+            bed = engine.generate_sfx_bed(test_wav, duration=10.0)
+            self.assertIsNotNone(bed)
+            self.assertTrue(test_wav.exists())
+            self.assertGreater(test_wav.stat().st_size, 1000)
+        finally:
+            if test_wav.exists():
+                test_wav.unlink()
 
 
 if __name__ == "__main__":
