@@ -256,6 +256,8 @@ class YouTubeUploader:
         dry_run: bool = False,
         force: bool = False,
         auto_timer: bool = True,
+        source_video_id: Optional[str] = None,
+        custom_title: Optional[str] = None,
         sleep_fn=time.sleep,
     ) -> Dict[str, Any]:
         """Executes full upload pipeline."""
@@ -274,17 +276,21 @@ class YouTubeUploader:
         category_id = creator_info.get("packaging", {}).get("category_id", "24")
 
         # Determine raw title and description
-        meta_attribution = meta.get("creator_attribution", "")
-        if creator_id in meta_attribution.lower() or (creator_id == "mrbeast" and "mrbeast" in meta_attribution.lower()):
-            raw_title = meta.get("title", creator_info.get("default_title", f"Challenge Short (@{creator_id})"))
+        if custom_title:
+            raw_title = custom_title
             raw_desc = meta.get("description", creator_info.get("default_description", f"Watch this high-stakes Short by {creator_id}!"))
         else:
-            raw_title = creator_info.get("default_title", meta.get("title", f"Challenge Short (@{creator_id})"))
-            raw_desc = creator_info.get("default_description", meta.get("description", f"Watch this high-stakes Short by {creator_id}!"))
+            meta_attribution = meta.get("creator_attribution", "")
+            if creator_id in meta_attribution.lower() or (creator_id == "mrbeast" and "mrbeast" in meta_attribution.lower()):
+                raw_title = meta.get("title", creator_info.get("default_title", f"Challenge Short (@{creator_id})"))
+                raw_desc = meta.get("description", creator_info.get("default_description", f"Watch this high-stakes Short by {creator_id}!"))
+            else:
+                raw_title = creator_info.get("default_title", meta.get("title", f"Challenge Short (@{creator_id})"))
+                raw_desc = creator_info.get("default_description", meta.get("description", f"Watch this high-stakes Short by {creator_id}!"))
 
         tags = meta.get("tags", creator_info.get("packaging", {}).get("hashtags", ["shorts", "viral", creator_id]))
 
-        title = self.format_title(raw_title, creator_id)
+        title = self.format_title(raw_title, creator_id) if not custom_title or "@" not in custom_title else custom_title
         description = self.format_description(raw_desc, creator_id, meta)
 
         log(f"📋 Title: '{title}'")
@@ -369,6 +375,7 @@ class YouTubeUploader:
         # 4. Save to History
         self._record_history({
             "video_id": video_id,
+            "source_video_id": source_video_id,
             "title": title,
             "url": video_url,
             "creator": creator_id,
@@ -381,6 +388,7 @@ class YouTubeUploader:
         return {
             "status": "uploaded",
             "video_id": video_id,
+            "source_video_id": source_video_id,
             "url": video_url,
             "title": title,
             "privacy": privacy_status,
@@ -403,6 +411,8 @@ def main():
     parser.add_argument("--video", type=Path, default=Path("output/hypit_mrbeast_short.mp4"), help="Path to video file")
     parser.add_argument("--metadata", type=Path, default=Path("metadata.json"), help="Path to metadata JSON")
     parser.add_argument("--creator", type=str, default="mrbeast", help="Creator ID from creator_catalog.json")
+    parser.add_argument("--source-id", type=str, help="Original YouTube source video ID that was clipped")
+    parser.add_argument("--title", type=str, help="Custom formatted title override")
     parser.add_argument("--privacy", choices=["public", "unlisted", "private"], default="public", help="Upload privacy status")
     parser.add_argument("--dry-run", action="store_true", help="Simulate upload without calling YouTube API")
     parser.add_argument("--force", action="store_true", help="Bypass 5k views/hour candle gate")
@@ -425,6 +435,8 @@ def main():
             privacy_status=args.privacy,
             dry_run=args.dry_run,
             force=args.force,
+            source_video_id=args.source_id,
+            custom_title=args.title,
         )
         print(json.dumps(result, indent=2))
         if result.get("status") == "blocked_by_candle_gate":

@@ -139,11 +139,12 @@ class HypitRunParser:
 class HypitEngine:
     """Compiles Hypit specifications and produces broadcast deliverables."""
 
-    def __init__(self, svrun_path: Path):
+    def __init__(self, svrun_path: Path, raw_video: Optional[Path] = None):
         self.svrun = HypitRunParser(svrun_path).parse()
         if not self.svrun.author_svml:
             raise ValueError("No author SVML defined in SVRun manifest")
         self.svml = HypitSVMLParser(self.svrun.author_svml).parse()
+        self.raw_video_override = raw_video
 
     def get_cues(self) -> List[Tuple[float, float, str]]:
         """Returns word-level cues matched to the active SVML document."""
@@ -494,7 +495,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             dest = ROOT_DIR / "output" / "hypit_output.mp4"
         dest.parent.mkdir(parents=True, exist_ok=True)
 
-        raw_video = self.svrun.inputs.get("mrbeast_raw")
+        raw_video = self.raw_video_override
+        if not raw_video or not raw_video.exists():
+            raw_video = self.svrun.inputs.get("mrbeast_raw")
+            if not raw_video or not raw_video.exists():
+                for k, v in self.svrun.inputs.items():
+                    if isinstance(v, Path) and v.suffix.lower() in [".mp4", ".mov", ".mkv"] and v.exists():
+                        raw_video = v
+                        break
         if not raw_video or not raw_video.exists():
             raise FileNotFoundError(f"Input source video not found: {raw_video}")
 
@@ -637,12 +645,14 @@ def main():
     parser = argparse.ArgumentParser(description="Hypit Video Authoring & Render Engine")
     parser.add_argument("manifest", nargs="?", default="sources/production.svrun", help="Path to .svrun manifest")
     parser.add_argument("--creator", choices=["mrbeast", "nileblue", "mark_rober", "ishowspeed", "ruhi_cenet"], help="Override creator SVML source")
+    parser.add_argument("--raw-video", help="Path to custom raw input video file")
     parser.add_argument("--output", "-o", help="Custom output destination path")
     parser.add_argument("--check", action="store_true", help="Validate SVML / SVRun without rendering")
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve()
-    engine = HypitEngine(manifest_path)
+    raw_video_path = Path(args.raw_video).resolve() if args.raw_video else None
+    engine = HypitEngine(manifest_path, raw_video=raw_video_path)
 
     if args.creator:
         catalog_path = ROOT_DIR / "creator_catalog.json"

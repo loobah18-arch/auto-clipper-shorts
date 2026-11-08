@@ -87,14 +87,16 @@ jobs:
           python3 test_candle_gate.py
           python3 test_catalog.py
           python3 test_youtube_uploader.py
+          python3 test_crawler.py
 
-      - name: 🔄 Resolve Creator & Manifest Rotation
+      - name: 🔄 Resolve Creator Rotation & Backlog Upload
         id: resolve
         run: |
           set -euo pipefail
           python3 -c "
           import os
           from youtube_uploader import resolve_next_creator_rotation
+          from creator_backlog_crawler import select_target_upload
 
           manual_creator = '${{ inputs.creator }}'.strip()
           manual_manifest = '${{ inputs.manifest }}'.strip()
@@ -102,22 +104,30 @@ jobs:
 
           if manual_creator:
               creator = manual_creator
-              manifest = manual_manifest if manual_manifest else 'sources/production.svrun'
-              out_name = manual_output if manual_output else f'hypit_{creator}_short.mp4'
           else:
               rot = resolve_next_creator_rotation()
               creator = rot['creator_id']
-              manifest = 'sources/production.svrun'
-              out_name = rot['output_filename']
 
-          print(f'🎯 Selected Creator: {creator}')
+          selection = select_target_upload(creator)
+          manifest = manual_manifest if manual_manifest else selection['svml_source']
+          out_name = manual_output if manual_output else selection['output_filename']
+          source_vid = selection['source_video']
+          title = selection['formatted_title']
+
+          print(f'🎯 Selected Creator: {creator} ({selection[\"creator_name\"]})')
+          print(f'🎬 Selection Mode: {selection[\"selection_mode\"]} (Backlog Index: {selection[\"backlog_index\"]})')
+          print(f'📺 Target Source Video: {source_vid[\"title\"]} [{source_vid[\"video_id\"]}]')
           print(f'📄 Manifest: {manifest}')
           print(f'📦 Output filename: {out_name}')
+          print(f'✨ Formatted Title: {title}')
 
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f'creator={creator}\n')
               f.write(f'manifest={manifest}\n')
               f.write(f'output_filename={out_name}\n')
+              f.write(f'source_video_id={source_vid[\"video_id\"]}\n')
+              f.write(f'source_video_url={source_vid[\"url\"]}\n')
+              f.write(f'formatted_title={title}\n')
           "
 
       - name: 🎬 Render Hypit Deliverable
@@ -158,6 +168,8 @@ jobs:
             --video "output/$OUTPUT_NAME" \
             --metadata metadata.json \
             --creator "$CREATOR_ID" \
+            --source-id "${{ steps.resolve.outputs.source_video_id }}" \
+            --title "${{ steps.resolve.outputs.formatted_title }}" \
             --privacy "$PRIVACY" \
             "${EXTRA_ARGS[@]}"
 

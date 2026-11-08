@@ -6,6 +6,7 @@
     "mrbeast": {
       "id": "mrbeast",
       "name": "MrBeast",
+      "channel_id": "UCX6OQ3DkcsbYNE6H8uQQuVA",
       "channel_handle": "@MrBeast",
       "channel_url": "https://www.youtube.com/@MrBeast",
       "niche": "extreme_challenges",
@@ -35,6 +36,7 @@
     "nileblue": {
       "id": "nileblue",
       "name": "NileBlue / NileRed",
+      "channel_id": "UC1D3yD4wlPMico0dss264XA",
       "channel_handle": "@NileBlue",
       "channel_url": "https://www.youtube.com/@NileBlue",
       "niche": "science_experiments",
@@ -64,6 +66,7 @@
     "mark_rober": {
       "id": "mark_rober",
       "name": "Mark Rober",
+      "channel_id": "UCY1kMZp36IQSyNx_9h4mpCg",
       "channel_handle": "@MarkRober",
       "channel_url": "https://www.youtube.com/@MarkRober",
       "niche": "engineering_gadgets",
@@ -93,6 +96,7 @@
     "ishowspeed": {
       "id": "ishowspeed",
       "name": "IShowSpeed",
+      "channel_id": "UCWsDFcIhY2DBi3GB5uykGXA",
       "channel_handle": "@IShowSpeed",
       "channel_url": "https://www.youtube.com/@IShowSpeed",
       "niche": "irl_viral_stunts",
@@ -122,8 +126,9 @@
     "ruhi_cenet": {
       "id": "ruhi_cenet",
       "name": "Ruhi Çenet",
-      "channel_handle": "@RuhiCenetInvestigates",
-      "channel_url": "https://www.youtube.com/@RuhiCenetInvestigates",
+      "channel_id": "UCWpk9PSGHoJW1hZT4egxTNQ",
+      "channel_handle": "@RuhiCenetDocumentaries",
+      "channel_url": "https://www.youtube.com/channel/UCWpk9PSGHoJW1hZT4egxTNQ",
       "niche": "extreme_investigations",
       "description": "Deep-dive investigative documentaries exploring the world's most dangerous, forbidden, and extreme locations",
       "svml_source": "sources/ruhi_cenet_investigation.svml",

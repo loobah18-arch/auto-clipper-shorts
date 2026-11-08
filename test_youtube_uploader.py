@@ -33,7 +33,7 @@ class TestYouTubeUploader(unittest.TestCase):
         self.assertIn("⚡🔥", speed_title)
 
         ruhi_title = self.uploader.format_title(title_raw, creator_id="ruhi_cenet")
-        self.assertIn("(@RuhiCenetInvestigates/YT)", ruhi_title)
+        self.assertIn("(@RuhiCenetDocumentaries/YT)", ruhi_title)
         self.assertIn("🥶🚨", ruhi_title)
 
     def test_description_formatting(self):
