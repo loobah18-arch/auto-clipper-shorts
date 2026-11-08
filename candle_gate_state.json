@@ -4,11 +4,11 @@
     "can_upload": true,
     "consecutive_hours_below": 26,
     "required_hours": 24,
-    "threshold": 5000,
-    "current_hourly_rate": 2500,
+    "threshold": 2500,
+    "current_hourly_rate": 1500,
     "peak_hourly_rate": 100000,
     "total_candles": 29,
-    "recommendation": "Active Short has stabilized below 5,000 views/hr for 26 consecutive hours. Cleared to upload next video without cannibalizing active push."
+    "recommendation": "Active Short has stabilized below 2,500 views/hr for 26 consecutive hours. Cleared to upload next video without cannibalizing active push."
   },
   "engagement_metrics": {
     "swipe_through_rate": 82.0,

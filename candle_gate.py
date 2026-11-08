@@ -3,12 +3,14 @@
 Jack Craig "Tested&Proved" Candle Gate & Upload Cadence Engine.
 Reference: https://youtu.be/sKejab-4Rmw ("I BLEW UP a Beginner's YouTube Channel in 7 Days")
 
-Implements the algorithmic rules governing when to upload the next video:
-1. The 5,000 Views/Hour Rule: Monitor hourly view candles. Once hourly views drop
-   below 5,000 views/hr for at least 24 consecutive hours, upload clearance is granted.
-   Rushing to upload while a video is being pushed will flatline the active video.
-2. The Swipe-Through Rate (STR) Gate: At least 80% of viewers must make it past the first 3 seconds.
-3. Average View Duration (AVD) Gate: At least 80% average view retention (>= 48s for 60s Shorts).
+Implements the 2-layer algorithmic rules governing when to upload the next video:
+1. Layer 1 (Early Momentum Gate): If a video reaches >= 2,000 views in its first 12 hours,
+   pause uploads to let early traction build. If near threshold (e.g. 1.8k-1.99k), sets a 1-hour timer.
+2. Layer 2 (Viral Velocity Gate - 2k-3k views/hr): Once past early window, monitor hourly view candles.
+   If hourly views exceed 2,000-3,000 views/hr (calibrated threshold: 2,500 views/hr), upload is blocked
+   until views drop below this threshold for at least 24 consecutive hours.
+3. The Swipe-Through Rate (STR) Gate: At least 80% of viewers must make it past the first 3 seconds.
+4. Average View Duration (AVD) Gate: At least 80% average view retention (>= 48s for 60s Shorts).
 """
 
 import sys
@@ -18,7 +20,11 @@ from pathlib import Path
 from typing import Dict, List, Any, Tuple
 
 DEFAULT_STATE_FILE = Path(__file__).resolve().parent / "candle_gate_state.json"
-VIEW_THRESHOLD_PER_HOUR = 5000
+
+# Layer 2 Constants: Viral Velocity Gate (Calibrated to 2-3k views/hour)
+VIEW_THRESHOLD_PER_HOUR = 2500  # Midpoint of 2k-3k views/hr velocity window
+VIEW_THRESHOLD_MIN = 2000
+VIEW_THRESHOLD_MAX = 3000
 SUSTAINED_HOURS_REQUIRED = 24
 MIN_SWIPE_THROUGH_RATE = 80.0
 MIN_AVD_RATIO = 0.80
@@ -398,8 +404,8 @@ def main():
         return
 
     if args.simulate == "cleared":
-        # Simulate post-push stabilization: 26 hours below 5,000 views/hr
-        sample_candles = [100000, 80000, 20000] + [2500] * 26
+        # Simulate post-push stabilization: 26 hours below 2-3k views/hr (e.g. 1,500 views/hr)
+        sample_candles = [100000, 80000, 20000] + [1500] * 26
         result = gate.evaluate_hourly_candles(sample_candles)
         metrics = gate.evaluate_engagement_metrics(args.str, args.avd, args.duration)
         combined = {"candle_evaluation": result, "engagement_metrics": metrics}

@@ -30,12 +30,20 @@ class TestCandleGate(unittest.TestCase):
         self.assertEqual(res["peak_hourly_rate"], 120000)
 
     def test_stabilized_drop_cleared(self):
-        # Peak push followed by 25 consecutive hours below 5000 views/hr
-        hourly_views = [100000, 50000, 10000] + [2200] * 25
+        # Peak push followed by 25 consecutive hours below 2-3k views/hr (e.g. 1,600 views/hr)
+        hourly_views = [100000, 50000, 10000] + [1600] * 25
         res = self.gate.evaluate_hourly_candles(hourly_views)
         self.assertTrue(res["can_upload"])
         self.assertEqual(res["decision"], "UPLOAD_CLEARED")
         self.assertGreaterEqual(res["consecutive_hours_below"], SUSTAINED_HOURS_REQUIRED)
+
+    def test_layer2_2k_3k_velocity_blocked(self):
+        # Video is currently earning 2,800 views/hour (in 2k-3k range, >= 2,500 threshold) -> blocked
+        hourly_views = [500, 1200, 1800, 2400, 2800]
+        res = self.gate.evaluate_hourly_candles(hourly_views)
+        self.assertFalse(res["can_upload"])
+        self.assertEqual(res["decision"], "UPLOAD_BLOCKED_ACTIVE_PUSH")
+        self.assertEqual(res["current_hourly_rate"], 2800)
 
     def test_layer1_early_momentum_blocks_upload(self):
         # Video reaches 2,200 views in 6 hours (>= 2k in 12h) -> Layer 1 must block upload
