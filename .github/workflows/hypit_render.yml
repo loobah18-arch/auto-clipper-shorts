@@ -132,22 +132,70 @@ jobs:
           "
 
       - name: 📥 Source Video Ingestion (yt-dlp with Fallback)
+        env:
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
         run: |
           set -uo pipefail
           SOURCE_URL="${{ steps.resolve.outputs.source_video_url }}"
-          RAW_FILE="raw_source_${{ steps.resolve.outputs.creator }}.mp4"
-          echo "Attempting to download 90s source excerpt from: $SOURCE_URL"
-          if python3 -m yt_dlp "$SOURCE_URL" \
-            --download-sections "*00:00-01:30" \
-            --force-keyframes-at-cuts \
-            --extractor-args "youtube:player_client=android,web" \
-            --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" \
-            -o "$RAW_FILE" --socket-timeout 15; then
+          CREATOR_ID="${{ steps.resolve.outputs.creator }}"
+          RAW_FILE="raw_source_${CREATOR_ID}.mp4"
+          echo "Attempting to download 90s source excerpt for $CREATOR_ID from: $SOURCE_URL"
+
+          # 1. Update yt-dlp to latest official release
+          sudo wget -q https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp || true
+          sudo chmod a+rx /usr/local/bin/yt-dlp || true
+
+          # 2. Extract YOUTUBE_COOKIES secret if available
+          COOKIE_ARGS=()
+          if [ -n "${YOUTUBE_COOKIES:-}" ]; then
+            python3 -c "
+            import os, base64
+            raw = os.environ.get('YOUTUBE_COOKIES', '').strip()
+            if raw:
+                try:
+                    decoded = base64.b64decode(raw).decode('utf-8')
+                    if '# Netscape' in decoded or '\t' in decoded:
+                        raw = decoded
+                except Exception:
+                    pass
+                with open('youtube_cookies.txt', 'w', encoding='utf-8') as f:
+                    f.write(raw)
+                print('🍪 Successfully decoded YOUTUBE_COOKIES secret to youtube_cookies.txt')
+            "
+            if [ -f youtube_cookies.txt ]; then
+              COOKIE_ARGS=(--cookies youtube_cookies.txt)
+            fi
+          fi
+
+          # 3. Multi-client download with retry (ios -> android,web -> mweb -> android_vr)
+          DOWNLOAD_SUCCESS=false
+          for client in "ios" "android,web" "mweb" "android_vr"; do
+            echo "🔄 Trying yt-dlp download with client: $client..."
+            if yt-dlp "$SOURCE_URL" \
+              "${COOKIE_ARGS[@]}" \
+              --download-sections "*00:00-01:30" \
+              --force-keyframes-at-cuts \
+              --extractor-args "youtube:player_client=$client" \
+              --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" \
+              -o "$RAW_FILE" --socket-timeout 25; then
+              if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                DOWNLOAD_SUCCESS=true
+                echo "✅ Source video downloaded successfully with client $client: $RAW_FILE"
+                break
+              fi
+            fi
+            echo "⚠️ Client $client failed or incomplete, trying next client..."
+          done
+
+          if [ "$DOWNLOAD_SUCCESS" = "true" ]; then
             echo "raw_video_flag=--raw-video $RAW_FILE" >> "$GITHUB_ENV"
-            echo "✅ Source video downloaded successfully: $RAW_FILE"
-          else
-            echo "⚠️ yt-dlp fetch failed or rate-limited; falling back to verified local footage."
+          elif [ "$CREATOR_ID" = "mrbeast" ]; then
+            echo "⚠️ MrBeast yt-dlp failed; using verified local MrBeast footage."
             echo "raw_video_flag=" >> "$GITHUB_ENV"
+          else
+            echo "❌ Fatal: Could not download authentic source video for $CREATOR_ID."
+            echo "Aborting render to prevent mismatched footage assembly."
+            exit 1
           fi
 
       - name: 🎬 Render Hypit Deliverable

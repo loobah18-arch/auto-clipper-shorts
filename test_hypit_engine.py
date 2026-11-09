@@ -88,6 +88,15 @@ class TestHypitEngine(unittest.TestCase):
             if test_wav.exists():
                 test_wav.unlink()
 
+    def test_refuse_mismatched_footage_fallback(self):
+        """Verifies engine rejects using MrBeast footage when rendering NileBlue without raw video."""
+        nile_svml = SOURCES_DIR / "nileblue_experiment.svml"
+        engine = HypitEngine(nile_svml, creator="nileblue")
+        # Trying to render without raw video must raise FileNotFoundError, NOT use mrbeast_raw
+        with self.assertRaises(FileNotFoundError) as ctx:
+            engine.render(destination=ROOT_DIR / "output" / "test_fake.mp4")
+        self.assertIn("Refusing to substitute mismatched MrBeast footage", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -155,12 +155,21 @@ class HypitRunParser:
 class HypitEngine:
     """Compiles Hypit specifications and produces broadcast deliverables."""
 
-    def __init__(self, svrun_path: Path, raw_video: Optional[Path] = None):
+    def __init__(self, svrun_path: Path, raw_video: Optional[Path] = None, creator: Optional[str] = None):
         self.svrun = HypitRunParser(svrun_path).parse()
         if not self.svrun.author_svml:
             raise ValueError("No author SVML defined in SVRun manifest")
         self.svml = HypitSVMLParser(self.svrun.author_svml).parse()
         self.raw_video_override = raw_video
+        self.creator = creator
+        if not self.creator and self.svrun.author_svml:
+            name = self.svrun.author_svml.name.lower()
+            for c in ["mrbeast", "nileblue", "mark_rober", "ishowspeed", "ruhi_cenet"]:
+                if c in name:
+                    self.creator = c
+                    break
+        if not self.creator:
+            self.creator = "mrbeast"
 
     def get_cues(self) -> List[Tuple[float, float, str]]:
         """Returns word-level cues matched to the active SVML document."""
@@ -513,12 +522,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         raw_video = self.raw_video_override
         if not raw_video or not raw_video.exists():
-            raw_video = self.svrun.inputs.get("mrbeast_raw")
-            if not raw_video or not raw_video.exists():
-                for k, v in self.svrun.inputs.items():
-                    if isinstance(v, Path) and v.suffix.lower() in [".mp4", ".mov", ".mkv"] and v.exists():
-                        raw_video = v
-                        break
+            if self.creator == "mrbeast":
+                raw_video = self.svrun.inputs.get("mrbeast_raw")
+                if not raw_video or not raw_video.exists():
+                    for k, v in self.svrun.inputs.items():
+                        if isinstance(v, Path) and v.suffix.lower() in [".mp4", ".mov", ".mkv"] and v.exists():
+                            raw_video = v
+                            break
+            else:
+                raise FileNotFoundError(
+                    f"Authentic raw source video for creator '{self.creator}' was not found. "
+                    f"Refusing to substitute mismatched MrBeast footage."
+                )
         if not raw_video or not raw_video.exists():
             raise FileNotFoundError(f"Input source video not found: {raw_video}")
 
@@ -668,7 +683,7 @@ def main():
 
     manifest_path = Path(args.manifest).resolve()
     raw_video_path = Path(args.raw_video).resolve() if args.raw_video else None
-    engine = HypitEngine(manifest_path, raw_video=raw_video_path)
+    engine = HypitEngine(manifest_path, raw_video=raw_video_path, creator=args.creator)
 
     if args.creator:
         catalog_path = ROOT_DIR / "creator_catalog.json"
