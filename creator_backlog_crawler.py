@@ -59,6 +59,42 @@ def get_clipped_video_ids(history_file: Path = DEFAULT_HISTORY_FILE) -> Set[str]
     return clipped
 
 
+def fetch_creator_uploads_ytdlp(channel_handle: str, max_results: int = 10, timeout: int = 15) -> List[Dict[str, Any]]:
+    """
+    Fetches real uploads using yt-dlp flat-playlist extraction.
+    Fast, highly reliable, and returns genuine YouTube video IDs.
+    """
+    import subprocess
+    clean_handle = channel_handle.strip().lstrip("@")
+    url = f"https://www.youtube.com/@{clean_handle}/videos"
+    cmd = [
+        "yt-dlp", "--flat-playlist",
+        "--print", "%(id)s|%(title)s|%(upload_date)s",
+        url,
+        "-I", f":{max_results}"
+    ]
+    uploads = []
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout)
+        if proc.returncode == 0 and proc.stdout:
+            for line in proc.stdout.strip().splitlines():
+                parts = line.split("|")
+                if len(parts) >= 2:
+                    vid_id = parts[0].strip()
+                    title = parts[1].strip()
+                    pub_str = parts[2].strip() if len(parts) > 2 else ""
+                    if vid_id and title:
+                        uploads.append({
+                            "video_id": vid_id,
+                            "title": title,
+                            "published_at": pub_str,
+                            "url": f"https://www.youtube.com/watch?v={vid_id}",
+                        })
+    except Exception as e:
+        log(f"Warning: yt-dlp flat playlist fetch failed for @{clean_handle}: {e}")
+    return uploads
+
+
 def fetch_creator_uploads_rss(channel_id: str, timeout: int = 8) -> List[Dict[str, Any]]:
     """
     Fetches the 15 latest uploads for a channel via YouTube XML RSS feed.
@@ -142,13 +178,14 @@ def select_target_upload(
     channel_id = creator_info.get("channel_id")
     creator_name = creator_info.get("name", creator_id)
 
-    # 1. Fetch channel uploads (newest to oldest)
+    # 1. Fetch channel uploads (newest to oldest): yt-dlp first, then RSS fallback
+    handle = creator_info.get("channel_handle", f"@{creator_id}")
     if mock_uploads is not None:
         uploads = mock_uploads
-    elif channel_id:
-        uploads = fetch_creator_uploads_rss(channel_id)
     else:
-        uploads = []
+        uploads = fetch_creator_uploads_ytdlp(handle)
+        if not uploads and channel_id:
+            uploads = fetch_creator_uploads_rss(channel_id)
 
     # Fallback to sample topics from catalog if network fetch yields no results
     if not uploads:
