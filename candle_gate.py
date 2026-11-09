@@ -4,7 +4,7 @@ Jack Craig "Tested&Proved" Candle Gate & Upload Cadence Engine.
 Reference: https://youtu.be/sKejab-4Rmw ("I BLEW UP a Beginner's YouTube Channel in 7 Days")
 
 Implements the 2-layer algorithmic rules governing when to upload the next video:
-1. Layer 1 (Early Momentum Gate): If a video reaches >= 2,000 views in its first 12 hours,
+1. Layer 1 (Early Momentum Gate): If a video reaches >= 2,000 views in its first 24 hours,
    pause uploads to let early traction build. If near threshold (e.g. 1.8k-1.99k), sets a 1-hour timer.
 2. Layer 2 (Viral Velocity Gate - 2k-3k views/hr): Once past early window, monitor hourly view candles.
    If hourly views exceed 2,000-3,000 views/hr (calibrated threshold: 2,500 views/hr), upload is blocked
@@ -30,7 +30,7 @@ MIN_SWIPE_THROUGH_RATE = 80.0
 MIN_AVD_RATIO = 0.80
 
 # Layer 1 Constants: Early Momentum Gate & Near-Threshold Recheck Timer
-EARLY_HOURS_WINDOW = 12.0
+EARLY_HOURS_WINDOW = 24.0
 EARLY_VIEWS_THRESHOLD = 2000
 NEAR_THRESHOLD_PERCENT = 0.85  # 85% of threshold (e.g. >= 1,700 views when threshold is 2,000)
 NEAR_THRESHOLD_VIEWS = int(EARLY_VIEWS_THRESHOLD * NEAR_THRESHOLD_PERCENT)
@@ -118,7 +118,7 @@ class CandleGate:
             remaining_window = max(window_hours - elapsed_hours, 0.0)
             recommendation = (
                 f"⏳ Video is at {total_views:,} views in {elapsed_hours:.1f}h (approaching {threshold_views:,} threshold "
-                f"with {remaining_window:.1f}h remaining in the 12h window). "
+                f"with {remaining_window:.1f}h remaining in the {window_hours:.0f}h window). "
                 f"Automatically setting a 1-hour timer ({timer_seconds // 60}m) to re-check if it crosses 2k before uploading."
             )
         else:
@@ -378,7 +378,7 @@ class CandleGate:
                 final_decision = layer1_eval["decision"]
                 can_upload = False
                 final_recommendation = layer1_eval["recommendation"]
-                active_layer = "Layer 1 (Early Momentum: 1-Hour Timer)" if requires_timer else "Layer 1 (Early Momentum Gate: >=2k views in 12h)"
+                active_layer = "Layer 1 (Early Momentum: 1-Hour Timer)" if requires_timer else "Layer 1 (Early Momentum Gate: >=2k views in 24h)"
             elif not layer2_eval["can_upload"]:
                 final_decision = layer2_eval["decision"]
                 can_upload = False

@@ -68,8 +68,8 @@ class TestCandleGate(unittest.TestCase):
         self.assertEqual(res["remaining_hours"], 0.0)
 
     def test_layer1_early_momentum_blocks_upload(self):
-        # Video reaches 2,200 views in 6 hours (>= 2k in 12h) -> Layer 1 must block upload
-        res = self.gate.evaluate_early_momentum(total_views=2200, elapsed_hours=6.0)
+        # Video reaches 2,200 views in 18 hours (>= 2k in 24h) -> Layer 1 must block upload
+        res = self.gate.evaluate_early_momentum(total_views=2200, elapsed_hours=18.0)
         self.assertFalse(res["can_upload"])
         self.assertEqual(res["decision"], "UPLOAD_BLOCKED_EARLY_MOMENTUM")
         self.assertTrue(res["has_early_momentum"])
@@ -81,15 +81,15 @@ class TestCandleGate(unittest.TestCase):
         self.assertEqual(res["decision"], "LAYER_1_CLEARED")
         self.assertFalse(res["has_early_momentum"])
 
-    def test_layer1_past_12h_window_cleared(self):
-        # Video reaches 2,500 views after 18 hours (past 12h window) -> Layer 1 cleared
-        res = self.gate.evaluate_early_momentum(total_views=2500, elapsed_hours=18.0)
+    def test_layer1_past_24h_window_cleared(self):
+        # Video reaches 2,500 views after 26 hours (past 24h window) -> Layer 1 cleared
+        res = self.gate.evaluate_early_momentum(total_views=2500, elapsed_hours=26.0)
         self.assertTrue(res["can_upload"])
         self.assertEqual(res["decision"], "LAYER_1_CLEARED")
 
     def test_layer1_near_threshold_sets_1hour_timer(self):
-        # Video reaches 1,900 views in 10.5 hours (approaching 2k threshold before 12h) -> 1h timer required
-        res = self.gate.evaluate_early_momentum(total_views=1900, elapsed_hours=10.5)
+        # Video reaches 1,900 views in 21 hours (approaching 2k threshold before 24h) -> 1h timer required
+        res = self.gate.evaluate_early_momentum(total_views=1900, elapsed_hours=21.0)
         self.assertFalse(res["can_upload"])
         self.assertTrue(res["requires_timer"])
         self.assertEqual(res["timer_seconds"], 3600)
