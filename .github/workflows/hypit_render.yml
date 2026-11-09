@@ -85,7 +85,7 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install -U yt-dlp yt-dlp-getpot-wpc || true
+          pip install -U yt-dlp
 
       - name: 🧪 Run Hypit & Packaging Unit Tests
         run: |
