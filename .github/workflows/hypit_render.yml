@@ -69,10 +69,10 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: 🦕 Set up Deno (JS Runtime for YouTube n-challenge)
-        uses: denoland/setup-deno@v2
+      - name: 🟢 Set up Node.js (JS Runtime for YouTube n-challenge)
+        uses: actions/setup-node@v4
         with:
-          deno-version: v2.x
+          node-version: '20'
 
       - name: 🎥 Install FFmpeg & Fonts
         run: |
@@ -164,28 +164,28 @@ jobs:
           # 3. Multi-client download with retry:
           DOWNLOAD_SUCCESS=false
 
-          # Pass 1: Try with Deno JS engine and cookies (solves n-challenge)
-          echo "🔄 Trying yt-dlp download with Deno JS runtime..."
+          # Pass 1: Try with Node.js JS engine and cookies (solves n-challenge)
+          echo "🔄 Trying yt-dlp download with Node.js JS runtime..."
           if yt-dlp "$SOURCE_URL" \
             "${COOKIE_ARGS[@]}" \
-            --js-runtimes deno \
+            --js-runtimes node \
             --download-sections "*00:00-01:30" \
             --force-keyframes-at-cuts \
             --format "bv*+ba/b/18" \
             -o "$RAW_FILE" --socket-timeout 35; then
             if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
               DOWNLOAD_SUCCESS=true
-              echo "✅ Source video downloaded successfully with Deno runtime: $RAW_FILE"
+              echo "✅ Source video downloaded successfully with Node runtime: $RAW_FILE"
             fi
           fi
 
-          # Pass 2: Client variations with Deno
+          # Pass 2: Client variations with Node
           if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
             for client in "mweb" "web_creator" "tv"; do
               echo "🔄 Trying yt-dlp download with client: $client..."
               if yt-dlp "$SOURCE_URL" \
                 "${COOKIE_ARGS[@]}" \
-                --js-runtimes deno \
+                --js-runtimes node \
                 --extractor-args "youtube:player_client=$client" \
                 --download-sections "*00:00-01:30" \
                 --force-keyframes-at-cuts \
@@ -204,7 +204,7 @@ jobs:
           if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
             echo "🔄 Trying yt-dlp download with client: android (no cookies)..."
             if yt-dlp "$SOURCE_URL" \
-              --js-runtimes deno \
+              --js-runtimes node \
               --extractor-args "youtube:player_client=android" \
               --download-sections "*00:00-01:30" \
               --force-keyframes-at-cuts \
