@@ -103,9 +103,10 @@ def format_jack_craig_hook(raw_title: str, creator_info: Dict[str, Any]) -> str:
     clean_title = clean_title.replace("#shorts", "").strip()
 
     # Formulate question hook if not already phrased as question
+    creator_display_name = creator_info.get("name", "They").split("/")[0].strip()
     if not clean_title.endswith("?"):
         if not any(clean_title.lower().startswith(q) for q in ["can ", "did ", "how ", "why ", "what ", "who ", "will ", "is "]):
-            hook = f"Can {creator_info.get('name', 'They')} {clean_title}?"
+            hook = f"Can {creator_display_name} {clean_title}?"
         else:
             hook = f"{clean_title}?"
     else:

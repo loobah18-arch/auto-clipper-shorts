@@ -238,6 +238,14 @@ class YouTubeUploader:
             return True, "No active candle state recorded; initial upload cleared."
 
         candle_eval = gate_state.get("candle_evaluation", {})
+        if candle_eval.get("requires_spacing_sleep", False) and auto_timer:
+            sleep_sec = candle_eval.get("spacing_sleep_seconds", 0)
+            log(f"⏱️ [SpacingGuard] Active video is within inline window of 24h upload spacing ({sleep_sec // 60}m remaining). Sleeping inline...")
+            sleep_fn(sleep_sec)
+            can_upload = True
+            recommendation = "✅ 24-Hour Spacing Cleared after inline sleep. Proceeding with upload."
+            return can_upload, recommendation
+
         if candle_eval.get("requires_timer", False) and auto_timer and sleep_fn != time.sleep:
             # If simulated test with mocked sleep function:
             timer_sec = candle_eval.get("timer_seconds", 3600)

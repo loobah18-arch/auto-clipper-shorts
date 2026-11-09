@@ -121,5 +121,20 @@ class TestCandleGate(unittest.TestCase):
         self.assertEqual(metrics["status"], "BELOW_BENCHMARK")
 
 
+    def test_layer0_inline_wait_for_jitter(self):
+        # Video uploaded 23.8 hours ago (12 min from 24h) -> triggers inline wait to avoid 12h skip
+        res = self.gate.evaluate_upload_spacing(elapsed_hours=23.8)
+        self.assertFalse(res["can_upload"])
+        self.assertTrue(res["requires_spacing_sleep"])
+        self.assertEqual(res["decision"], "SPACING_WAIT_INLINE")
+        self.assertGreater(res["spacing_sleep_seconds"], 0)
+
+        # Video uploaded 12.0 hours ago (far from 24h) -> blocked normally without inline wait
+        res2 = self.gate.evaluate_upload_spacing(elapsed_hours=12.0)
+        self.assertFalse(res2["can_upload"])
+        self.assertFalse(res2["requires_spacing_sleep"])
+        self.assertEqual(res2["decision"], "UPLOAD_BLOCKED_24H_SPACING")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -131,6 +131,25 @@ jobs:
               f.write(f'formatted_title={title}\n')
           "
 
+      - name: 📥 Source Video Ingestion (yt-dlp with Fallback)
+        run: |
+          set -uo pipefail
+          SOURCE_URL="${{ steps.resolve.outputs.source_video_url }}"
+          RAW_FILE="raw_source_${{ steps.resolve.outputs.creator }}.mp4"
+          echo "Attempting to download 90s source excerpt from: $SOURCE_URL"
+          if python3 -m yt_dlp "$SOURCE_URL" \
+            --download-sections "*00:00-01:30" \
+            --force-keyframes-at-cuts \
+            --extractor-args "youtube:player_client=android,web" \
+            --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" \
+            -o "$RAW_FILE" --socket-timeout 15; then
+            echo "raw_video_flag=--raw-video $RAW_FILE" >> "$GITHUB_ENV"
+            echo "✅ Source video downloaded successfully: $RAW_FILE"
+          else
+            echo "⚠️ yt-dlp fetch failed or rate-limited; falling back to verified local footage."
+            echo "raw_video_flag=" >> "$GITHUB_ENV"
+          fi
+
       - name: 🎬 Render Hypit Deliverable
         run: |
           set -euo pipefail
@@ -138,7 +157,7 @@ jobs:
           MANIFEST="${{ steps.resolve.outputs.manifest }}"
           CREATOR_ID="${{ steps.resolve.outputs.creator }}"
           OUTPUT_NAME="${{ steps.resolve.outputs.output_filename }}"
-          python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" --output "output/$OUTPUT_NAME"
+          python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" $raw_video_flag --output "output/$OUTPUT_NAME"
 
       - name: 📦 Upload Generated Video Artifact
         if: always()

@@ -50,21 +50,33 @@ class CandleGate:
         self,
         elapsed_hours: float,
         min_spacing_hours: float = MIN_UPLOAD_SPACING_HOURS,
+        max_inline_wait_hours: float = 0.5,
     ) -> Dict[str, Any]:
         """
         Layer 0 - 24-Hour Spacing Gate:
         Ensures the next upload is only triggered after at least 24 hours have elapsed
         since the active video was uploaded.
+        If within max_inline_wait_hours (<= 30 min) of the 24h mark, triggers an inline sleep
+        to protect against runner jitter and avoid an unnecessary 12-hour skip.
         """
         can_upload = elapsed_hours >= min_spacing_hours
         remaining_hours = max(min_spacing_hours - elapsed_hours, 0.0)
+        requires_spacing_sleep = (not can_upload) and (0 < remaining_hours <= max_inline_wait_hours)
+        spacing_sleep_seconds = int(remaining_hours * 3600.0) + 5 if requires_spacing_sleep else 0
 
-        if not can_upload:
+        if not can_upload and not requires_spacing_sleep:
             decision = "UPLOAD_BLOCKED_24H_SPACING"
             recommendation = (
                 f"⏳ 24-Hour Spacing Guard: Active video was uploaded {elapsed_hours:.1f}h ago "
                 f"(< {min_spacing_hours:.0f}h required). Holding next upload to protect its initial 24h circulation window. "
                 f"Next upload permitted in {remaining_hours:.1f}h."
+            )
+        elif requires_spacing_sleep:
+            decision = "SPACING_WAIT_INLINE"
+            recommendation = (
+                f"⏱️ 24-Hour Spacing Guard: Active video was uploaded {elapsed_hours:.1f}h ago. "
+                f"Remaining wait ({remaining_hours * 60:.1f} min) is within inline window ({max_inline_wait_hours * 60:.0f} min). "
+                f"Waiting inline for {spacing_sleep_seconds // 60}m before upload to maintain daily cadence."
             )
         else:
             decision = "SPACING_CLEARED"
@@ -77,6 +89,8 @@ class CandleGate:
             "layer": 0,
             "decision": decision,
             "can_upload": can_upload,
+            "requires_spacing_sleep": requires_spacing_sleep,
+            "spacing_sleep_seconds": spacing_sleep_seconds,
             "elapsed_hours": round(elapsed_hours, 2),
             "min_spacing_hours": min_spacing_hours,
             "remaining_hours": round(remaining_hours, 2),
@@ -367,13 +381,16 @@ class CandleGate:
 
             # Precedence:
             # 1. Layer 0: Strict 24h spacing guard (only trigger next upload after 24h)
-            # 2. Layer 1: Early momentum gate (>=2k in 12h or 1h timer)
+            # 2. Layer 1: Early momentum gate (>=2k in 24h or 1h timer)
             # 3. Layer 2: Viral velocity gate (>=2.5k views/hr)
+            requires_spacing_sleep = spacing_eval.get("requires_spacing_sleep", False)
+            spacing_sleep_seconds = spacing_eval.get("spacing_sleep_seconds", 0)
+
             if not spacing_eval["can_upload"]:
                 final_decision = spacing_eval["decision"]
                 can_upload = False
                 final_recommendation = spacing_eval["recommendation"]
-                active_layer = "Layer 0 (24-Hour Minimum Spacing Guard)"
+                active_layer = "Layer 0 (24-Hour Spacing: Inline Wait)" if requires_spacing_sleep else "Layer 0 (24-Hour Minimum Spacing Guard)"
             elif not layer1_eval["can_upload"]:
                 final_decision = layer1_eval["decision"]
                 can_upload = False
@@ -395,6 +412,8 @@ class CandleGate:
                 "can_upload": can_upload,
                 "requires_timer": requires_timer,
                 "timer_seconds": timer_seconds,
+                "requires_spacing_sleep": requires_spacing_sleep,
+                "spacing_sleep_seconds": spacing_sleep_seconds,
                 "active_layer": active_layer,
                 "recommendation": final_recommendation,
                 "layer0": spacing_eval,
