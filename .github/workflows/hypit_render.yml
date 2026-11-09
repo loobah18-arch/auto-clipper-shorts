@@ -148,20 +148,20 @@ jobs:
           # 2. Extract YOUTUBE_COOKIES secret if available
           COOKIE_ARGS=()
           if [ -n "${YOUTUBE_COOKIES:-}" ]; then
-            python3 -c "
-            import os, base64
-            raw = os.environ.get('YOUTUBE_COOKIES', '').strip()
-            if raw:
-                try:
-                    decoded = base64.b64decode(raw).decode('utf-8')
-                    if '# Netscape' in decoded or '\t' in decoded:
-                        raw = decoded
-                except Exception:
-                    pass
-                with open('youtube_cookies.txt', 'w', encoding='utf-8') as f:
-                    f.write(raw)
-                print('🍪 Successfully decoded YOUTUBE_COOKIES secret to youtube_cookies.txt')
-            "
+            python3 - << 'PYEOF'
+import os, base64
+raw = os.environ.get('YOUTUBE_COOKIES', '').strip()
+if raw:
+    try:
+        decoded = base64.b64decode(raw).decode('utf-8')
+        if '# Netscape' in decoded or '\t' in decoded:
+            raw = decoded
+    except Exception:
+        pass
+    with open('youtube_cookies.txt', 'w', encoding='utf-8') as f:
+        f.write(raw)
+    print('🍪 Successfully decoded YOUTUBE_COOKIES secret to youtube_cookies.txt')
+PYEOF
             if [ -f youtube_cookies.txt ]; then
               COOKIE_ARGS=(--cookies youtube_cookies.txt)
             fi
