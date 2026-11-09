@@ -137,9 +137,25 @@ jobs:
               f.write(f'formatted_title={title}\n')
           "
 
-      - name: 📥 Source Video Ingestion (yt-dlp with Fallback)
+      - name: 🛡️ Launch Local BotGuard PO Token Service (bgutil)
+        run: |
+          set -uo pipefail
+          echo "🚀 Pulling and starting BotGuard PO Token generator container..."
+          docker run -d --name bgutil-provider --restart always -p 4416:4416 brainicism/bgutil-ytdlp-pot-provider || echo "⚠️ Docker bgutil start skipped"
+          # Wait up to 10s for container to be ready
+          for i in {1..10}; do
+            if curl -s http://127.0.0.1:4416/ping 2>/dev/null; then
+              echo "✅ BotGuard PO Token service ready on http://127.0.0.1:4416"
+              break
+            fi
+            sleep 1
+          done
+          pip install -U bgutil-ytdlp-pot-provider || true
+
+      - name: 📥 Source Video Ingestion (3-Tier Cascading Fallback)
         env:
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+          YOUTUBE_PROXY: ${{ secrets.YOUTUBE_PROXY }}
         run: |
           set -uo pipefail
           SOURCE_URL="${{ steps.resolve.outputs.source_video_url }}"
@@ -161,32 +177,61 @@ jobs:
             fi
           fi
 
-          # 3. Multi-client download with retry:
           DOWNLOAD_SUCCESS=false
 
-          # Pass 1: Try with Node.js EJS challenge solver & VisionOS / iOS / Web HLS streams
-          echo "🔄 Trying yt-dlp download with Node.js EJS solver & VisionOS/iOS..."
-          if yt-dlp -4 "$SOURCE_URL" \
-            "${COOKIE_ARGS[@]}" \
-            --js-runtimes node \
-            --remote-components ejs:github \
-            --extractor-args "youtube:player_client=visionos,ios,web" \
-            --download-sections "*00:00-01:30" \
-            --force-keyframes-at-cuts \
-            --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
-            -o "$RAW_FILE" --socket-timeout 35; then
-            if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
-              DOWNLOAD_SUCCESS=true
-              echo "✅ Source video downloaded successfully with VisionOS/iOS: $RAW_FILE"
+          # -------------------------------------------------------------
+          # Tier 1: Proxy Routing (if YOUTUBE_PROXY secret configured)
+          # -------------------------------------------------------------
+          if [ -n "${YOUTUBE_PROXY:-}" ]; then
+            echo "🌐 [Tier 1] Attempting download via YOUTUBE_PROXY..."
+            if yt-dlp -4 "$SOURCE_URL" \
+              --proxy "$YOUTUBE_PROXY" \
+              "${COOKIE_ARGS[@]}" \
+              --js-runtimes node \
+              --remote-components ejs:github \
+              --download-sections "*00:00-01:30" \
+              --force-keyframes-at-cuts \
+              --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
+              -o "$RAW_FILE" --socket-timeout 35; then
+              if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                DOWNLOAD_SUCCESS=true
+                echo "✅ [Tier 1] Successfully downloaded source via Proxy: $RAW_FILE"
+              fi
+            fi
+          else
+            echo "ℹ️ [Tier 1] YOUTUBE_PROXY secret not configured. Skipping to Tier 2."
+          fi
+
+          # -------------------------------------------------------------
+          # Tier 2: BotGuard PO Token Generator (bgutil Docker service)
+          # -------------------------------------------------------------
+          if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
+            echo "🛡️ [Tier 2] Attempting download with BotGuard PO Token Generator (bgutil on :4416)..."
+            if yt-dlp -4 "$SOURCE_URL" \
+              "${COOKIE_ARGS[@]}" \
+              --js-runtimes node \
+              --remote-components ejs:github \
+              --extractor-args "youtube:player_client=web,mweb,android" \
+              --download-sections "*00:00-01:30" \
+              --force-keyframes-at-cuts \
+              --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
+              -o "$RAW_FILE" --socket-timeout 45; then
+              if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                DOWNLOAD_SUCCESS=true
+                echo "✅ [Tier 2] Successfully downloaded source via BotGuard PO Token: $RAW_FILE"
+              fi
             fi
           fi
 
-          # Pass 2: Client variations with Android VR, TV, MWeb
+          # -------------------------------------------------------------
+          # Tier 3: Apple VisionOS / iOS HLS Extraction (NO Cookies)
+          # (Note: Passing cookies causes yt-dlp to skip VisionOS/iOS)
+          # -------------------------------------------------------------
           if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
-            for client in "android_vr" "tv" "mweb" "web_creator"; do
+            echo "🍎 [Tier 3] Attempting download via VisionOS / iOS HLS client (without cookies)..."
+            for client in "visionos" "ios" "android_vr"; do
               echo "🔄 Trying yt-dlp download with client: $client..."
               if yt-dlp -4 "$SOURCE_URL" \
-                "${COOKIE_ARGS[@]}" \
                 --js-runtimes node \
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=$client" \
@@ -196,38 +241,23 @@ jobs:
                 -o "$RAW_FILE" --socket-timeout 35; then
                 if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                   DOWNLOAD_SUCCESS=true
-                  echo "✅ Source video downloaded successfully with client $client: $RAW_FILE"
+                  echo "✅ [Tier 3] Successfully downloaded source via $client: $RAW_FILE"
                   break
                 fi
               fi
             done
           fi
 
-          # Pass 3: Mobile client without cookies
-          if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
-            echo "🔄 Trying yt-dlp download with client: android_vr,android (no cookies)..."
-            if yt-dlp -4 "$SOURCE_URL" \
-              --js-runtimes node \
-              --remote-components ejs:github \
-              --extractor-args "youtube:player_client=android_vr,android" \
-              --download-sections "*00:00-01:30" \
-              --force-keyframes-at-cuts \
-              --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
-              -o "$RAW_FILE" --socket-timeout 35; then
-              if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
-                DOWNLOAD_SUCCESS=true
-                echo "✅ Source video downloaded successfully with client android_vr: $RAW_FILE"
-              fi
-            fi
-          fi
-
+          # -------------------------------------------------------------
+          # Tier 4: Pipeline Gate & Local Asset Fallback
+          # -------------------------------------------------------------
           if [ "$DOWNLOAD_SUCCESS" = "true" ]; then
             echo "raw_video_flag=--raw-video $RAW_FILE" >> "$GITHUB_ENV"
           elif [ "$CREATOR_ID" = "mrbeast" ]; then
-            echo "⚠️ MrBeast yt-dlp failed; using verified local MrBeast footage."
+            echo "⚠️ MrBeast live download failed; using verified local MrBeast footage."
             echo "raw_video_flag=" >> "$GITHUB_ENV"
           else
-            echo "❌ Fatal: Could not download authentic source video for $CREATOR_ID."
+            echo "❌ Fatal: Could not download authentic source video for $CREATOR_ID across all 3 tiers."
             echo "Aborting render to prevent mismatched footage assembly."
             exit 1
           fi
