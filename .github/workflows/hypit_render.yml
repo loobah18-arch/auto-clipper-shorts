@@ -8,25 +8,26 @@ on:
   workflow_dispatch:
     inputs:
       creator:
-        description: 'Target creator to clip'
+        description: 'Target creator to clip (auto = next in rotation)'
         required: false
-        default: 'mrbeast'
+        default: 'auto'
         type: choice
         options:
+          - 'auto'
           - 'mrbeast'
           - 'nileblue'
           - 'mark_rober'
           - 'ishowspeed'
           - 'ruhi_cenet'
       manifest:
-        description: 'Path to Hypit .svrun manifest'
+        description: 'Path to Hypit manifest (optional override, leave blank for creator SVML)'
         required: false
-        default: 'sources/production.svrun'
+        default: ''
         type: string
       output_filename:
-        description: 'Name of the output video file'
+        description: 'Name of output video file (optional override, leave blank for auto-naming)'
         required: false
-        default: 'hypit_mrbeast_short.mp4'
+        default: ''
         type: string
       upload_to_youtube:
         description: 'Enable automatic upload to YouTube (@woosclips)'
@@ -102,7 +103,7 @@ jobs:
           manual_manifest = '${{ inputs.manifest }}'.strip()
           manual_output = '${{ inputs.output_filename }}'.strip()
 
-          if manual_creator:
+          if manual_creator and manual_creator != 'auto':
               creator = manual_creator
           else:
               rot = resolve_next_creator_rotation()
@@ -164,6 +165,7 @@ jobs:
             EXTRA_ARGS+=(--force)
           fi
 
+          UPLOAD_STATUS=0
           python3 youtube_uploader.py \
             --video "output/$OUTPUT_NAME" \
             --metadata metadata.json \
@@ -171,7 +173,14 @@ jobs:
             --source-id "${{ steps.resolve.outputs.source_video_id }}" \
             --title "${{ steps.resolve.outputs.formatted_title }}" \
             --privacy "$PRIVACY" \
-            "${EXTRA_ARGS[@]}"
+            "${EXTRA_ARGS[@]}" || UPLOAD_STATUS=$?
+
+          if [ "$UPLOAD_STATUS" -eq 2 ]; then
+            echo "⏸️ Upload safely deferred by Candle Gate. Pipeline completed cleanly."
+          elif [ "$UPLOAD_STATUS" -ne 0 ]; then
+            echo "❌ Fatal error during YouTube upload (exit code $UPLOAD_STATUS)"
+            exit $UPLOAD_STATUS
+          fi
 
       - name: 💾 Commit Updated Upload State
         if: always() && (github.event_name == 'schedule' || inputs.upload_to_youtube == true)

@@ -15,6 +15,7 @@ import json
 import re
 import argparse
 import urllib.request
+import urllib.parse
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from datetime import datetime

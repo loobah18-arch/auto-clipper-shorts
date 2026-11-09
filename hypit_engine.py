@@ -107,6 +107,22 @@ class HypitRunParser:
 
         root = ET.fromstring(cleaned)
 
+        # Allow passing an SVML document directly as the manifest (auto-resolves defaults)
+        if self.svrun_path.suffix == ".svml" or root.tag in ("svml", "Markup"):
+            self.author_svml = self.svrun_path.resolve()
+            default_look = self.svrun_path.parent / "look.svs"
+            if default_look.exists():
+                self.look_svs = default_look.resolve()
+            # Inherit default assets/inputs from production.svrun if present
+            prod_svrun = self.svrun_path.parent / "production.svrun"
+            if prod_svrun.exists() and prod_svrun != self.svrun_path:
+                try:
+                    fallback_parser = HypitRunParser(prod_svrun).parse()
+                    self.inputs = fallback_parser.inputs
+                except Exception:
+                    pass
+            return self
+
         author = root.find("author")
         if author is not None:
             src = author.attrib.get("source", "")

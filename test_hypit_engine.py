@@ -48,6 +48,14 @@ class TestHypitEngine(unittest.TestCase):
         self.assertIn("narrator_intro", run_parser.inputs)
         self.assertIsNotNone(run_parser.target_output)
 
+    def test_direct_svml_parsing_in_engine(self):
+        """Validates that passing an .svml file directly to HypitEngine works without an .svrun manifest."""
+        nile_svml = SOURCES_DIR / "nileblue_experiment.svml"
+        engine = HypitEngine(nile_svml)
+        self.assertEqual(engine.svml.timeline_duration, 60.0)
+        self.assertEqual(engine.svrun.author_svml, nile_svml)
+        self.assertIn("mrbeast_raw", engine.svrun.inputs)
+
     def test_subtitle_generation(self):
         engine = HypitEngine(self.svrun_path)
         test_ass = ROOT_DIR / "test_subtitles.ass"
