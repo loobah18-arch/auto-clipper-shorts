@@ -223,12 +223,12 @@ jobs:
               --js-runtimes node \
               --remote-components ejs:github \
               --download-sections "*00:00-01:30" \
-              --force-keyframes-at-cuts \
               --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
               -o "$RAW_FILE" --socket-timeout 35; then
-              if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+              DWN_FILE=$(ls -1 "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv" 2>/dev/null | head -1)
+              if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                 DOWNLOAD_SUCCESS=true
-                echo "✅ [Tier 1] Successfully downloaded source via Proxy: $RAW_FILE"
+                echo "✅ [Tier 1] Successfully downloaded source via Proxy: $DWN_FILE"
               fi
             fi
           else
@@ -251,10 +251,10 @@ jobs:
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=${client}" \
                 --download-sections "*00:00-01:30" \
-                --force-keyframes-at-cuts \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 45; then
-                if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                DWN_FILE=$(ls -1 "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv" 2>/dev/null | head -1)
+              if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                   DOWNLOAD_SUCCESS=true
                   echo "✅ [Tier 2] Successfully downloaded source via PO Token + $client: $RAW_FILE"
                   break
@@ -276,10 +276,10 @@ jobs:
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=web,mweb" \
                 --download-sections "*00:00-01:30" \
-                --force-keyframes-at-cuts \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 45; then
-                if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                DWN_FILE=$(ls -1 "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv" 2>/dev/null | head -1)
+              if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                   DOWNLOAD_SUCCESS=true
                   echo "✅ [Tier 2b] Successfully downloaded source via bgutil Docker: $RAW_FILE"
                 fi
@@ -300,10 +300,10 @@ jobs:
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=$client" \
                 --download-sections "*00:00-01:30" \
-                --force-keyframes-at-cuts \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 35; then
-                if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                DWN_FILE=$(ls -1 "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv" 2>/dev/null | head -1)
+              if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                   DOWNLOAD_SUCCESS=true
                   echo "✅ [Tier 3] Successfully downloaded source via $client: $RAW_FILE"
                   break
@@ -316,7 +316,7 @@ jobs:
           # Tier 4: Pipeline Gate & Local Asset Fallback
           # -------------------------------------------------------------
           if [ "$DOWNLOAD_SUCCESS" = "true" ]; then
-            echo "raw_video_flag=--raw-video $RAW_FILE" >> "$GITHUB_ENV"
+            echo "raw_video_flag=--raw-video $DWN_FILE" >> "$GITHUB_ENV"
           elif [ "$CREATOR_ID" = "mrbeast" ]; then
             echo "⚠️ MrBeast live download failed; using verified local MrBeast footage."
             echo "raw_video_flag=" >> "$GITHUB_ENV"
