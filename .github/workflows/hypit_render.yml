@@ -225,7 +225,10 @@ jobs:
               --download-sections "*00:00-01:30" \
               --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
               -o "$RAW_FILE" --socket-timeout 35; then
-              DWN_FILE=$(ls -1 "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv" 2>/dev/null | head -1)
+              DWN_FILE=""
+              for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+                if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+              done
               if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                 DOWNLOAD_SUCCESS=true
                 echo "✅ [Tier 1] Successfully downloaded source via Proxy: $DWN_FILE"
@@ -253,7 +256,10 @@ jobs:
                 --download-sections "*00:00-01:30" \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 45; then
-                DWN_FILE=$(ls -1 "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv" 2>/dev/null | head -1)
+                DWN_FILE=""
+                for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+                  if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+                done
               if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                   DOWNLOAD_SUCCESS=true
                   echo "✅ [Tier 2] Successfully downloaded source via PO Token + $client: $RAW_FILE"
@@ -278,7 +284,10 @@ jobs:
                 --download-sections "*00:00-01:30" \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 45; then
-                DWN_FILE=$(ls -1 "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv" 2>/dev/null | head -1)
+                DWN_FILE=""
+                for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+                  if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+                done
               if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                   DOWNLOAD_SUCCESS=true
                   echo "✅ [Tier 2b] Successfully downloaded source via bgutil Docker: $RAW_FILE"
@@ -302,7 +311,10 @@ jobs:
                 --download-sections "*00:00-01:30" \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 35; then
-                DWN_FILE=$(ls -1 "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv" 2>/dev/null | head -1)
+                DWN_FILE=""
+                for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+                  if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+                done
               if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
                   DOWNLOAD_SUCCESS=true
                   echo "✅ [Tier 3] Successfully downloaded source via $client: $RAW_FILE"
