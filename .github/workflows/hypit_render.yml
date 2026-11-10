@@ -217,22 +217,25 @@ jobs:
           # -------------------------------------------------------------
           if [ -n "${YOUTUBE_PROXY:-}" ]; then
             echo "🌐 [Tier 1] Attempting download via YOUTUBE_PROXY (residential IP)..."
-            if yt-dlp -4 "$SOURCE_URL" \
+            yt-dlp -4 "$SOURCE_URL" \
               --proxy "$YOUTUBE_PROXY" \
               "${COOKIE_ARGS[@]}" \
               --js-runtimes node \
               --remote-components ejs:github \
+              --playlist-items 1 \
               --download-sections "*00:00-01:30" \
               --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
-              -o "$RAW_FILE" --socket-timeout 35; then
-              DWN_FILE=""
-              for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
-                if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
-              done
-              if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
-                DOWNLOAD_SUCCESS=true
-                echo "✅ [Tier 1] Successfully downloaded source via Proxy: $DWN_FILE"
-              fi
+              -o "$RAW_FILE" --socket-timeout 35 || true
+            # Check the produced file regardless of yt-dlp exit code: on search
+            # playlists yt-dlp can exit non-zero (per-item errors) even after a
+            # successful download of the target excerpt.
+            DWN_FILE=""
+            for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+              if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+            done
+            if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+              DOWNLOAD_SUCCESS=true
+              echo "✅ [Tier 1] Successfully downloaded source via Proxy: $DWN_FILE"
             fi
           else
             echo "ℹ️ [Tier 1] YOUTUBE_PROXY secret not configured. Skipping to Tier 2."
@@ -247,24 +250,27 @@ jobs:
             echo "🎟️ [Tier 2] Attempting download with fresh Node.js PO Token + cookies (web/mweb)..."
             for client in "mweb" "web" "web_creator"; do
               echo "  🔄 Trying client=$client with PO Token..."
-              if yt-dlp -4 "$SOURCE_URL" \
+              yt-dlp -4 "$SOURCE_URL" \
                 "${COOKIE_ARGS[@]}" \
                 "${POT_ARGS[@]}" \
                 --js-runtimes node \
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=${client}" \
+                --playlist-items 1 \
                 --download-sections "*00:00-01:30" \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
-                -o "$RAW_FILE" --socket-timeout 45; then
-                DWN_FILE=""
-                for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
-                  if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
-                done
+                -o "$RAW_FILE" --socket-timeout 45 || true
+              # Check the produced file regardless of yt-dlp exit code: on search
+              # playlists yt-dlp can exit non-zero (per-item errors) even after a
+              # successful download of the target excerpt.
+              DWN_FILE=""
+              for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+                if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+              done
               if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
-                  DOWNLOAD_SUCCESS=true
-                  echo "✅ [Tier 2] Successfully downloaded source via PO Token + $client: $RAW_FILE"
-                  break
-                fi
+                DOWNLOAD_SUCCESS=true
+                echo "✅ [Tier 2] Successfully downloaded source via PO Token + $client: $DWN_FILE"
+                break
               fi
             done
           fi
@@ -276,22 +282,25 @@ jobs:
           if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
             if curl -s http://127.0.0.1:4416/ping 2>/dev/null | grep -q "version"; then
               echo "🛡️ [Tier 2b] Attempting download with bgutil Docker PO Token (web/mweb)..."
-              if yt-dlp -4 "$SOURCE_URL" \
+              yt-dlp -4 "$SOURCE_URL" \
                 "${COOKIE_ARGS[@]}" \
                 --js-runtimes node \
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=web,mweb" \
+                --playlist-items 1 \
                 --download-sections "*00:00-01:30" \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
-                -o "$RAW_FILE" --socket-timeout 45; then
-                DWN_FILE=""
-                for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
-                  if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
-                done
+                -o "$RAW_FILE" --socket-timeout 45 || true
+              # Check the produced file regardless of yt-dlp exit code: on search
+              # playlists yt-dlp can exit non-zero (per-item errors) even after a
+              # successful download of the target excerpt.
+              DWN_FILE=""
+              for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+                if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+              done
               if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
-                  DOWNLOAD_SUCCESS=true
-                  echo "✅ [Tier 2b] Successfully downloaded source via bgutil Docker: $RAW_FILE"
-                fi
+                DOWNLOAD_SUCCESS=true
+                echo "✅ [Tier 2b] Successfully downloaded source via bgutil Docker: $DWN_FILE"
               fi
             fi
           fi
@@ -304,22 +313,25 @@ jobs:
             echo "🍎 [Tier 3] Attempting download via VisionOS / iOS HLS client (without cookies)..."
             for client in "visionos" "ios" "android_vr"; do
               echo "🔄 Trying yt-dlp download with client: $client..."
-              if yt-dlp -4 -v "$SOURCE_URL" \
+              yt-dlp -4 -v "$SOURCE_URL" \
                 --js-runtimes node \
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=$client" \
+                --playlist-items 1 \
                 --download-sections "*00:00-01:30" \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
-                -o "$RAW_FILE" --socket-timeout 35; then
-                DWN_FILE=""
-                for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
-                  if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
-                done
+                -o "$RAW_FILE" --socket-timeout 35 || true
+              # Check the produced file regardless of yt-dlp exit code: on search
+              # playlists yt-dlp can exit non-zero (per-item errors) even after a
+              # successful download of the target excerpt.
+              DWN_FILE=""
+              for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+                if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+              done
               if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
-                  DOWNLOAD_SUCCESS=true
-                  echo "✅ [Tier 3] Successfully downloaded source via $client: $RAW_FILE"
-                  break
-                fi
+                DOWNLOAD_SUCCESS=true
+                echo "✅ [Tier 3] Successfully downloaded source via $client: $DWN_FILE"
+                break
               fi
             done
           fi
