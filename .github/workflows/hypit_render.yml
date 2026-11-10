@@ -85,7 +85,7 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install -U yt-dlp yt-dlp-ejs
+          pip install -U yt-dlp yt-dlp-ejs bgutil-ytdlp-pot-provider
 
       - name: 🧪 Run Hypit & Packaging Unit Tests
         run: |
@@ -137,25 +137,45 @@ jobs:
               f.write(f'formatted_title={title}\n')
           "
 
-      - name: 🛡️ Launch Local BotGuard PO Token Service (bgutil)
+      - name: 🛡️ Generate YouTube PO Token via Node.js (Tier 2 Pre-flight)
+        id: pot_gen
         run: |
           set -uo pipefail
-          echo "🚀 Pulling and starting BotGuard PO Token generator container..."
-          docker run -d --name bgutil-provider --restart always -p 4416:4416 brainicism/bgutil-ytdlp-pot-provider || echo "⚠️ Docker bgutil start skipped"
-          # Wait up to 10s for container to be ready
-          for i in {1..10}; do
-            if curl -s http://127.0.0.1:4416/ping 2>/dev/null; then
-              echo "✅ BotGuard PO Token service ready on http://127.0.0.1:4416"
-              break
-            fi
-            sleep 1
-          done
-          pip install -U bgutil-ytdlp-pot-provider || true
+          echo "📦 Installing youtube-po-token-generator..."
+          npm install -g youtube-po-token-generator 2>/dev/null || true
 
-      - name: 📥 Source Video Ingestion (3-Tier Cascading Fallback)
+          # Generate fresh PO token + visitor_data via headless Node.js
+          POT_JSON=$(timeout 30 node -e "
+            const { generate } = require('youtube-po-token-generator');
+            generate().then(r => { console.log(JSON.stringify(r)); }).catch(e => { console.log('{}'); });
+          " 2>/dev/null || echo '{}')
+
+          PO_TOKEN=$(echo "$POT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('poToken',''))" 2>/dev/null || echo "")
+          VISITOR_DATA=$(echo "$POT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('visitorData',''))" 2>/dev/null || echo "")
+
+          if [ -n "$PO_TOKEN" ] && [ -n "$VISITOR_DATA" ]; then
+            echo "✅ PO Token generated successfully (len=${#PO_TOKEN})"
+            echo "po_token=$PO_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "visitor_data=$VISITOR_DATA" >> "$GITHUB_OUTPUT"
+          else
+            echo "⚠️ PO Token generation failed — Tier 2 will fallback to bgutil Docker"
+            echo "po_token=" >> "$GITHUB_OUTPUT"
+            echo "visitor_data=" >> "$GITHUB_OUTPUT"
+            # Attempt bgutil Docker as secondary Tier 2 provider
+            docker run -d --name bgutil-provider --restart always -p 4416:4416 brainicism/bgutil-ytdlp-pot-provider 2>/dev/null || true
+            for i in {1..10}; do
+              curl -s http://127.0.0.1:4416/ping 2>/dev/null && echo "✅ bgutil Docker ready on :4416" && break
+              sleep 1
+            done
+            pip install -U bgutil-ytdlp-pot-provider 2>/dev/null || true
+          fi
+
+      - name: 📥 Source Video Ingestion (4-Tier Cascading Fallback)
         env:
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
           YOUTUBE_PROXY: ${{ secrets.YOUTUBE_PROXY }}
+          YT_PO_TOKEN: ${{ steps.pot_gen.outputs.po_token }}
+          YT_VISITOR_DATA: ${{ steps.pot_gen.outputs.visitor_data }}
         run: |
           set -uo pipefail
           SOURCE_URL="${{ steps.resolve.outputs.source_video_url }}"
@@ -163,9 +183,10 @@ jobs:
           RAW_FILE="raw_source_${CREATOR_ID}.mp4"
           echo "Attempting to download 90s source excerpt for $CREATOR_ID from: $SOURCE_URL"
 
-          # 1. Update yt-dlp to latest official release
-          sudo wget -q https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp || true
-          sudo chmod a+rx /usr/local/bin/yt-dlp || true
+          # 1. Verify pip-installed yt-dlp (has yt-dlp-ejs + bgutil plugin importable).
+          # NOTE: do NOT shadow with the standalone wget binary — a PyInstaller
+          # binary cannot import pip-installed packages (yt_dlp_ejs / yt_dlp_plugins).
+          echo "yt-dlp version: $(yt-dlp --version)"
 
           # 2. Extract YOUTUBE_COOKIES secret if available
           COOKIE_ARGS=()
@@ -177,13 +198,25 @@ jobs:
             fi
           fi
 
+          # 3. Build PO Token args if generated in pre-flight step
+          POT_ARGS=()
+          if [ -n "${YT_PO_TOKEN:-}" ] && [ -n "${YT_VISITOR_DATA:-}" ]; then
+            POT_ARGS=(
+              --extractor-args "youtube:po_token=web.gvs+${YT_PO_TOKEN}"
+              --extractor-args "youtube:visitor_data=${YT_VISITOR_DATA}"
+            )
+            echo "🎟️ PO Token args ready (len=${#YT_PO_TOKEN})"
+          else
+            echo "ℹ️ No PO Token available — Tier 2 will try with bgutil/cookies only"
+          fi
+
           DOWNLOAD_SUCCESS=false
 
           # -------------------------------------------------------------
-          # Tier 1: Proxy Routing (if YOUTUBE_PROXY secret configured)
+          # Tier 1: Residential Proxy Routing (if YOUTUBE_PROXY configured)
           # -------------------------------------------------------------
           if [ -n "${YOUTUBE_PROXY:-}" ]; then
-            echo "🌐 [Tier 1] Attempting download via YOUTUBE_PROXY..."
+            echo "🌐 [Tier 1] Attempting download via YOUTUBE_PROXY (residential IP)..."
             if yt-dlp -4 "$SOURCE_URL" \
               --proxy "$YOUTUBE_PROXY" \
               "${COOKIE_ARGS[@]}" \
@@ -203,33 +236,64 @@ jobs:
           fi
 
           # -------------------------------------------------------------
-          # Tier 2: BotGuard PO Token Generator (bgutil Docker service)
+          # Tier 2: Node.js PO Token (youtube-po-token-generator) + web/mweb clients
+          # Uses a fresh runtime-generated PO Token that YouTube accepts
+          # from datacenter IPs when paired with a GVS-signed session
+          # -------------------------------------------------------------
+          if [ "$DOWNLOAD_SUCCESS" != "true" ] && [ ${#POT_ARGS[@]} -gt 0 ]; then
+            echo "🎟️ [Tier 2] Attempting download with fresh Node.js PO Token + cookies (web/mweb)..."
+            for client in "mweb" "web" "web_creator"; do
+              echo "  🔄 Trying client=$client with PO Token..."
+              if yt-dlp -4 "$SOURCE_URL" \
+                "${COOKIE_ARGS[@]}" \
+                "${POT_ARGS[@]}" \
+                --js-runtimes node \
+                --remote-components ejs:github \
+                --extractor-args "youtube:player_client=${client}" \
+                --download-sections "*00:00-01:30" \
+                --force-keyframes-at-cuts \
+                --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
+                -o "$RAW_FILE" --socket-timeout 45; then
+                if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                  DOWNLOAD_SUCCESS=true
+                  echo "✅ [Tier 2] Successfully downloaded source via PO Token + $client: $RAW_FILE"
+                  break
+                fi
+              fi
+            done
+          fi
+
+          # -------------------------------------------------------------
+          # Tier 2b: bgutil Docker PO Token service (fallback if npm gen failed)
+          # Only runs if the bgutil Docker was started in pre-flight
           # -------------------------------------------------------------
           if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
-            echo "🛡️ [Tier 2] Attempting download with BotGuard PO Token Generator (bgutil on :4416)..."
-            if yt-dlp -4 "$SOURCE_URL" \
-              "${COOKIE_ARGS[@]}" \
-              --js-runtimes node \
-              --remote-components ejs:github \
-              --extractor-args "youtube:player_client=web,mweb,android" \
-              --download-sections "*00:00-01:30" \
-              --force-keyframes-at-cuts \
-              --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
-              -o "$RAW_FILE" --socket-timeout 45; then
-              if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
-                DOWNLOAD_SUCCESS=true
-                echo "✅ [Tier 2] Successfully downloaded source via BotGuard PO Token: $RAW_FILE"
+            if curl -s http://127.0.0.1:4416/ping 2>/dev/null | grep -q "version"; then
+              echo "🛡️ [Tier 2b] Attempting download with bgutil Docker PO Token (web/mweb)..."
+              if yt-dlp -4 "$SOURCE_URL" \
+                "${COOKIE_ARGS[@]}" \
+                --js-runtimes node \
+                --remote-components ejs:github \
+                --extractor-args "youtube:player_client=web,mweb" \
+                --download-sections "*00:00-01:30" \
+                --force-keyframes-at-cuts \
+                --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
+                -o "$RAW_FILE" --socket-timeout 45; then
+                if [ -f "$RAW_FILE" ] && [ $(stat -c%s "$RAW_FILE" 2>/dev/null || stat -f%z "$RAW_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                  DOWNLOAD_SUCCESS=true
+                  echo "✅ [Tier 2b] Successfully downloaded source via bgutil Docker: $RAW_FILE"
+                fi
               fi
             fi
           fi
 
           # -------------------------------------------------------------
           # Tier 3: Apple VisionOS / iOS HLS Extraction (NO Cookies)
-          # (Note: Passing cookies causes yt-dlp to skip VisionOS/iOS)
+          # (Cookies cause yt-dlp to skip native Apple clients entirely)
           # -------------------------------------------------------------
           if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
             echo "🍎 [Tier 3] Attempting download via VisionOS / iOS HLS client (without cookies)..."
-            for client in "visionos" "ios" "android_vr"; do
+            for client in "visionos" "ios" "android_vr" "tv_embedded"; do
               echo "🔄 Trying yt-dlp download with client: $client..."
               if yt-dlp -4 "$SOURCE_URL" \
                 --js-runtimes node \
@@ -257,7 +321,7 @@ jobs:
             echo "⚠️ MrBeast live download failed; using verified local MrBeast footage."
             echo "raw_video_flag=" >> "$GITHUB_ENV"
           else
-            echo "❌ Fatal: Could not download authentic source video for $CREATOR_ID across all 3 tiers."
+            echo "❌ Fatal: Could not download authentic source video for $CREATOR_ID across all 4 tiers."
             echo "Aborting render to prevent mismatched footage assembly."
             exit 1
           fi
