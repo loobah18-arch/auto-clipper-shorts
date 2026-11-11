@@ -188,7 +188,7 @@ jobs:
             pip install -U bgutil-ytdlp-pot-provider 2>/dev/null || true
           fi
 
-      - name: 📥 Source Video Ingestion (4-Tier Cascading Fallback)
+      - name: 📥 Source Video Ingestion (5-Tier Cascading Fallback)
         env:
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
           YOUTUBE_PROXY: ${{ secrets.YOUTUBE_PROXY }}
@@ -355,6 +355,46 @@ jobs:
           fi
 
           # -------------------------------------------------------------
+          # Tier 3b: Full-File Native Downloader (no --download-sections)
+          # --download-sections forces yt-dlp to delegate the HTTP fetch to
+          # ffmpeg, whose requests lack proper client headers and get 403'd
+          # by googlevideo on datacenter IPs even with a valid PO token
+          # (run 42972560130: "ffmpeg exited with code 8" / 403 Forbidden).
+          # Forcing yt-dlp's native downloader makes yt-dlp fetch the bytes
+          # itself with correct headers; ffmpeg only does local muxing.
+          # Render's arc-cutting maps any raw duration to the 90s output,
+          # so a full-file download is safe.
+          # -------------------------------------------------------------
+          if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
+            echo "⬇️ [Tier 3b] Attempting full-file download with yt-dlp native downloader (no --download-sections)..."
+            for client in "mweb" "web" "web_creator"; do
+              echo "  🔄 Trying native download with client=$client..."
+              yt-dlp -4 "$SOURCE_URL" \
+                "${COOKIE_ARGS[@]}" \
+                "${POT_ARGS[@]}" \
+                --js-runtimes node \
+                --remote-components ejs:github \
+                --extractor-args "youtube:player_client=${client}" \
+                --playlist-items 1 \
+                --downloader native \
+                --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
+                -o "$RAW_FILE" --socket-timeout 45 || true
+              # Check the produced file regardless of yt-dlp exit code: on search
+              # playlists yt-dlp can exit non-zero (per-item errors) even after a
+              # successful download of the target excerpt.
+              DWN_FILE=""
+              for _cand in "$RAW_FILE" "$RAW_FILE.webm" "$RAW_FILE.mkv"; do
+                if [ -f "$_cand" ]; then DWN_FILE="$_cand"; break; fi
+              done
+              if [ -n "$DWN_FILE" ] && [ $(stat -c%s "$DWN_FILE" 2>/dev/null || stat -f%z "$DWN_FILE" 2>/dev/null || echo 0) -gt 100000 ]; then
+                DOWNLOAD_SUCCESS=true
+                echo "✅ [Tier 3b] Successfully downloaded full file via native downloader ($client): $DWN_FILE"
+                break
+              fi
+            done
+          fi
+
+          # -------------------------------------------------------------
           # Tier 4: Pipeline Gate & Local Asset Fallback
           # -------------------------------------------------------------
           if [ "$DOWNLOAD_SUCCESS" = "true" ]; then
@@ -363,7 +403,7 @@ jobs:
             echo "⚠️ MrBeast live download failed; using verified local MrBeast footage."
             echo "raw_video_flag=" >> "$GITHUB_ENV"
           else
-            echo "❌ Fatal: Could not download authentic source video for $CREATOR_ID across all 4 tiers."
+            echo "❌ Fatal: Could not download authentic source video for $CREATOR_ID across all 5 tiers."
             echo "Aborting render to prevent mismatched footage assembly."
             exit 1
           fi
