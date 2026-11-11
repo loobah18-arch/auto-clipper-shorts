@@ -433,5 +433,9 @@ jobs:
           fi
           git commit -m "🤖 Update upload history & candle gate state [skip ci]"
           git fetch origin "$TARGET_BRANCH"
+          # Discard unstaged changes to tracked files (per-run regenerated
+          # artifacts like assets/intro_voice.wav from the TTS step) — they are
+          # run-local and must not block the rebase below.
+          git checkout -- . 2>/dev/null || true
           git rebase "origin/$TARGET_BRANCH"
           git push origin "HEAD:$TARGET_BRANCH"
