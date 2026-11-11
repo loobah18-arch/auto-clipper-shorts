@@ -101,6 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -c "
+          import json
           import os
           from youtube_uploader import resolve_next_creator_rotation
           from creator_backlog_crawler import select_target_upload
@@ -120,6 +121,8 @@ jobs:
           out_name = manual_output if manual_output else selection['output_filename']
           source_vid = selection['source_video']
           title = selection['formatted_title']
+          catalog = json.load(open('creator_catalog.json', encoding='utf-8'))
+          narrator_voice = catalog['creators'][creator]['narrator_voice']
 
           print(f'🎯 Selected Creator: {creator} ({selection[\"creator_name\"]})')
           print(f'🎬 Selection Mode: {selection[\"selection_mode\"]} (Backlog Index: {selection[\"backlog_index\"]})')
@@ -135,7 +138,22 @@ jobs:
               f.write(f'source_video_id={source_vid[\"video_id\"]}\n')
               f.write(f'source_video_url={source_vid[\"url\"]}\n')
               f.write(f'formatted_title={title}\n')
+              f.write(f'narrator_voice={narrator_voice}\n')
           "
+
+      - name: 🎙️ Regenerate Per-Title Intro Narration (TTS)
+        env:
+          TITLE: ${{ steps.resolve.outputs.formatted_title }}
+          VOICE: ${{ steps.resolve.outputs.narrator_voice }}
+        run: |
+          set -euo pipefail
+          echo "🎙️ Synthesizing fresh intro narration with voice=$VOICE"
+          echo "    Text: $TITLE"
+          edge-tts --voice "$VOICE" --text "$TITLE" --write-media narr_tts.mp3
+          ffmpeg -y -loglevel error -i narr_tts.mp3 -ar 44100 -ac 2 assets/intro_voice.wav
+          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 assets/intro_voice.wav)
+          echo "✅ Narration regenerated (duration=${DUR}s)"
+          rm -f narr_tts.mp3
 
       - name: 🛡️ Generate YouTube PO Token via Node.js (Tier 2 Pre-flight)
         id: pot_gen
