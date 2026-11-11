@@ -6,7 +6,7 @@ Validates SVML/SVS/SVRun parsing, subtitle generation, and pipeline integrity.
 
 import unittest
 from pathlib import Path
-from hypit_engine import HypitSVMLParser, HypitRunParser, HypitEngine
+from hypit_engine import ARC_STAGES, HypitSVMLParser, HypitRunParser, HypitEngine, build_arc_filter_complex, plan_arc_cuts
 
 ROOT_DIR = Path(__file__).resolve().parent
 SOURCES_DIR = ROOT_DIR / "sources"
@@ -96,6 +96,66 @@ class TestHypitEngine(unittest.TestCase):
         with self.assertRaises(FileNotFoundError) as ctx:
             engine.render(destination=ROOT_DIR / "output" / "test_fake.mp4")
         self.assertIn("Refusing to substitute mismatched MrBeast footage", str(ctx.exception))
+
+
+class TestStoryArcCutting(unittest.TestCase):
+    """Validates 6-stage story-arc cutting (HOOK -> RISING ACTION -> CONFLICT -> COMEBACK -> RISING ACTION -> PAYOFF)."""
+
+    def test_arc_stage_order(self):
+        self.assertEqual(
+            [stage for stage, _ in ARC_STAGES],
+            ["HOOK", "RISING ACTION", "CONFLICT", "COMEBACK", "RISING ACTION", "PAYOFF"],
+        )
+
+    def test_arc_weights_sum_to_one(self):
+        self.assertAlmostEqual(sum(w for _, w in ARC_STAGES), 1.0, places=6)
+
+    def test_plan_without_narration_sums_to_duration(self):
+        cuts = plan_arc_cuts(900.0, 60.0, has_narration=False)
+        self.assertIsNotNone(cuts)
+        self.assertEqual(len(cuts), 6)
+        self.assertAlmostEqual(sum(dur for _, _, dur in cuts), 60.0, places=6)
+
+    def test_plan_windows_monotonic_nonoverlapping_and_bounded(self):
+        raw = 900.0
+        cuts = plan_arc_cuts(raw, 60.0, has_narration=False)
+        cursor = 0.0
+        for _, start, dur in cuts:
+            self.assertGreaterEqual(start, cursor)  # spread across raw, never overlaps
+            cursor = start + dur
+        self.assertAlmostEqual(cursor, raw, places=6)  # PAYOFF lands at the raw end
+
+    def test_plan_with_narration_pins_hook_to_intro(self):
+        cuts = plan_arc_cuts(900.0, 60.0, has_narration=True)
+        self.assertIsNotNone(cuts)
+        self.assertAlmostEqual(cuts[0][2], 3.75, places=6)
+        self.assertAlmostEqual(sum(dur for _, _, dur in cuts), 60.0, places=6)
+
+    def test_plan_without_narration_hook_is_proportional(self):
+        cuts = plan_arc_cuts(900.0, 60.0, has_narration=False)
+        self.assertAlmostEqual(cuts[0][2], 0.14 * 60.0, places=6)
+
+    def test_plan_returns_none_when_raw_unknown_or_too_short(self):
+        self.assertIsNone(plan_arc_cuts(None, 60.0, has_narration=False))
+        self.assertIsNone(plan_arc_cuts(0.0, 60.0, has_narration=False))
+        self.assertIsNone(plan_arc_cuts(30.0, 60.0, has_narration=False))
+
+    def test_filter_builder_concatenates_six_segments(self):
+        cuts = plan_arc_cuts(900.0, 60.0, has_narration=False)
+        fc = build_arc_filter_complex(cuts, 1080, 1920, "sub.ass", ":fontsdir=/x", has_narration=False, has_sfx=False)
+        self.assertIn("concat=n=6:v=1:a=0", fc)
+        self.assertIn("concat=n=6:v=0:a=1", fc)
+        self.assertIn("subtitles='sub.ass'", fc)
+        self.assertEqual(fc.count(":v]trim=start="), 6)
+        self.assertEqual(fc.count(":a]atrim=start="), 6)
+        self.assertNotIn("[2:a]", fc)
+
+    def test_filter_builder_narration_mixes_intro_vox(self):
+        cuts = plan_arc_cuts(900.0, 60.0, has_narration=True)
+        fc = build_arc_filter_complex(cuts, 1080, 1920, "sub.ass", "", has_narration=True, has_sfx=True)
+        self.assertIn("[1:a]volume=1.40[a_vox];", fc)
+        self.assertIn("[2:a]volume=0.90[a_sfx];", fc)
+        self.assertIn("alimiter=limit=0.95[a]", fc)
 
 
 if __name__ == "__main__":

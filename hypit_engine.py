@@ -19,6 +19,124 @@ FONTS_DIR = ROOT_DIR / "assets" / "fonts"
 FONT_PATH = FONTS_DIR / "Montserrat-ExtraBold.ttf"
 SFX_DIR = ROOT_DIR / "assets" / "sfx"
 
+# Six-stage story-arc retention curve ("Completion Compulsion"):
+# HOOK grabs, tension builds, CONFLICT peaks, COMEBACK resets, the second
+# RISING ACTION escalates, PAYOFF resolves. Weights are shares of the
+# timeline duration when no intro narration is present; with narration the
+# HOOK stage is pinned to the intro-narration window and the remaining
+# stages split the rest proportionally.
+ARC_STAGES: Tuple[Tuple[str, float], ...] = (
+    ("HOOK", 0.14),
+    ("RISING ACTION", 0.22),
+    ("CONFLICT", 0.24),
+    ("COMEBACK", 0.18),
+    ("RISING ACTION", 0.12),
+    ("PAYOFF", 0.10),
+)
+ARC_INTRO_SECONDS = 3.75  # intro narration window; pins the HOOK stage length
+
+ArcCut = Tuple[str, float, float]  # (stage label, raw start, output duration)
+
+
+def _probe_duration(video_path: Path) -> Optional[float]:
+    """Returns the media duration in seconds via ffprobe, or None on failure."""
+    try:
+        proc = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(video_path)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return float(proc.stdout.strip())
+    except (subprocess.SubprocessError, ValueError, OSError):
+        pass
+    return None
+
+
+def plan_arc_cuts(
+    raw_duration: Optional[float],
+    out_duration: float,
+    has_narration: bool,
+    intro_seconds: float = ARC_INTRO_SECONDS,
+) -> Optional[List[ArcCut]]:
+    """Plans six story-arc cuts spread across the raw source timeline.
+
+    Each stage takes a distinct, non-overlapping window from the raw video in
+    arc order (HOOK earliest, PAYOFF at the very end), so the edit follows the
+    "Completion Compulsion" curve instead of one continuous take from 0:00.
+    Returns None when the plan is impossible, letting render() fall back to
+    the continuous cut.
+    """
+    if out_duration < len(ARC_STAGES) or raw_duration is None or raw_duration <= 0 or raw_duration < out_duration:
+        return None
+    if has_narration:
+        if out_duration <= intro_seconds:
+            return None
+        durs = [intro_seconds]
+        remaining = out_duration - intro_seconds
+        other_weight = sum(w for _, w in ARC_STAGES[1:])
+        durs += [remaining * w / other_weight for _, w in ARC_STAGES[1:]]
+    else:
+        total_weight = sum(w for _, w in ARC_STAGES)
+        durs = [out_duration * w / total_weight for _, w in ARC_STAGES]
+
+    gap = (raw_duration - out_duration) / len(ARC_STAGES)
+    cuts: List[ArcCut] = []
+    cursor = gap
+    for (stage, _), dur in zip(ARC_STAGES, durs):
+        cuts.append((stage, cursor, dur))
+        cursor += dur + gap
+    return cuts
+
+
+def build_arc_filter_complex(
+    cuts: List[ArcCut],
+    w: int,
+    h: int,
+    escaped_ass: str,
+    font_dir_arg: str = "",
+    has_narration: bool = False,
+    has_sfx: bool = False,
+) -> str:
+    """Builds the ffmpeg -filter_complex graph for multi-segment arc cutting."""
+    n = len(cuts)
+    intro_grade = "eq=contrast=1.12:brightness=-0.06:saturation=1.22"
+    main_grade = "eq=contrast=1.06:saturation=1.15"
+    lines: List[str] = []
+
+    v_labels = []
+    for i, (_stage, start, dur) in enumerate(cuts):
+        end = start + dur
+        grade = intro_grade if (has_narration and i == 0) else main_grade
+        lines.append(f"[0:v]trim=start={start}:end={end},setpts=PTS-STARTPTS,{grade}[v{i}];")
+        v_labels.append(f"[v{i}]")
+    lines.append(
+        "".join(v_labels)
+        + f"concat=n={n}:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+        + f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
+    )
+
+    a_labels = []
+    for i, (_stage, start, dur) in enumerate(cuts):
+        end = start + dur
+        if has_narration and i == 0:
+            lines.append(
+                f"[0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS,volume=0.20,lowpass=f=1200[a_amb];"
+            )
+            lines.append("[1:a]volume=1.40[a_vox];")
+            lines.append("[a_amb][a_vox]amix=inputs=2:duration=first:dropout_transition=2[a_s0];")
+        else:
+            lines.append(f"[0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS,volume=1.10[a_s{i}];")
+        a_labels.append(f"[a_s{i}]")
+    lines.append("".join(a_labels) + f"concat=n={n}:v=0:a=1[a_dialogue];")
+
+    if has_narration and has_sfx:
+        lines.append("[2:a]volume=0.90[a_sfx];")
+        lines.append("[a_dialogue][a_sfx]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.95[a]")
+    else:
+        lines.append("[a_dialogue]alimiter=limit=0.95[a]")
+    return "".join(lines)
+
 
 class HypitSVMLParser:
     """Parses and validates Hypit SVML and SVS documents."""
@@ -562,10 +680,35 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if has_sfx:
             print(f"[Hypit] 🔊 Master SFX Bed: {sfx_bed} (6-Peak Audio Design)")
 
+        raw_duration = _probe_duration(raw_video)
+        arc_cuts = plan_arc_cuts(raw_duration, duration, has_intro_narration)
+        if arc_cuts is not None:
+            arc_trace = " -> ".join(f"{stage}@{start:.1f}s" for stage, start, _ in arc_cuts)
+            print(f"[Hypit] ✂️ Story-Arc Cuts: {arc_trace}")
+        elif raw_duration is None:
+            print("[Hypit] ⚠️ ffprobe unavailable/failed — falling back to continuous render")
+        else:
+            print(
+                f"[Hypit] ⚠️ Raw source ({raw_duration:.1f}s) too short for {duration:.1f}s "
+                f"{len(ARC_STAGES)}-stage arc — falling back to continuous render"
+            )
+
+        use_arc = arc_cuts is not None
+        pre_input_flags: List[str] = []
+        input_files: List[str] = []
+
         if has_intro_narration:
             t_intro = 3.75
             t_main = duration - t_intro
-            if has_sfx:
+            if use_arc:
+                filter_complex = build_arc_filter_complex(
+                    arc_cuts, w, h, escaped_ass, font_dir_arg,
+                    has_narration=True, has_sfx=has_sfx,
+                )
+                input_files = [str(raw_video), str(narrator_audio)]
+                if has_sfx:
+                    input_files.append(str(sfx_bed))
+            elif has_sfx:
                 filter_complex = (
                     f"[0:v]trim=start=0:end={t_intro},setpts=PTS-STARTPTS,eq=contrast=1.12:brightness=-0.06:saturation=1.22[v_intro];"
                     f"[0:v]trim=start=0:end={t_main},setpts=PTS-STARTPTS,eq=contrast=1.06:saturation=1.15[v_main];"
@@ -579,25 +722,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     f"[2:a]volume=0.90[a_sfx];"
                     f"[a_dialogue][a_sfx]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.95[a]"
                 )
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-i", str(raw_video),
-                    "-i", str(narrator_audio),
-                    "-i", str(sfx_bed),
-                    "-filter_complex", filter_complex,
-                    "-map", "[v]",
-                    "-map", "[a]",
-                    "-t", str(duration),
-                    "-c:v", "libx264",
-                    "-preset", "fast",
-                    "-crf", "18",
-                    "-c:a", "aac",
-                    "-b:a", "192k",
-                    "-ar", "44100",
-                    "-pix_fmt", "yuv420p",
-                    "-movflags", "+faststart",
-                    str(dest)
-                ]
+                input_files = [str(raw_video), str(narrator_audio), str(sfx_bed)]
             else:
                 filter_complex = (
                     f"[0:v]trim=start=0:end={t_intro},setpts=PTS-STARTPTS,eq=contrast=1.12:brightness=-0.06:saturation=1.22[v_intro];"
@@ -610,50 +735,43 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     f"[0:a]atrim=start=0:end={t_main},asetpts=PTS-STARTPTS,volume=1.10[a_main];"
                     f"[a_intro][a_main]concat=n=2:v=0:a=1,alimiter=limit=0.95[a]"
                 )
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-i", str(raw_video),
-                    "-i", str(narrator_audio),
-                    "-filter_complex", filter_complex,
-                    "-map", "[v]",
-                    "-map", "[a]",
-                    "-t", str(duration),
-                    "-c:v", "libx264",
-                    "-preset", "fast",
-                    "-crf", "18",
-                    "-c:a", "aac",
-                    "-b:a", "192k",
-                    "-ar", "44100",
-                    "-pix_fmt", "yuv420p",
-                    "-movflags", "+faststart",
-                    str(dest)
-                ]
+                input_files = [str(raw_video), str(narrator_audio)]
         else:
-            filter_complex = (
-                f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
-                f"crop={w}:{h},"
-                f"eq=contrast=1.06:saturation=1.15,"
-                f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
-                f"[0:a]volume=1.10,alimiter=limit=0.95[a]"
-            )
-            cmd = [
-                "ffmpeg", "-y",
-                "-ss", "0.0",
-                "-t", str(duration),
-                "-i", str(raw_video),
-                "-filter_complex", filter_complex,
-                "-map", "[v]",
-                "-map", "[a]",
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "18",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-ar", "44100",
-                "-pix_fmt", "yuv420p",
-                "-movflags", "+faststart",
-                str(dest)
-            ]
+            if use_arc:
+                filter_complex = build_arc_filter_complex(
+                    arc_cuts, w, h, escaped_ass, font_dir_arg,
+                    has_narration=False, has_sfx=False,
+                )
+                input_files = [str(raw_video)]
+            else:
+                filter_complex = (
+                    f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
+                    f"crop={w}:{h},"
+                    f"eq=contrast=1.06:saturation=1.15,"
+                    f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
+                    f"[0:a]volume=1.10,alimiter=limit=0.95[a]"
+                )
+                pre_input_flags = ["-ss", "0.0", "-t", str(duration)]
+                input_files = [str(raw_video)]
+
+        cmd = ["ffmpeg", "-y", *pre_input_flags]
+        for src in input_files:
+            cmd += ["-i", src]
+        cmd += [
+            "-filter_complex", filter_complex,
+            "-map", "[v]",
+            "-map", "[a]",
+            "-t", str(duration),
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "18",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "44100",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            str(dest)
+        ]
 
         print("[Hypit] 🚀 Running render pipeline...")
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
