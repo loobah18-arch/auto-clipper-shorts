@@ -2,8 +2,11 @@ name: 🎬 Hypit Cloud Render & YouTube Upload Pipeline
 
 on:
   schedule:
-    # 12-hour evaluation cadence: runs at 02:00 UTC and 14:00 UTC (7:30 AM & 7:30 PM IST)
-    - cron: '0 2,14 * * *'
+    # 6-hour polling cadence: 00/06/12/18 UTC. The pre-flight gate job
+    # (preflight_gate.py, Layer 0) skips the pipeline unless >= 24h have
+    # elapsed since the last successful upload in upload_history.json.
+    # Cadence only bounds post-24h latency; the gate enforces the true cycle.
+    - cron: '0 0,6,12,18 * * *'
 
   workflow_dispatch:
     inputs:
@@ -53,7 +56,29 @@ permissions:
   contents: write
 
 jobs:
+  preflight_gate:
+    name: 🕯️ 24-Hour Spacing Pre-flight Gate (Layer 0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    outputs:
+      proceed: ${{ steps.gate.outputs.proceed }}
+
+    steps:
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4
+
+      - name: 🕯️ Evaluate 24-Hour Upload Spacing (skip pipeline unless due)
+        id: gate
+        env:
+          PREFLIGHT_BYPASS: ${{ github.event_name != 'schedule' }}
+        run: |
+          set -euo pipefail
+          python3 preflight_gate.py
+
   hypit_build_render_and_publish:
+    needs: preflight_gate
+    if: needs.preflight_gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
