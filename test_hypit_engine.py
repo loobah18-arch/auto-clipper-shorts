@@ -150,6 +150,12 @@ class TestStoryArcCutting(unittest.TestCase):
         self.assertEqual(fc.count(":a]atrim=start="), 6)
         self.assertNotIn("[2:a]", fc)
 
+    def test_filter_crops_with_top_bias(self):
+        cuts = plan_arc_cuts(900.0, 60.0, has_narration=False)
+        fc = build_arc_filter_complex(cuts, 1080, 1920, "sub.ass", "", has_narration=False, has_sfx=False)
+        self.assertIn("crop=1080:1920:(iw-ow)/2:(ih-oh)/4,", fc)
+        self.assertNotIn("crop=1080:1920,", fc)
+
     def test_filter_builder_narration_mixes_intro_vox(self):
         cuts = plan_arc_cuts(900.0, 60.0, has_narration=True)
         fc = build_arc_filter_complex(cuts, 1080, 1920, "sub.ass", "", has_narration=True, has_sfx=True)

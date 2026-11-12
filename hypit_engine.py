@@ -112,7 +112,7 @@ def build_arc_filter_complex(
         v_labels.append(f"[v{i}]")
     lines.append(
         "".join(v_labels)
-        + f"concat=n={n}:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+        + f"concat=n={n}:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}:(iw-ow)/2:(ih-oh)/4,"
         + f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
     )
 
@@ -712,7 +712,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 filter_complex = (
                     f"[0:v]trim=start=0:end={t_intro},setpts=PTS-STARTPTS,eq=contrast=1.12:brightness=-0.06:saturation=1.22[v_intro];"
                     f"[0:v]trim=start=0:end={t_main},setpts=PTS-STARTPTS,eq=contrast=1.06:saturation=1.15[v_main];"
-                    f"[v_intro][v_main]concat=n=2:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+                    f"[v_intro][v_main]concat=n=2:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}:(iw-ow)/2:(ih-oh)/4,"
                     f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
                     f"[0:a]atrim=start=0:end={t_intro},asetpts=PTS-STARTPTS,volume=0.20,lowpass=f=1200[a_amb];"
                     f"[1:a]volume=1.40[a_vox];"
@@ -727,7 +727,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 filter_complex = (
                     f"[0:v]trim=start=0:end={t_intro},setpts=PTS-STARTPTS,eq=contrast=1.12:brightness=-0.06:saturation=1.22[v_intro];"
                     f"[0:v]trim=start=0:end={t_main},setpts=PTS-STARTPTS,eq=contrast=1.06:saturation=1.15[v_main];"
-                    f"[v_intro][v_main]concat=n=2:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+                    f"[v_intro][v_main]concat=n=2:v=1:a=0,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}:(iw-ow)/2:(ih-oh)/4,"
                     f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
                     f"[0:a]atrim=start=0:end={t_intro},asetpts=PTS-STARTPTS,volume=0.20,lowpass=f=1200[a_amb];"
                     f"[1:a]volume=1.40[a_vox];"
@@ -746,7 +746,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             else:
                 filter_complex = (
                     f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
-                    f"crop={w}:{h},"
+                    f"crop={w}:{h}:(iw-ow)/2:(ih-oh)/4,"
                     f"eq=contrast=1.06:saturation=1.15,"
                     f"subtitles='{escaped_ass}'{font_dir_arg}[v];"
                     f"[0:a]volume=1.10,alimiter=limit=0.95[a]"
