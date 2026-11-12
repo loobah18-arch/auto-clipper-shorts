@@ -163,7 +163,7 @@ jobs:
               f.write(f'source_video_id={source_vid[\"video_id\"]}\n')
               f.write(f'source_video_url={source_vid[\"url\"]}\n')
               f.write(f'formatted_title={title}\n')
-              f.write(f'raw_source_title={source_vid["title"]}\n')
+              f.write(f'raw_source_title={source_vid[\"title\"]}\n')
               f.write(f'narrator_voice={narrator_voice}\n')
           "
 
