@@ -141,10 +141,17 @@ def format_jack_craig_hook(raw_title: str, creator_info: Dict[str, Any]) -> str:
     # Formulate question hook if not already phrased as question
     creator_display_name = creator_info.get("name", "They").split("/")[0].strip()
     if not clean_title.endswith("?"):
-        if not any(clean_title.lower().startswith(q) for q in ["can ", "did ", "how ", "why ", "what ", "who ", "will ", "is "]):
-            hook = f"Can {creator_display_name} {clean_title}?"
-        else:
+        if any(clean_title.lower().startswith(q) for q in ["can ", "did ", "how ", "why ", "what ", "who ", "will ", "is "]):
             hook = f"{clean_title}?"
+        elif re.match(r"^[A-Z][a-z]+ing\b", clean_title):
+            # Gerund titles read badly as "Can {name} Making...?" — keep the
+            # gerund and make the creator the subject: "NileBlue Turning Milk Into Plastic?"
+            hook = f"{creator_display_name} {clean_title}?"
+        elif re.match(r"^I\s", clean_title):
+            # First-person titles: "I Made a Working Lightsaber" -> "NileBlue Made a Working Lightsaber?"
+            hook = f"{creator_display_name} {clean_title[1:].strip()}?"
+        else:
+            hook = f"Can {creator_display_name} {clean_title}?"
     else:
         hook = clean_title
 
@@ -154,7 +161,13 @@ def format_jack_craig_hook(raw_title: str, creator_info: Dict[str, Any]) -> str:
 
     candidate = f"{hook} {emojis} ({handle}/YT)"
     if len(candidate) > 95:
-        candidate = f"{hook[:70]}... {emojis} ({handle}/YT)"
+        if len(hook) > 70:
+            # Truncate at a word boundary, never mid-word
+            cut = hook[:70]
+            if " " in cut:
+                cut = cut[: cut.rfind(" ")]
+            hook = cut + "…"
+        candidate = f"{hook} {emojis} ({handle}/YT)"
     return candidate
 
 

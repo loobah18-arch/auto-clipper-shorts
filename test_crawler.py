@@ -85,9 +85,34 @@ class TestCreatorBacklogCrawler(unittest.TestCase):
             "packaging": {"shock_emojis": "🧪😱"},
         }
         title = format_jack_craig_hook("Turning Milk Into Plastic", creator_info)
-        self.assertTrue(title.startswith("Can NileBlue Turning Milk Into Plastic?"))
+        self.assertTrue(title.startswith("NileBlue Turning Milk Into Plastic?"))
         self.assertIn("🧪😱", title)
         self.assertIn("(@NileBlue/YT)", title)
+
+    def test_format_jack_craig_hook_question_title(self):
+        creator_info = {"name": "NileBlue", "channel_handle": "@NileBlue"}
+        title = format_jack_craig_hook("Can This Blade Cut Diamond?", creator_info)
+        self.assertTrue(title.startswith("Can This Blade Cut Diamond?"))
+
+    def test_format_jack_craig_hook_first_person(self):
+        creator_info = {"name": "NileBlue", "channel_handle": "@NileBlue"}
+        title = format_jack_craig_hook("I Made a Working Lightsaber", creator_info)
+        self.assertTrue(title.startswith("NileBlue Made a Working Lightsaber?"))
+
+    def test_format_jack_craig_hook_can_prefix_for_normal_titles(self):
+        creator_info = {"name": "MrBeast", "channel_handle": "@MrBeast"}
+        title = format_jack_craig_hook("Escaped Prison With $1", creator_info)
+        self.assertTrue(title.startswith("Can MrBeast Escaped Prison With $1?"))
+
+    def test_format_jack_craig_hook_word_boundary_truncation(self):
+        creator_info = {"name": "NileBlue", "channel_handle": "@NileBlue"}
+        long_title = "Turning " + "Superlongword " * 12 + "Into Plastic"
+        title = format_jack_craig_hook(long_title, creator_info)
+        self.assertTrue(title.startswith("NileBlue"))
+        self.assertIn("…", title)
+        # No truncated fragment mid-word: the char before the ellipsis is a space or start
+        stem = title.split("…")[0]
+        self.assertTrue(stem.endswith(" ") or len(stem) <= 70)
 
 
 if __name__ == "__main__":
