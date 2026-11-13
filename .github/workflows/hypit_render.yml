@@ -373,7 +373,7 @@ jobs:
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=web,mweb" \
                 --playlist-items 1 \
-                --download-sections "*00:00-01:30" \
+                --downloader native \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 45 || true
               # Check the produced file regardless of yt-dlp exit code: on search
@@ -403,7 +403,7 @@ jobs:
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=$client" \
                 --playlist-items 1 \
-                --download-sections "*00:00-01:30" \
+                --downloader native \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 35 || true
               # Check the produced file regardless of yt-dlp exit code: on search

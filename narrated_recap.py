@@ -602,8 +602,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         source_duration = probe_duration(args.raw_video)
         log(f"source: {args.raw_video} ({source_duration:.0f}s)")
-        if source_duration < 90:
-            raise RuntimeError("source is too short for a recap (needs the full video)")
+        if source_duration < 240:
+            # an excerpt (e.g. a 90s --download-sections clip) would make the script
+            # retell only the intro and invent a wrong ending
+            raise RuntimeError(f"source is only {source_duration:.0f}s; a recap needs the full video")
 
         if args.transcript_json and args.transcript_json.exists():
             segments = json.loads(args.transcript_json.read_text(encoding="utf-8"))
