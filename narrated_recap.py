@@ -17,7 +17,7 @@ Turns one long source video into a ~60 second narrated vertical Short:
   5. Voiceover + ducked background music + captions synced to the voice.
 
 Free providers, in order:
-  * GROQ_API_KEY       -> whisper-large-v3-turbo (transcript) + llama-3.3-70b-versatile (script)
+  * GROQ_API_KEY       -> whisper-large-v3-turbo (transcript) + gpt-oss-120b / qwen (script)
   * OPENROUTER_API_KEY -> free model for the script (RECAP_OPENROUTER_MODEL to override)
 
 Exit code 0 = Short rendered; anything else = caller should fall back to the
@@ -49,7 +49,10 @@ MAX_TRANSCRIPT_WORDS = 4500  # keeps the prompt inside Groq's free-tier token bu
 SUBCLIP_SECONDS = 2.6       # fast cutting: a new shot roughly every 2.6s
 
 GROQ_BASE = "https://api.groq.com/openai/v1"
-GROQ_CHAT_MODEL = os.environ.get("RECAP_GROQ_MODEL", "llama-3.3-70b-versatile")
+# Groq retires models often, so try a preference list (RECAP_GROQ_MODEL first when set)
+GROQ_CHAT_MODELS = [m for m in [os.environ.get("RECAP_GROQ_MODEL", "").strip(),
+                    "openai/gpt-oss-120b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile",
+                    "openai/gpt-oss-20b"] if m]
 GROQ_WHISPER_MODEL = os.environ.get("RECAP_WHISPER_MODEL", "whisper-large-v3-turbo")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = os.environ.get("RECAP_OPENROUTER_MODEL", "deepseek/deepseek-chat-v3-0324:free")
@@ -206,6 +209,8 @@ STYLE (copy it closely):
 - Then: the goal ("the goal was simple: ..."), the method, a setback or failure, a twist ("But here's where it gets crazy."), the final test, and a punchy payoff/result in the last line.
 - Short spoken sentences, concrete numbers and details from the transcript, zero filler, no hashtags, no emojis, no stage directions.
 - Only state things that actually happen in the transcript.
+- Keep the energy high: use at least one twist line like "But here's where it gets crazy." and end on a punchy payoff sentence.
+- Hit the word count: aim for about 170 words total. Too short sounds rushed and flat.
 
 EXAMPLE (another video):
 "What would happen if you compressed 100 cans of Red Bull into one drink? This guy bought 100 cans of sugar-free Red Bull and poured every single one into a giant bucket. That's 25 liters of energy drink, and the goal was simple: concentrate all of it into the size of one can. To do that, he used this insane machine..."
@@ -245,19 +250,24 @@ def chat_completion(system: str, user: str) -> str:
     or_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     errors = []
     if groq_key:
-        try:
-            data = _http_post(
-                f"{GROQ_BASE}/chat/completions",
-                {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                json={
-                    "model": GROQ_CHAT_MODEL, "temperature": 0.7, "max_tokens": 1500,
-                    "response_format": {"type": "json_object"},
-                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                },
-            )
-            return data["choices"][0]["message"]["content"]
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"groq: {exc}")
+        for model in GROQ_CHAT_MODELS:
+            try:
+                data = _http_post(
+                    f"{GROQ_BASE}/chat/completions",
+                    {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": model, "temperature": 0.7, "max_completion_tokens": 6000,
+                        "response_format": {"type": "json_object"},
+                        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                    },
+                )
+                content = data["choices"][0]["message"].get("content") or ""
+                if content.strip():
+                    log(f"script written by groq:{model}")
+                    return content
+                errors.append(f"groq:{model}: empty reply")
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"groq:{model}: {str(exc)[:200]}")
     if or_key:
         try:
             data = _http_post(
