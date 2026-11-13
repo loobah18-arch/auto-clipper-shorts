@@ -120,6 +120,7 @@ jobs:
           python3 test_catalog.py
           python3 test_youtube_uploader.py
           python3 test_crawler.py
+          python3 test_narrated_recap.py
 
       - name: 🔄 Resolve Creator Rotation & Backlog Upload
         id: resolve
@@ -474,7 +475,48 @@ jobs:
             exit 1
           fi
 
-      - name: 🎬 Render Hypit Deliverable
+      - name: 🎙️ Render Narrated Recap (Tested&Proved voiceover format)
+        id: recap
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SOURCE_TITLE: ${{ steps.resolve.outputs.raw_source_title }}
+          FALLBACK_TITLE: ${{ env.validated_title || steps.resolve.outputs.formatted_title }}
+        run: |
+          set -uo pipefail
+          mkdir -p output
+          RAW="${raw_video_flag#--raw-video }"
+          RAW="${RAW# }"
+          if [ -z "${GROQ_API_KEY}${OPENROUTER_API_KEY}" ]; then
+            echo "::warning title=Narrated recap skipped::Add a GROQ_API_KEY secret to enable the voiceover format. Falling back to the classic render."
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -z "$RAW" ] || [ ! -f "$RAW" ]; then
+            echo "::warning title=Narrated recap skipped::No downloaded source video. Falling back to the classic render."
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if python3 narrated_recap.py \
+              --raw-video "$RAW" \
+              --creator "${{ steps.resolve.outputs.creator }}" \
+              --source-title "$SOURCE_TITLE" \
+              --fallback-title "$FALLBACK_TITLE" \
+              --metadata metadata.json \
+              --output "output/${{ steps.resolve.outputs.output_filename }}" \
+              --title-out .recap_title.txt; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "recap_title<<TITLE_EOF"
+              cat .recap_title.txt
+              echo ""
+              echo "TITLE_EOF"
+            } >> "$GITHUB_ENV"
+          else
+            echo "::warning title=Narrated recap failed::Falling back to the classic render."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 🎬 Render Hypit Deliverable (classic fallback)
+        if: steps.recap.outputs.ok != 'true'
         run: |
           set -euo pipefail
           mkdir -p output
@@ -519,7 +561,7 @@ jobs:
             --metadata metadata.json \
             --creator "$CREATOR_ID" \
             --source-id "${{ steps.resolve.outputs.source_video_id }}" \
-            --title "${{ env.validated_title || steps.resolve.outputs.formatted_title }}" \
+            --title "${{ env.recap_title || env.validated_title || steps.resolve.outputs.formatted_title }}" \
             --privacy "$PRIVACY" \
             "${EXTRA_ARGS[@]}" || UPLOAD_STATUS=$?
 

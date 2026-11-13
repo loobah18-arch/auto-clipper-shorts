@@ -37,3 +37,6 @@ bun.lock
 package-lock.json
 
 
+
+.recap_transcript.json
+.recap_title.txt
