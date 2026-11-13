@@ -175,15 +175,19 @@ jobs:
           "
 
       - name: 🔎 Validate Source Title (Backlog Drift Guard)
+        env:
+          SOURCE_URL: ${{ steps.resolve.outputs.source_video_url }}
+          RAW_EXPECTED: ${{ steps.resolve.outputs.raw_source_title }}
+          CREATOR_ID: ${{ steps.resolve.outputs.creator }}
+          FORMATTED_TITLE: ${{ steps.resolve.outputs.formatted_title }}
         run: |
           set -uo pipefail
-          SOURCE_URL="${{ steps.resolve.outputs.source_video_url }}"
-          RAW_EXPECTED="${{ steps.resolve.outputs.raw_source_title }}"
-          CREATOR_ID="${{ steps.resolve.outputs.creator }}"
+          # Title text must arrive via env: interpolating it into the script body
+          # lets bash expand '$' in titles like "Win $100,000" ($1 → unbound).
           REAL_TITLE=$(yt-dlp -4 --skip-download --no-warnings --print "%(title)s" "$SOURCE_URL" 2>/dev/null | head -n1 || true)
           if [ -n "$REAL_TITLE" ] && [ "$REAL_TITLE" != "$RAW_EXPECTED" ]; then
             echo "::warning title=Backlog title drift::Backlog says '$RAW_EXPECTED' but the video is actually '$REAL_TITLE'"
-            VALIDATED=$(CREATOR_ID="$CREATOR_ID" REAL_TITLE="$REAL_TITLE" python3 -c "
+            VALIDATED=$(REAL_TITLE="$REAL_TITLE" python3 -c "
           import json, os
           from creator_backlog_crawler import format_tested_proved_hook
           catalog = json.load(open('creator_catalog.json', encoding='utf-8'))
@@ -191,7 +195,7 @@ jobs:
           print(format_tested_proved_hook(os.environ['REAL_TITLE'], info))
           ")
           else
-            VALIDATED="${{ steps.resolve.outputs.formatted_title }}"
+            VALIDATED="$FORMATTED_TITLE"
           fi
           {
             echo "validated_title<<TITLE_EOF"
