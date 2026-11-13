@@ -273,8 +273,21 @@ class HypitRunParser:
 class HypitEngine:
     """Compiles Hypit specifications and produces broadcast deliverables."""
 
-    def __init__(self, svrun_path: Path, raw_video: Optional[Path] = None, creator: Optional[str] = None):
+    def __init__(
+        self,
+        svrun_path: Path,
+        raw_video: Optional[Path] = None,
+        creator: Optional[str] = None,
+        script_path: Optional[Path] = None,
+    ):
         self.svrun = HypitRunParser(svrun_path).parse()
+        self.script: Optional[Dict[str, Any]] = None
+        if script_path and Path(script_path).exists():
+            try:
+                self.script = json.loads(Path(script_path).read_text(encoding="utf-8"))
+                print(f"[Hypit] 🎯 Hook->Payoff script loaded: {script_path}")
+            except Exception as exc:
+                print(f"[Hypit] ⚠️ Could not read script {script_path}: {exc}")
         if not self.svrun.author_svml:
             raise ValueError("No author SVML defined in SVRun manifest")
         self.svml = HypitSVMLParser(self.svrun.author_svml).parse()
@@ -291,6 +304,12 @@ class HypitEngine:
 
     def get_cues(self) -> List[Tuple[float, float, str]]:
         """Returns word-level cues matched to the active SVML document."""
+        if self.script and self.script.get("cues"):
+            return [
+                (float(start), float(end), str(text))
+                for start, end, text in self.script["cues"]
+            ]
+
         svml_name = self.svrun.author_svml.name.lower()
         if "challenge" in svml_name or "cops" in svml_name:
             # MrBeast: Escape 100 Cops, Win $500,000 (Tested&Proved 6-Stage Completion Compulsion Curve)
@@ -460,6 +479,12 @@ class HypitEngine:
 
     def get_hud_badges(self) -> List[Tuple[float, float, str]]:
         """Returns timeline HUD badges providing transformative value-add context."""
+        if self.script and self.script.get("badges"):
+            return [
+                (float(start), float(end), str(text))
+                for start, end, text in self.script["badges"]
+            ]
+
         svml_name = self.svrun.author_svml.name.lower()
         if "challenge" in svml_name or "cops" in svml_name:
             return [
@@ -796,12 +821,16 @@ def main():
     parser.add_argument("--creator", choices=["mrbeast", "nileblue", "mark_rober", "ishowspeed", "ruhi_cenet"], help="Override creator SVML source")
     parser.add_argument("--raw-video", help="Path to custom raw input video file")
     parser.add_argument("--output", "-o", help="Custom output destination path")
+    parser.add_argument("--script-json", help="Per-video hook->payoff script (cues + HUD badges)")
     parser.add_argument("--check", action="store_true", help="Validate SVML / SVRun without rendering")
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve()
     raw_video_path = Path(args.raw_video).resolve() if args.raw_video else None
-    engine = HypitEngine(manifest_path, raw_video=raw_video_path, creator=args.creator)
+    script_path = Path(args.script_json).resolve() if args.script_json else None
+    engine = HypitEngine(
+        manifest_path, raw_video=raw_video_path, creator=args.creator, script_path=script_path
+    )
 
     if args.creator:
         catalog_path = ROOT_DIR / "creator_catalog.json"

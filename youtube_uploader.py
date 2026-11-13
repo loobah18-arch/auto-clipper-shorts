@@ -139,24 +139,12 @@ class YouTubeUploader:
         self.candle_gate = CandleGate()
 
     def format_title(self, raw_title: str, creator_id: str = "mrbeast") -> str:
-        """Enforces Jack Craig formula: Question Hook + 2 Shock Emojis + Creator Handle."""
-        import re
-        title = raw_title.strip()
+        """Packages the title the @TestedNProved way (declarative transformation hook)."""
+        from creator_backlog_crawler import format_tested_proved_hook
+
         creators = self.catalog.get("creators", {})
         creator_info = creators.get(creator_id, {})
-        handle = creator_info.get("channel_handle", "@MrBeast")
-        packaging = creator_info.get("packaging", {})
-        emojis = packaging.get("shock_emojis", "😳😳")
-
-        # Strip any existing handle pattern and emojis from base title
-        base = re.sub(r"\s*\(@[^)]+\)", "", title)
-        base = re.sub(r"[\U00010000-\U0010ffff]", "", base)
-        base = base.replace("#shorts", "").strip()
-
-        candidate = f"{base} {emojis} ({handle}/YT)"
-        if len(candidate) > 95:
-            candidate = f"{base[:70]}... {emojis} ({handle}/YT)"
-        return candidate
+        return format_tested_proved_hook(raw_title, creator_info)
 
     def format_description(
         self,

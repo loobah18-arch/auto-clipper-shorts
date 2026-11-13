@@ -4,9 +4,11 @@ Unit tests for Hypit Video Engine.
 Validates SVML/SVS/SVRun parsing, subtitle generation, and pipeline integrity.
 """
 
+import json
 import unittest
 from pathlib import Path
 from hypit_engine import ARC_STAGES, HypitSVMLParser, HypitRunParser, HypitEngine, build_arc_filter_complex, plan_arc_cuts
+from creator_backlog_crawler import build_stage_script, format_tested_proved_hook
 
 ROOT_DIR = Path(__file__).resolve().parent
 SOURCES_DIR = ROOT_DIR / "sources"
@@ -96,6 +98,48 @@ class TestHypitEngine(unittest.TestCase):
         with self.assertRaises(FileNotFoundError) as ctx:
             engine.render(destination=ROOT_DIR / "output" / "test_fake.mp4")
         self.assertIn("Refusing to substitute mismatched MrBeast footage", str(ctx.exception))
+
+
+class TestPerVideoScript(unittest.TestCase):
+    """The per-video hook->payoff script must drive captions and HUD badges."""
+
+    def setUp(self):
+        self.info = {
+            "name": "NileRed",
+            "channel_handle": "@NileRed",
+            "packaging": {"shock_emojis": "😳"},
+            "hud_theme": {"badge_prefix": "🧪"},
+        }
+        self.script_path = ROOT_DIR / "test_run_script.json"
+        source_title = "Turning Cotton Balls into Cotton Candy"
+        script = build_stage_script(
+            source_title, format_tested_proved_hook(source_title, self.info), self.info
+        )
+        self.script_path.write_text(json.dumps(script), encoding="utf-8")
+
+    def tearDown(self):
+        if self.script_path.exists():
+            self.script_path.unlink()
+
+    def test_script_overrides_cues_and_badges(self):
+        engine = HypitEngine(
+            SOURCES_DIR / "nileblue_experiment.svml",
+            creator="nileblue",
+            script_path=self.script_path,
+        )
+        cues = engine.get_cues()
+        badges = engine.get_hud_badges()
+        texts = " ".join(text for _, _, text in cues)
+        self.assertIn("COTTON BALLS", texts)
+        self.assertIn("COTTON CANDY", texts)
+        self.assertNotIn("RED BULL", texts)
+        self.assertEqual(len(badges), 6)
+        self.assertIn("COTTON BALLS → COTTON CANDY", badges[0][2])
+
+    def test_engine_falls_back_without_script(self):
+        engine = HypitEngine(SOURCES_DIR / "nileblue_experiment.svml", creator="nileblue")
+        texts = " ".join(text for _, _, text in engine.get_cues())
+        self.assertIn("RED BULL", texts)
 
 
 class TestStoryArcCutting(unittest.TestCase):

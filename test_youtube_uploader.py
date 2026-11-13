@@ -42,7 +42,7 @@ class TestYouTubeUploader(unittest.TestCase):
             creator_id="nileblue",
             metadata={"stages": {"hook": "Hook step", "payoff": "Payoff step"}},
         )
-        self.assertIn("NileBlue", desc)
+        self.assertIn("NileRed", desc)
         self.assertIn("Transformative Value-Add & Fair Use", desc)
         self.assertIn("#shorts", desc)
         self.assertIn("Hook step", desc)
@@ -55,20 +55,20 @@ class TestYouTubeUploader(unittest.TestCase):
         self.assertEqual(len(sleep_calls), 3)
 
     def test_resolve_next_creator_rotation(self):
-        # Empty history defaults to first creator (mrbeast)
+        # Empty history defaults to the NileRed-first rotation (the channel's niche)
         res = resolve_next_creator_rotation(history_file=self.test_history)
-        self.assertEqual(res["creator_id"], "mrbeast")
+        self.assertEqual(res["creator_id"], "nileblue")
 
-        # After mrbeast, next in rotation is nileblue
-        self.test_history.write_text(json.dumps([{"creator": "mrbeast", "video_id": "test1"}]), encoding="utf-8")
+        # After nileblue, next in rotation is mrbeast
+        self.test_history.write_text(json.dumps([{"creator": "nileblue", "video_id": "test1"}]), encoding="utf-8")
         res2 = resolve_next_creator_rotation(history_file=self.test_history)
-        self.assertEqual(res2["creator_id"], "nileblue")
-        self.assertEqual(res2["output_filename"], "hypit_nileblue_short.mp4")
+        self.assertEqual(res2["creator_id"], "mrbeast")
+        self.assertEqual(res2["output_filename"], "hypit_mrbeast_short.mp4")
 
-        # After ruhi_cenet (last creator), it loops back to mrbeast
+        # After ruhi_cenet (last creator), it loops back to nileblue
         self.test_history.write_text(json.dumps([{"creator": "ruhi_cenet", "video_id": "test2"}]), encoding="utf-8")
         res3 = resolve_next_creator_rotation(history_file=self.test_history)
-        self.assertEqual(res3["creator_id"], "mrbeast")
+        self.assertEqual(res3["creator_id"], "nileblue")
 
     def test_dry_run_upload_and_history(self):
         video_sample = ROOT_DIR / "test_sample_video.mp4"

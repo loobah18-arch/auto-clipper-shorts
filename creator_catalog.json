@@ -1,8 +1,38 @@
 {
-  "version": "2.0",
+  "version": "2.1",
   "description": "Creator Catalog for Hypit Tested&Proved Shorts Clipper",
-  "default_creator": "mrbeast",
+  "default_creator": "nileblue",
   "creators": {
+    "nileblue": {
+      "id": "nileblue",
+      "name": "NileRed",
+      "channel_id": "UCFhXFikryT4aFcLkLw2LBLA",
+      "channel_handle": "@NileRed",
+      "channel_url": "https://www.youtube.com/@NileRed",
+      "niche": "science_transformations",
+      "description": "NileRed turns ordinary things into extraordinary chemicals, materials and food",
+      "svml_source": "sources/nileblue_experiment.svml",
+      "default_title": "He Turned Air Into Drinkable Alcohol",
+      "default_description": "NileRed turns thin air into drinkable alcohol through a full lab synthesis.",
+      "narrator_voice": "en-US-ChristopherNeural",
+      "voice_style": "Intrigued, inquisitive scientific pacing with high clarity",
+      "packaging": {
+        "shock_emojis": "😳",
+        "hashtags": ["#shorts", "#nilered", "#science", "#chemistry"],
+        "category_id": "28",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "chemical_lab",
+        "badge_prefix": "🧪"
+      },
+      "sample_topics": [
+        "Turning Air Into Alcohol",
+        "Making Liquid Nitrogen From Scratch",
+        "Making A Bouncy Ball From Scratch",
+        "Extracting The Soul From Coffee"
+      ]
+    },
     "mrbeast": {
       "id": "mrbeast",
       "name": "MrBeast",
@@ -31,36 +61,6 @@
         "$1 vs $1,000,000,000 Yacht",
         "Last To Fall Wins $500,000",
         "Survive 100 Days In Circle"
-      ]
-    },
-    "nileblue": {
-      "id": "nileblue",
-      "name": "NileBlue / NileRed",
-      "channel_id": "UC1D3yD4wlPMico0dss264XA",
-      "channel_handle": "@NileBlue",
-      "channel_url": "https://www.youtube.com/@NileBlue",
-      "niche": "science_experiments",
-      "description": "Extreme chemistry, dangerous transformations, and mind-bending science experiments",
-      "svml_source": "sources/nileblue_experiment.svml",
-      "default_title": "Can We Turn Red Bull Into Pure Drinking Water?",
-      "default_description": "Can NileBlue actually turn canned Red Bull into 100% pure drinking water through vacuum distillation?",
-      "narrator_voice": "en-US-ChristopherNeural",
-      "voice_style": "Intrigued, inquisitive scientific pacing with high clarity",
-      "packaging": {
-        "shock_emojis": "🧪😱",
-        "hashtags": ["#shorts", "#science", "#chemistry", "#viral"],
-        "category_id": "28",
-        "madeForKids": false
-      },
-      "hud_theme": {
-        "style": "chemical_lab",
-        "badge_prefix": "🧪"
-      },
-      "sample_topics": [
-        "Turning Red Bull Into Pure Water",
-        "Making Plastic From Milk",
-        "Dissolving Gold in Acid",
-        "Creating Diamond From Peanut Butter"
       ]
     },
     "mark_rober": {

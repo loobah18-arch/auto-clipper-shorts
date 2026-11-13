@@ -9,6 +9,10 @@ from pathlib import Path
 from creator_backlog_crawler import (
     select_target_upload,
     format_jack_craig_hook,
+    format_tested_proved_hook,
+    build_stage_script,
+    build_metadata,
+    hook_text,
     get_clipped_video_ids,
 )
 
@@ -113,6 +117,114 @@ class TestCreatorBacklogCrawler(unittest.TestCase):
         # No truncated fragment mid-word: the char before the ellipsis is a space or start
         stem = title.split("…")[0]
         self.assertTrue(stem.endswith(" ") or len(stem) <= 70)
+
+
+class TestTestedAndProvedPackaging(unittest.TestCase):
+    """Packaging must match the @TestedNProved channel: declarative transformation hook."""
+
+    def setUp(self):
+        self.nilered = {
+            "name": "NileRed",
+            "channel_handle": "@NileRed",
+            "packaging": {"shock_emojis": "😳"},
+            "hud_theme": {"badge_prefix": "🧪"},
+            "narrator_voice": "en-US-ChristopherNeural",
+        }
+
+    def test_gerund_transformation_becomes_declarative_hook(self):
+        title = format_tested_proved_hook("Turning Cotton Balls into Cotton Candy", self.nilered)
+        self.assertEqual(title, "He Turned Cotton Balls into Cotton Candy 😳 (@NileRed/YT)")
+
+    def test_reference_channel_title_shape(self):
+        # Mirrors "He Condensed 20 beers into 1 Super Beer 😲 (@NileRed/YT)"
+        title = format_tested_proved_hook("Condensing 20 beers into 1 Super Beer", self.nilered)
+        self.assertEqual(title, "He Condensed 20 beers into 1 Super Beer 😳 (@NileRed/YT)")
+
+    def test_first_person_title_is_revoiced(self):
+        title = format_tested_proved_hook("I Made a Working Lightsaber", self.nilered)
+        self.assertEqual(title, "He Made a Working Lightsaber 😳 (@NileRed/YT)")
+
+    def test_already_declarative_title_is_kept(self):
+        title = format_tested_proved_hook("He Compressed 100 RedBulls into 1 Drink", self.nilered)
+        self.assertEqual(title, "He Compressed 100 RedBulls into 1 Drink 😳 (@NileRed/YT)")
+
+    def test_packaging_noise_is_stripped(self):
+        title = format_tested_proved_hook(
+            "Making human kibble (to change the way we eat forever) 🧪 #shorts", self.nilered
+        )
+        self.assertEqual(title, "He Made human kibble 😳 (@NileRed/YT)")
+
+    def test_non_transformation_falls_back_to_question_hook(self):
+        title = format_tested_proved_hook("What did the government send me?", self.nilered)
+        self.assertTrue(title.startswith("What did the government send me?"))
+        self.assertIn("(@NileRed/YT)", title)
+
+    def test_long_hook_truncates_on_word_boundary(self):
+        title = format_tested_proved_hook("Making " + "Superlongword " * 12 + "from scratch", self.nilered)
+        self.assertLessEqual(len(title), 95)
+        self.assertIn("…", title)
+        self.assertIn("(@NileRed/YT)", title)
+
+    def test_hook_text_is_tts_safe(self):
+        self.assertEqual(
+            hook_text("Turning Air Into Alcohol 😳 (@NileRed/YT)"),
+            "He Turned Air Into Alcohol",
+        )
+
+
+class TestHookToPayoffScript(unittest.TestCase):
+    """The renderer script must walk HOOK -> RISING ACTION -> CONFLICT -> COMEBACK -> PAYOFF."""
+
+    def setUp(self):
+        self.nilered = {
+            "name": "NileRed",
+            "channel_handle": "@NileRed",
+            "packaging": {"shock_emojis": "😳", "hashtags": ["#shorts", "#nilered"]},
+            "hud_theme": {"badge_prefix": "🧪"},
+            "narrator_voice": "en-US-ChristopherNeural",
+        }
+        self.source_title = "Turning Cotton Balls into Cotton Candy"
+        self.title = format_tested_proved_hook(self.source_title, self.nilered)
+
+    def test_six_stages_in_arc_order(self):
+        script = build_stage_script(self.source_title, self.title, self.nilered)
+        self.assertEqual(
+            [stage["stage"] for stage in script["stages"]],
+            ["HOOK", "RISING ACTION", "CONFLICT", "COMEBACK", "RISING ACTION", "PAYOFF"],
+        )
+
+    def test_stages_cover_full_timeline_without_gaps(self):
+        script = build_stage_script(self.source_title, self.title, self.nilered)
+        self.assertAlmostEqual(script["stages"][0]["start"], 0.0, places=2)
+        self.assertAlmostEqual(script["stages"][-1]["end"], 60.0, places=2)
+        for prev, cur in zip(script["stages"], script["stages"][1:]):
+            self.assertAlmostEqual(prev["end"], cur["start"], places=2)
+
+    def test_hook_and_payoff_name_the_real_transformation(self):
+        script = build_stage_script(self.source_title, self.title, self.nilered)
+        self.assertEqual(script["hook"], "He Turned Cotton Balls into Cotton Candy")
+        self.assertEqual(script["subject"], "Cotton Balls")
+        self.assertEqual(script["result"], "Cotton Candy")
+        self.assertIn("COTTON CANDY", script["stages"][-1]["caption"])
+        self.assertIn("COTTON BALLS → COTTON CANDY", script["badges"][0][2])
+
+    def test_captions_and_badges_stay_inside_their_stage(self):
+        script = build_stage_script(self.source_title, self.title, self.nilered)
+        self.assertEqual(len(script["badges"]), 6)
+        for start, end, _text in script["cues"]:
+            self.assertGreaterEqual(start, 0.0)
+            self.assertLessEqual(end, 60.01)
+            self.assertGreater(end, start)
+
+    def test_metadata_written_from_the_same_arc(self):
+        script = build_stage_script(self.source_title, self.title, self.nilered)
+        meta = build_metadata(self.source_title, self.title, self.nilered, script)
+        self.assertEqual(meta["title"], self.title)
+        self.assertEqual(meta["creator_attribution"], "@NileRed/YT")
+        self.assertIn("intro_title", meta["stages"])
+        self.assertEqual(len(meta["stages"]), 6)
+        self.assertEqual(meta["intro_narration"]["spoken_text"], script["hook"])
+        self.assertIn("Payoff", meta["arc_type"])
 
 
 if __name__ == "__main__":

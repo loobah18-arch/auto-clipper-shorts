@@ -21,6 +21,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Set, Tuple
 
+from hypit_engine import ARC_INTRO_SECONDS, ARC_STAGES
+
 ROOT_DIR = Path(__file__).resolve().parent
 DEFAULT_HISTORY_FILE = ROOT_DIR / "upload_history.json"
 DEFAULT_CATALOG_FILE = ROOT_DIR / "creator_catalog.json"
@@ -171,6 +173,355 @@ def format_jack_craig_hook(raw_title: str, creator_info: Dict[str, Any]) -> str:
     return candidate
 
 
+# ---------------------------------------------------------------------------
+# @TestedNProved packaging: declarative transformation hooks
+# ---------------------------------------------------------------------------
+# The reference channel never opens with a question. Every title states the
+# transformation payoff as a completed act and credits the source creator:
+#   "He Turned Air Into Drinkable Alcohol 😳 (@NileRed/YT)"
+#   "This Guy Turned Cotton Balls into Cotton Candy 😳 (@NileRed/YT)"
+#   "He Condensed 20 beers into 1 Super Beer 😲 (@NileRed/YT)"
+# Question hooks stay available as a fallback for titles that are not a
+# transformation, so no source video is left without packaging.
+
+_PAST_TENSE = {
+    "turn": "Turned", "make": "Made", "build": "Built", "create": "Created",
+    "condense": "Condensed", "compress": "Compressed", "distill": "Distilled",
+    "extract": "Extracted", "refine": "Refined", "convert": "Converted",
+    "grow": "Grew", "cook": "Cooked", "brew": "Brewed", "melt": "Melted",
+    "freeze": "Froze", "dissolve": "Dissolved", "purify": "Purified",
+    "separate": "Separated", "combine": "Combined", "mix": "Mixed",
+    "burn": "Burned", "explode": "Exploded", "engineer": "Engineered",
+    "invent": "Invented", "reverse": "Reversed", "transform": "Transformed",
+    "recycle": "Recycled", "harvest": "Harvested", "synthesize": "Synthesized",
+}
+_PAST_VERB_FORMS = {v.lower(): v for v in _PAST_TENSE.values()}
+_EMOJI_RE = re.compile("[\U00010000-\U0010ffff]")
+
+
+def _strip_packaging(raw_title: str) -> str:
+    """Removes creator handles, hashtags, emojis and parentheticals from a title."""
+    clean = re.sub(r"\s*\(@[^)]*\)", " ", raw_title or "")
+    clean = re.sub(r"[\(\[]([^\)\]]*)[\)\]]", " ", clean)
+    clean = re.sub(r"#\w+", " ", clean)
+    clean = re.sub(r"[\U00010000-\U0010ffff\u2600-\u27bf\ufe0f]", " ", clean)
+    clean = re.sub(r"\s+", " ", clean).strip(" -–—|:;,.")
+    return clean
+
+
+def _gerund_base(word: str) -> str:
+    """Reduces an -ing verb to its dictionary form (turning -> turn, making -> make)."""
+    stem = word[:-3].lower()
+    candidates = [stem, stem + "e"]
+    if len(stem) > 2 and stem[-1] == stem[-2]:
+        candidates.append(stem[:-1])
+    for cand in candidates:
+        if cand in _PAST_TENSE:
+            return cand
+    return stem
+
+
+def _past_verb(word: str) -> Optional[str]:
+    """Resolves a present, gerund or already-past verb to its past-tense form."""
+    w = word.lower().strip("!,.")
+    if w in _PAST_VERB_FORMS:
+        return _PAST_VERB_FORMS[w]
+    if w in _PAST_TENSE:
+        return _PAST_TENSE[w]
+    if w.endswith("ing") and len(w) > 4:
+        return _PAST_TENSE.get(_gerund_base(w))
+    return None
+
+
+def _declarative_hook(clean_title: str) -> Optional[str]:
+    """Rewrites a source title into the channel's 'He <verbed> ...' hook.
+
+    Returns None when the title does not describe a transformation, letting the
+    caller fall back to the question-hook packaging.
+    """
+    if not clean_title:
+        return None
+
+    # "Turning X into Y" / "Making X" -> "He Turned X into Y" / "He Made X"
+    m = re.match(r"^([A-Za-z]+ing)\b(.*)$", clean_title)
+    if m:
+        past = _past_verb(m.group(1))
+        return f"He {past}{m.group(2)}" if past else None
+
+    # "I Made a Working Lightsaber" -> "He Made a Working Lightsaber"
+    m = re.match(r"^(?:I)\s+([A-Za-z]+)\b(.*)$", clean_title)
+    if m:
+        past = _past_verb(m.group(1))
+        return f"He {past}{m.group(2)}" if past else None
+
+    m = re.match(r"^We\s+([A-Za-z]+)\b(.*)$", clean_title)
+    if m:
+        past = _past_verb(m.group(1))
+        return f"They {past}{m.group(2)}" if past else None
+
+    # Already declarative ("He Condensed 20 beers into 1 Super Beer")
+    m = re.match(r"^(He|She|They|This guy|This man)\s+([A-Za-z]+)\b(.*)$", clean_title, re.IGNORECASE)
+    if m:
+        subject = m.group(1).lower()
+        pronoun = {"she": "She", "they": "They"}.get(subject, "He")
+        past = _past_verb(m.group(2))
+        return f"{pronoun} {past}{m.group(3)}" if past else None
+
+    return None
+
+
+def _first_emoji(emojis: str) -> str:
+    found = _EMOJI_RE.findall(emojis or "")
+    return found[0] if found else ""
+
+
+def format_tested_proved_hook(raw_title: str, creator_info: Dict[str, Any]) -> str:
+    """Packages a source title the way @TestedNProved does.
+
+    Declarative transformation -> "He Turned X Into Y 😳 (@NileRed/YT)".
+    Anything else keeps the question hook + shock emojis + attribution.
+    """
+    clean_title = _strip_packaging(raw_title)
+    hook = _declarative_hook(clean_title)
+    if not hook:
+        return format_jack_craig_hook(raw_title, creator_info)
+
+    emoji = _first_emoji(creator_info.get("packaging", {}).get("shock_emojis", "😳"))
+    handle = creator_info.get("channel_handle", "@YouTube")
+    suffix = f" {emoji} ({handle}/YT)" if emoji else f" ({handle}/YT)"
+
+    max_hook = max(95 - len(suffix), 20)
+    if len(hook) > max_hook:
+        cut = hook[:max_hook]
+        if " " in cut:
+            cut = cut[: cut.rfind(" ")]
+        hook = cut.rstrip() + "…"
+    return f"{hook}{suffix}"
+
+
+def hook_text(raw_title: str) -> str:
+    """Spoken/plain hook without emojis or handle — safe for TTS narration."""
+    clean_title = _strip_packaging(raw_title)
+    return _declarative_hook(clean_title) or clean_title
+
+
+# ---------------------------------------------------------------------------
+# Hook -> Payoff six-stage script
+# ---------------------------------------------------------------------------
+# Every deliverable walks the full Completion Compulsion curve in order, so the
+# on-screen captions, HUD badges and upload description all describe the same
+# arc that the renderer actually cuts: HOOK, RISING ACTION, CONFLICT, COMEBACK,
+# RISING ACTION, PAYOFF. Stage copy is derived from the real source title, so a
+# Kibble clip never carries Red Bull captions.
+
+_TRANSFORM_RE = re.compile(
+    r"^(?P<lead>.*?)\b(?:turn|turned|turning|make|made|making|condense|condensed|"
+    r"condensing|compress|compressed|compressing|convert|converted|converting|"
+    r"build|built|building)\b\s+(?P<x>.+?)\s+into\s+(?P<y>.+)$",
+    re.IGNORECASE,
+)
+
+
+def _split_transformation(clean_title: str) -> Tuple[Optional[str], Optional[str]]:
+    """Extracts (X, Y) from 'Turning X into Y' style titles."""
+    m = _TRANSFORM_RE.match(clean_title or "")
+    if not m:
+        return None, None
+    return (m.group("x").strip() or None), (m.group("y").strip() or None)
+
+
+def _arc_windows(total: float = 60.0, has_narration: bool = True) -> List[Tuple[float, float]]:
+    """Output-timeline window for each arc stage, mirroring plan_arc_cuts()."""
+    if has_narration:
+        remaining = total - ARC_INTRO_SECONDS
+        rest_weight = sum(w for _, w in ARC_STAGES[1:])
+        durs = [ARC_INTRO_SECONDS] + [remaining * w / rest_weight for _, w in ARC_STAGES[1:]]
+    else:
+        total_weight = sum(w for _, w in ARC_STAGES)
+        durs = [total * w / total_weight for _, w in ARC_STAGES]
+
+    windows: List[Tuple[float, float]] = []
+    cursor = 0.0
+    for dur in durs:
+        windows.append((cursor, cursor + dur))
+        cursor += dur
+    return windows
+
+
+def _split_caption(text: str, max_chars: int = 34) -> List[str]:
+    words = (text or "").split()
+    lines: List[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if len(candidate) <= max_chars or not current:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _distribute(lines: List[str], start: float, end: float) -> List[List[Any]]:
+    if not lines:
+        return []
+    step = (end - start) / len(lines)
+    cues: List[List[Any]] = []
+    for i, line in enumerate(lines):
+        cue_start = start + i * step + 0.10
+        cue_end = start + (i + 1) * step - 0.08
+        if cue_end - cue_start < 0.30:
+            cue_start, cue_end = start + i * step, start + (i + 1) * step
+        cues.append([round(cue_start, 2), round(cue_end, 2), line])
+    return cues
+
+
+def _stage_captions(hook: str, subject: Optional[str], result: Optional[str]) -> List[str]:
+    return [
+        hook.upper(),
+        "STEP ONE: THE SETUP",
+        "THE HARD PART",
+        "HERE'S THE FIX",
+        "FINAL STEP",
+        f"THE RESULT: {result.upper()}" if result else "THE RESULT",
+    ]
+
+
+def _stage_badges(prefix: str, subject: Optional[str], result: Optional[str]) -> List[str]:
+    route = (
+        f"{prefix} {subject.upper()} → {result.upper()}"
+        if subject and result
+        else f"{prefix} TRANSFORMATION"
+    )
+    return [
+        route,
+        f"{prefix} STEP 1 | SETUP",
+        f"{prefix} STEP 2 | REACTION",
+        f"{prefix} STEP 3 | MIDWAY",
+        f"{prefix} STEP 4 | FINAL RUN",
+        f"{prefix} RESULT",
+    ]
+
+
+def build_stage_script(
+    source_title: str,
+    formatted_title: str,
+    creator_info: Optional[Dict[str, Any]] = None,
+    total: float = 60.0,
+    has_narration: bool = True,
+) -> Dict[str, Any]:
+    """Builds the per-video hook->payoff script consumed by the renderer."""
+    creator_info = creator_info or {}
+    clean_title = _strip_packaging(source_title)
+    hook = _declarative_hook(clean_title) or clean_title or _strip_packaging(formatted_title)
+    subject, result = _split_transformation(clean_title)
+    prefix = (creator_info.get("hud_theme", {}) or {}).get("badge_prefix", "🧪")
+
+    captions = _stage_captions(hook, subject, result)
+    badge_texts = _stage_badges(prefix, subject, result)
+    windows = _arc_windows(total=total, has_narration=has_narration)
+
+    cues: List[List[Any]] = []
+    badges: List[List[Any]] = []
+    stages: List[Dict[str, Any]] = []
+    for i, ((stage, _weight), (start, end)) in enumerate(zip(ARC_STAGES, windows)):
+        caption, badge = captions[i], badge_texts[i]
+        cues.extend(_distribute(_split_caption(caption), start, end))
+        badges.append([round(start, 2), round(end, 2), badge])
+        stages.append({
+            "stage": stage,
+            "start": round(start, 2),
+            "end": round(end, 2),
+            "caption": caption,
+            "badge": badge,
+        })
+
+    return {
+        "title": formatted_title,
+        "hook": hook,
+        "subject": subject,
+        "result": result,
+        "cues": cues,
+        "badges": badges,
+        "stages": stages,
+    }
+
+
+def build_metadata(
+    source_title: str,
+    formatted_title: str,
+    creator_info: Dict[str, Any],
+    script: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Builds the per-run metadata.json (title, description, arc breakdown)."""
+    hook = script["hook"]
+    creator_name = creator_info.get("name", "the creator")
+    packaging = creator_info.get("packaging", {}) or {}
+    hashtags = packaging.get("hashtags", ["#shorts"])
+    handle = creator_info.get("channel_handle", "@YouTube")
+
+    stages: Dict[str, str] = {}
+    for i, stage in enumerate(script["stages"]):
+        key = "intro_title" if i == 0 else f"stage_{i}_{stage['stage'].lower().replace(' ', '_')}"
+        stages[key] = f"{stage['start']:.2f}s - {stage['end']:.2f}s: {stage['caption']}"
+
+    return {
+        "title": formatted_title,
+        "description": (
+            f"{hook}. Watch {creator_name}'s full transformation cut down to the hook, "
+            f"the hard part and the payoff."
+        ),
+        "tags": [tag.lstrip("#") for tag in hashtags],
+        "madeForKids": False,
+        "creator_attribution": f"{handle}/YT",
+        "source_title": source_title,
+        "aspect_ratio": "3:4",
+        "resolution": "1080x1440",
+        "duration_seconds": 60.0,
+        "arc_type": (
+            "Tested&Proved 6-Stage Completion Compulsion Curve "
+            "(Hook -> Rising Action -> Conflict -> Comeback -> Rising Action -> Payoff)"
+        ),
+        "stages": stages,
+        "hook": hook,
+        "loop_trigger": (
+            f"{script['stages'][-1]['caption']} lands at the end of the Short and "
+            f"loops seamlessly back to '{hook}'."
+        ),
+        "intro_narration": {
+            "enabled": True,
+            "voice": creator_info.get("narrator_voice", "en-US-BrianMultilingualNeural"),
+            "spoken_text": hook,
+            "duration_seconds": ARC_INTRO_SECONDS,
+        },
+    }
+
+
+def write_run_artifacts(
+    selection: Dict[str, Any],
+    creator_info: Dict[str, Any],
+    script_path: Path = Path(".run_script.json"),
+    metadata_path: Path = Path("metadata.json"),
+    total: float = 60.0,
+    has_narration: bool = True,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Writes the renderer script and upload metadata for the selected video."""
+    source_title = selection["source_video"]["title"]
+    formatted_title = selection["formatted_title"]
+
+    script = build_stage_script(
+        source_title, formatted_title, creator_info, total=total, has_narration=has_narration
+    )
+    metadata = build_metadata(source_title, formatted_title, creator_info, script)
+
+    Path(script_path).write_text(json.dumps(script, indent=2, ensure_ascii=False), encoding="utf-8")
+    Path(metadata_path).write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+    log(f"🎯 Hook->Payoff script written: {script_path} | Metadata: {metadata_path}")
+    return script, metadata
+
+
 def select_target_upload(
     creator_id: str,
     history_file: Path = DEFAULT_HISTORY_FILE,
@@ -253,7 +604,8 @@ def select_target_upload(
                 f"Recycling latest upload '{selected_video['title']}' with fresh packaging variation."
             )
 
-    jack_craig_title = format_jack_craig_hook(selected_video["title"], creator_info)
+    packaged_title = format_tested_proved_hook(selected_video["title"], creator_info)
+    narration_text = hook_text(selected_video["title"])
     svml_source = creator_info.get("svml_source", "sources/mrbeast_challenge.svml")
     output_filename = f"hypit_{creator_id}_{selected_video['video_id'][:8]}.mp4"
 
@@ -267,7 +619,8 @@ def select_target_upload(
         "backlog_index": backlog_index,
         "total_uploads_scanned": len(uploads),
         "source_video": selected_video,
-        "formatted_title": jack_craig_title,
+        "formatted_title": packaged_title,
+        "narration_text": narration_text,
         "svml_source": svml_source,
         "output_filename": output_filename,
         "hud_theme": creator_info.get("hud_theme", {}),
@@ -276,7 +629,7 @@ def select_target_upload(
     }
 
     log(reason)
-    log(f"🎬 Deliverable Title: '{jack_craig_title}' | Output: {output_filename}")
+    log(f"🎬 Deliverable Title: '{packaged_title}' | Output: {output_filename}")
     return result
 
 

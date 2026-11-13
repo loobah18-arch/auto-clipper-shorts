@@ -129,7 +129,7 @@ jobs:
           import json
           import os
           from youtube_uploader import resolve_next_creator_rotation
-          from creator_backlog_crawler import select_target_upload
+          from creator_backlog_crawler import select_target_upload, hook_text, write_run_artifacts
 
           manual_creator = '${{ inputs.creator }}'.strip()
           manual_manifest = '${{ inputs.manifest }}'.strip()
@@ -147,7 +147,13 @@ jobs:
           source_vid = selection['source_video']
           title = selection['formatted_title']
           catalog = json.load(open('creator_catalog.json', encoding='utf-8'))
-          narrator_voice = catalog['creators'][creator]['narrator_voice']
+          creator_info = catalog['creators'][creator]
+          narrator_voice = creator_info['narrator_voice']
+          narration_text = hook_text(source_vid['title'])
+
+          # Per-video hook->payoff script (captions + HUD badges) and upload metadata
+          write_run_artifacts(selection, creator_info, '.run_script.json', 'metadata.json')
+          print(f'🎙️ Narration text: {narration_text}')
 
           print(f'🎯 Selected Creator: {creator} ({selection[\"creator_name\"]})')
           print(f'🎬 Selection Mode: {selection[\"selection_mode\"]} (Backlog Index: {selection[\"backlog_index\"]})')
@@ -165,6 +171,7 @@ jobs:
               f.write(f'formatted_title={title}\n')
               f.write(f'raw_source_title={source_vid[\"title\"]}\n')
               f.write(f'narrator_voice={narrator_voice}\n')
+              f.write(f'narration_text={narration_text}\n')
           "
 
       - name: 🔎 Validate Source Title (Backlog Drift Guard)
@@ -178,10 +185,10 @@ jobs:
             echo "::warning title=Backlog title drift::Backlog says '$RAW_EXPECTED' but the video is actually '$REAL_TITLE'"
             VALIDATED=$(CREATOR_ID="$CREATOR_ID" REAL_TITLE="$REAL_TITLE" python3 -c "
           import json, os
-          from creator_backlog_crawler import format_jack_craig_hook
+          from creator_backlog_crawler import format_tested_proved_hook
           catalog = json.load(open('creator_catalog.json', encoding='utf-8'))
           info = catalog['creators'][os.environ['CREATOR_ID']]
-          print(format_jack_craig_hook(os.environ['REAL_TITLE'], info))
+          print(format_tested_proved_hook(os.environ['REAL_TITLE'], info))
           ")
           else
             VALIDATED="${{ steps.resolve.outputs.formatted_title }}"
@@ -194,7 +201,7 @@ jobs:
 
       - name: 🎙️ Regenerate Per-Title Intro Narration (TTS)
         env:
-          TITLE: ${{ env.validated_title || steps.resolve.outputs.formatted_title }}
+          TITLE: ${{ steps.resolve.outputs.narration_text }}
           VOICE: ${{ steps.resolve.outputs.narrator_voice }}
         run: |
           set -euo pipefail
@@ -283,16 +290,19 @@ jobs:
 
           # -------------------------------------------------------------
           # Tier 1: Residential Proxy Routing (if YOUTUBE_PROXY configured)
+          # Downloads the WHOLE source: the 6-stage arc spreads its cuts across
+          # the full raw timeline so PAYOFF lands on the real final result. A
+          # 90-second excerpt would put PAYOFF at ~1:28 of the intro instead.
           # -------------------------------------------------------------
           if [ -n "${YOUTUBE_PROXY:-}" ]; then
-            echo "🌐 [Tier 1] Attempting download via YOUTUBE_PROXY (residential IP)..."
+            echo "🌐 [Tier 1] Attempting full-timeline download via YOUTUBE_PROXY (residential IP)..."
             yt-dlp -4 "$SOURCE_URL" \
               --proxy "$YOUTUBE_PROXY" \
               "${COOKIE_ARGS[@]}" \
               --js-runtimes node \
               --remote-components ejs:github \
               --playlist-items 1 \
-              --download-sections "*00:00-01:30" \
+              --downloader native \
               --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
               -o "$RAW_FILE" --socket-timeout 35 || true
             # Check the produced file regardless of yt-dlp exit code: on search
@@ -313,10 +323,11 @@ jobs:
           # -------------------------------------------------------------
           # Tier 2: Node.js PO Token (youtube-po-token-generator) + web/mweb clients
           # Uses a fresh runtime-generated PO Token that YouTube accepts
-          # from datacenter IPs when paired with a GVS-signed session
+          # from datacenter IPs when paired with a GVS-signed session.
+          # Full-timeline native download so the arc's PAYOFF is the real ending.
           # -------------------------------------------------------------
           if [ "$DOWNLOAD_SUCCESS" != "true" ] && [ ${#POT_ARGS[@]} -gt 0 ]; then
-            echo "🎟️ [Tier 2] Attempting download with fresh Node.js PO Token + cookies (web/mweb)..."
+            echo "🎟️ [Tier 2] Attempting full-timeline download with fresh PO Token + cookies (web/mweb)..."
             for client in "mweb" "web" "web_creator"; do
               echo "  🔄 Trying client=$client with PO Token..."
               yt-dlp -4 "$SOURCE_URL" \
@@ -326,7 +337,7 @@ jobs:
                 --remote-components ejs:github \
                 --extractor-args "youtube:player_client=${client}" \
                 --playlist-items 1 \
-                --download-sections "*00:00-01:30" \
+                --downloader native \
                 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]/18/b" \
                 -o "$RAW_FILE" --socket-timeout 45 || true
               # Check the produced file regardless of yt-dlp exit code: on search
@@ -466,7 +477,12 @@ jobs:
           MANIFEST="${{ steps.resolve.outputs.manifest }}"
           CREATOR_ID="${{ steps.resolve.outputs.creator }}"
           OUTPUT_NAME="${{ steps.resolve.outputs.output_filename }}"
-          python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" $raw_video_flag --output "output/$OUTPUT_NAME"
+          SCRIPT_ARGS=()
+          if [ -f .run_script.json ]; then
+            SCRIPT_ARGS=(--script-json .run_script.json)
+          fi
+          python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" $raw_video_flag \
+            "${SCRIPT_ARGS[@]}" --output "output/$OUTPUT_NAME"
 
       - name: 📦 Upload Generated Video Artifact
         if: always()
