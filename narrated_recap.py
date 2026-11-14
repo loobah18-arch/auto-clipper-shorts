@@ -370,15 +370,23 @@ def write_script(segments: List[Dict[str, Any]], source_title: str, creator_name
 async def _tts_line(text: str, voice: str, rate: str, out: Path) -> None:
     import edge_tts
 
+    voices_to_try = [voice]
+    for alt in ["en-US-BrianMultilingualNeural", "en-US-ChristopherNeural", "en-US-GuyNeural"]:
+        if alt not in voices_to_try:
+            voices_to_try.append(alt)
+
+    clean_text = text.strip()
     last_exc = None
-    for attempt in range(3):
-        try:
-            await edge_tts.Communicate(text, voice, rate=rate).save(str(out))
-            if out.exists() and out.stat().st_size > 200:
-                return
-        except Exception as exc:
-            last_exc = exc
-            await asyncio.sleep(1.0 * (attempt + 1))
+    for v in voices_to_try:
+        for attempt in range(2):
+            try:
+                communicate = edge_tts.Communicate(clean_text, v, rate=rate)
+                await communicate.save(str(out))
+                if out.exists() and out.stat().st_size > 200:
+                    return
+            except Exception as exc:
+                last_exc = exc
+                await asyncio.sleep(0.8 * (attempt + 1))
     if last_exc:
         raise last_exc
 
@@ -386,10 +394,14 @@ async def _tts_line(text: str, voice: str, rate: str, out: Path) -> None:
 def synthesize_lines(lines: List[Dict[str, Any]], voice: str, work: Path,
                      rate: str = "+12%", gap: float = 0.06) -> Tuple[Path, List[Dict[str, Any]]]:
     """Voices each line separately so every line's start/end on the output timeline is exact."""
+    import time
+
     parts: List[Path] = []
     timed: List[Dict[str, Any]] = []
     cursor = 0.0
     for i, line in enumerate(lines):
+        if i > 0:
+            time.sleep(0.35)
         mp3 = work / f"vo_{i:02d}.mp3"
         wav = work / f"vo_{i:02d}.wav"
         asyncio.run(_tts_line(line["text"], voice, rate, mp3))
