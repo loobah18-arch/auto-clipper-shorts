@@ -127,6 +127,21 @@ class TestBgmAndVoice(unittest.TestCase):
         self.assertGreater(nr.BGM_VOLUME, 0.0)
         self.assertEqual(nr.VOICE_VOLUME, 1.6)
 
+    def test_audio_filter_constant_bgm_no_ducking(self):
+        af = nr.build_audio_filter(50.0, has_bgm=True)
+        # BGM must stay constant: no sidechain ducking / pumping
+        self.assertNotIn("sidechaincompress", af)
+        self.assertNotIn("asplit=2", af)
+        self.assertIn("amix=inputs=2:normalize=0", af)
+        self.assertIn("loudnorm=I=-14:TP=-2.0:LRA=11[vo]", af)
+        self.assertIn(f"volume={nr.BGM_VOLUME:.2f}[bg]", af)
+        self.assertIn("alimiter=limit=0.95", af)
+
+    def test_audio_filter_fallback_without_bgm(self):
+        af = nr.build_audio_filter(50.0, has_bgm=False)
+        self.assertNotIn("amix", af)
+        self.assertIn("loudnorm=I=-14:TP=-1.5:LRA=11[a]", af)
+
     def test_human_voice_selection(self):
         self.assertIn("MultilingualNeural", nr.DEFAULT_VOICE)
         # Default fallback

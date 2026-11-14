@@ -63,7 +63,7 @@ OPENROUTER_MODEL = os.environ.get("RECAP_OPENROUTER_MODEL", "deepseek/deepseek-c
 
 DEFAULT_BGM = os.environ.get("RECAP_BGM", "main_attraction_phonk.mp3")
 DEFAULT_VOICE = os.environ.get("RECAP_VOICE", "en-US-AndrewMultilingualNeural")
-BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.05"))
+BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.04"))
 VOICE_VOLUME = float(os.environ.get("RECAP_VOICE_VOLUME", "1.6"))
 
 
@@ -533,6 +533,21 @@ def pick_voice(creator_info: Dict[str, Any]) -> str:
     return DEFAULT_VOICE
 
 
+def build_audio_filter(duration: float, has_bgm: bool) -> str:
+    """Builds the FFmpeg audio filtergraph.
+
+    BGM volume is held completely constant across the entire video (no sidechain ducking)
+    so the track does not pump or swell during pauses in narration.
+    """
+    if has_bgm:
+        return (
+            f"[1:a]aresample=44100,volume={VOICE_VOLUME:.2f},loudnorm=I=-14:TP=-2.0:LRA=11[vo];"
+            f"[2:a]aresample=44100,volume={BGM_VOLUME:.2f}[bg];"
+            f"[vo][bg]amix=inputs=2:normalize=0:duration=first,atrim=0:{duration:.3f},alimiter=limit=0.95[a]"
+        )
+    return f"[1:a]aresample=44100,volume={VOICE_VOLUME:.2f},atrim=0:{duration:.3f},loudnorm=I=-14:TP=-1.5:LRA=11[a]"
+
+
 def final_mux(video: Path, voice: Path, ass: Path, bgm: Optional[Path], output: Path, duration: float) -> None:
     ass_arg = ass.as_posix().replace(":", r"\:")
     fonts_arg = FONTS_DIR.as_posix().replace(":", r"\:")
@@ -540,15 +555,7 @@ def final_mux(video: Path, voice: Path, ass: Path, bgm: Optional[Path], output: 
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video), "-i", str(voice)]
     if bgm:
         cmd += ["-stream_loop", "-1", "-i", str(bgm)]
-        af = (
-            f"[1:a]aresample=44100,volume={VOICE_VOLUME:.2f},asplit=2[vo][sc];"
-            f"[2:a]aresample=44100,volume={BGM_VOLUME:.2f}[bg];"
-            "[bg][sc]sidechaincompress=threshold=0.02:ratio=12:attack=15:release=250[duck];"
-            f"[vo][duck]amix=inputs=2:normalize=0:duration=first,atrim=0:{duration:.3f},"
-            "loudnorm=I=-14:TP=-1.5:LRA=11[a]"
-        )
-    else:
-        af = f"[1:a]aresample=44100,volume={VOICE_VOLUME:.2f},atrim=0:{duration:.3f},loudnorm=I=-14:TP=-1.5:LRA=11[a]"
+    af = build_audio_filter(duration, has_bgm=bool(bgm))
     cmd += [
         "-filter_complex", f"{vf};{af}", "-map", "[v]", "-map", "[a]",
         "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
