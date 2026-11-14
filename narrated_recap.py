@@ -63,7 +63,7 @@ OPENROUTER_MODEL = os.environ.get("RECAP_OPENROUTER_MODEL", "deepseek/deepseek-c
 
 DEFAULT_BGM = os.environ.get("RECAP_BGM", "main_attraction_phonk.mp3")
 DEFAULT_VOICE = os.environ.get("RECAP_VOICE", "en-US-AndrewMultilingualNeural")
-BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.04"))
+BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.02"))
 VOICE_VOLUME = float(os.environ.get("RECAP_VOICE_VOLUME", "1.6"))
 
 
