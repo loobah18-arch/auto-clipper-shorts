@@ -584,11 +584,13 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          VIDEO_TITLE: ${{ env.recap_title || env.validated_title || steps.resolve.outputs.formatted_title }}
+          OUTPUT_NAME: ${{ steps.resolve.outputs.output_filename }}
+          CREATOR_ID: ${{ steps.resolve.outputs.creator }}
+          SOURCE_VIDEO_ID: ${{ steps.resolve.outputs.source_video_id }}
+          PRIVACY: ${{ inputs.privacy_status || 'public' }}
         run: |
           set -euo pipefail
-          OUTPUT_NAME="${{ steps.resolve.outputs.output_filename }}"
-          CREATOR_ID="${{ steps.resolve.outputs.creator }}"
-          PRIVACY="${{ inputs.privacy_status || 'public' }}"
           EXTRA_ARGS=()
           if [ "${{ inputs.force_upload }}" = "true" ]; then
             EXTRA_ARGS+=(--force)
@@ -599,8 +601,8 @@ jobs:
             --video "output/$OUTPUT_NAME" \
             --metadata metadata.json \
             --creator "$CREATOR_ID" \
-            --source-id "${{ steps.resolve.outputs.source_video_id }}" \
-            --title "${{ env.recap_title || env.validated_title || steps.resolve.outputs.formatted_title }}" \
+            --source-id "$SOURCE_VIDEO_ID" \
+            --title "$VIDEO_TITLE" \
             --privacy "$PRIVACY" \
             "${EXTRA_ARGS[@]}" || UPLOAD_STATUS=$?
 

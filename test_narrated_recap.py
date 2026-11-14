@@ -114,5 +114,18 @@ class TestCutsAndCaptions(unittest.TestCase):
         self.assertIn("0:00:01.20", ass)
 
 
+class TestBgm(unittest.TestCase):
+    def test_default_bgm_resolution(self):
+        self.assertEqual(nr.DEFAULT_BGM, "main_attraction_phonk.mp3")
+        path = nr.pick_bgm({})
+        self.assertIsNotNone(path)
+        self.assertTrue(path.exists())
+        self.assertIn("phonk", path.name.lower())
+
+    def test_bgm_volume_is_low(self):
+        self.assertLessEqual(nr.BGM_VOLUME, 0.15)
+        self.assertGreater(nr.BGM_VOLUME, 0.0)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -61,7 +61,8 @@ GROQ_WHISPER_MODEL = os.environ.get("RECAP_WHISPER_MODEL", "whisper-large-v3-tur
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = os.environ.get("RECAP_OPENROUTER_MODEL", "deepseek/deepseek-chat-v3-0324:free")
 
-DEFAULT_BGM = "cinematic_suspense_thriller.mp3"
+DEFAULT_BGM = os.environ.get("RECAP_BGM", "main_attraction_phonk.mp3")
+BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.12"))
 
 
 def log(msg: str) -> None:
@@ -526,7 +527,7 @@ def final_mux(video: Path, voice: Path, ass: Path, bgm: Optional[Path], output: 
         cmd += ["-stream_loop", "-1", "-i", str(bgm)]
         af = (
             "[1:a]aresample=44100,volume=1.6,asplit=2[vo][sc];"
-            "[2:a]aresample=44100,volume=0.22[bg];"
+            f"[2:a]aresample=44100,volume={BGM_VOLUME:.2f}[bg];"
             "[bg][sc]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=300[duck];"
             f"[vo][duck]amix=inputs=2:normalize=0:duration=first,atrim=0:{duration:.3f},"
             "loudnorm=I=-14:TP=-1.5:LRA=11[a]"
