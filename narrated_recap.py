@@ -375,7 +375,12 @@ async def _tts_line(text: str, voice: str, rate: str, out: Path) -> None:
         if alt not in voices_to_try:
             voices_to_try.append(alt)
 
-    clean_text = text.strip()
+    # Sanitize speakable text: strip non-ASCII/emojis, asterisks, and quotes that can break TTS
+    clean_text = re.sub(r"[^\x00-\x7F]+", " ", text).replace("*", "").replace('"', "").strip()
+    clean_text = re.sub(r"\s+", " ", clean_text)
+    if not clean_text:
+        clean_text = text.strip()
+
     last_exc = None
     for v in voices_to_try:
         for attempt in range(2):
