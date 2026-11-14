@@ -108,7 +108,8 @@ class TestCutsAndCaptions(unittest.TestCase):
 
     def test_ass_output(self):
         ass = nr.build_ass([(0.0, 1.2, "hello {world}")])
-        self.assertIn("PlayResY: 1920", ass)
+        self.assertIn(f"PlayResY: {nr.OUT_H}", ass)
+        self.assertEqual(nr.OUT_W, 1080)
         self.assertIn("HELLO (WORLD)", ass)
         self.assertIn("0:00:01.20", ass)
 

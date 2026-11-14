@@ -13,7 +13,7 @@ Turns one long source video into a ~60 second narrated vertical Short:
      the upload description.
   3. Each line is voiced with edge-tts, so the timing of every line is exact.
   4. Footage for each line is cut from the source window the script named,
-     cropped to 1080x1920, with the original audio muted.
+     cropped to 1080x1080 (square), with the original audio muted.
   5. Voiceover + ducked background music + captions synced to the voice.
 
 Free providers, in order:
@@ -42,7 +42,11 @@ ROOT_DIR = Path(__file__).resolve().parent
 FONTS_DIR = ROOT_DIR / "assets" / "fonts"
 BGM_DIR = ROOT_DIR / "assets" / "bgm"
 
-OUT_W, OUT_H, FPS = 1080, 1920, 30
+# Square by default (user's choice, 2026-11-14). RECAP_ASPECT=9:16 switches to full vertical.
+_ASPECTS = {"1:1": (1080, 1080), "9:16": (1080, 1920), "4:5": (1080, 1350)}
+OUT_W, OUT_H = _ASPECTS.get(os.environ.get("RECAP_ASPECT", "1:1"), (1080, 1080))
+ASPECT_LABEL = next((k for k, v in _ASPECTS.items() if v == (OUT_W, OUT_H)), "1:1")
+FPS = 30
 MAX_SECONDS = 58.0          # Shorts must stay under 60s
 TARGET_WORDS = (150, 185)   # reference channel runs ~190-240 words per minute of narration
 MAX_TRANSCRIPT_WORDS = 4500  # keeps the prompt inside Groq's free-tier token budget
@@ -132,7 +136,7 @@ def transcribe_groq(chunks: List[Tuple[float, Path]], api_key: str) -> List[Dict
                 f"{GROQ_BASE}/audio/transcriptions",
                 {"Authorization": f"Bearer {api_key}"},
                 files={"file": (path.name, fh, "audio/mpeg")},
-                data={"model": GROQ_WHISPER_MODEL, "response_format": "verbose_json", "language": "en"},
+                data={"model": GROQ_WHISPER_MODEL, "response_format": "verbose_json"},  # auto language (Ruhi Cenet is Turkish)
             )
         for seg in data.get("segments", []):
             text = (seg.get("text") or "").strip()
@@ -201,14 +205,14 @@ def condense_transcript(segments: List[Dict[str, Any]], block_seconds: float = 2
     return "\n".join(lines)
 
 
-SCRIPT_SYSTEM = """You write voiceovers for a YouTube Shorts channel that retells long science/experiment videos in under 60 seconds, in the exact style of the channel @TestedNProved.
+SCRIPT_SYSTEM = """You write voiceovers for a YouTube Shorts channel that retells long YouTube videos (science experiments, challenges, engineering builds, stunts, documentaries) in under 60 seconds, in the exact style of the channel @TestedNProved.
 
 STYLE (copy it closely):
 - Third person, casual, energetic: "This guy...", "He...". Never "I" or "we".
 - Line 1 is a curiosity hook, usually a question: "What would happen if you compressed 100 cans of Red Bull into one drink?"
 - Then: the goal ("the goal was simple: ..."), the method, a setback or failure, a twist ("But here's where it gets crazy."), the final test, and a punchy payoff/result in the last line.
 - Short spoken sentences, concrete numbers and details from the transcript, zero filler, no hashtags, no emojis, no stage directions.
-- Only state things that actually happen in the transcript.
+- Only state things that actually happen in the transcript. Always write in English, even if the transcript is in another language.
 - Keep the energy high: use at least one twist line like "But here's where it gets crazy." and end on a punchy payoff sentence.
 - Hit the word count: aim for about 170 words total. Too short sounds rushed and flat.
 
@@ -470,8 +474,8 @@ def build_ass(cues: List[Tuple[float, float, str]], font: str = "Montserrat") ->
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Cap,{font},92,&H00FFFFFF,&H0000FFFF,&H00000000,&H64000000,"
-        "-1,0,0,0,100,100,0,0,1,7,3,2,80,80,620,1\n\n"
+        f"Style: Cap,{font},{84 if OUT_H <= 1350 else 92},&H00FFFFFF,&H0000FFFF,&H00000000,&H64000000,"
+        f"-1,0,0,0,100,100,0,0,1,7,3,2,70,70,{int(OUT_H * 0.16) if OUT_H <= 1350 else 620},1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     events = []
@@ -565,7 +569,7 @@ def update_metadata(metadata_path: Path, title: str, script: Dict[str, Any], tim
         "title": title,
         "description": description,
         "narrated_recap": True,
-        "aspect_ratio": "9:16",
+        "aspect_ratio": ASPECT_LABEL,
         "resolution": f"{OUT_W}x{OUT_H}",
         "duration_seconds": round(duration, 2),
         "voiceover": {"voice": voice, "words": script["word_count"],
