@@ -370,7 +370,17 @@ def write_script(segments: List[Dict[str, Any]], source_title: str, creator_name
 async def _tts_line(text: str, voice: str, rate: str, out: Path) -> None:
     import edge_tts
 
-    await edge_tts.Communicate(text, voice, rate=rate).save(str(out))
+    last_exc = None
+    for attempt in range(3):
+        try:
+            await edge_tts.Communicate(text, voice, rate=rate).save(str(out))
+            if out.exists() and out.stat().st_size > 200:
+                return
+        except Exception as exc:
+            last_exc = exc
+            await asyncio.sleep(1.0 * (attempt + 1))
+    if last_exc:
+        raise last_exc
 
 
 def synthesize_lines(lines: List[Dict[str, Any]], voice: str, work: Path,

@@ -250,11 +250,22 @@ jobs:
           set -euo pipefail
           echo "🎙️ Synthesizing fresh intro narration with voice=$VOICE"
           echo "    Text: $TITLE"
-          edge-tts --voice "$VOICE" --text "$TITLE" --write-media narr_tts.mp3
-          ffmpeg -y -loglevel error -i narr_tts.mp3 -ar 44100 -ac 2 assets/intro_voice.wav
-          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 assets/intro_voice.wav)
-          echo "✅ Narration regenerated (duration=${DUR}s)"
-          rm -f narr_tts.mp3
+          SYNTH_OK=false
+          for attempt in 1 2 3; do
+            if edge-tts --voice "$VOICE" --text "$TITLE" --write-media narr_tts.mp3; then
+              ffmpeg -y -loglevel error -i narr_tts.mp3 -ar 44100 -ac 2 assets/intro_voice.wav
+              DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 assets/intro_voice.wav)
+              echo "✅ Narration regenerated (duration=${DUR}s)"
+              rm -f narr_tts.mp3
+              SYNTH_OK=true
+              break
+            fi
+            echo "⚠️ edge-tts attempt $attempt failed; retrying in 2s..."
+            sleep 2
+          done
+          if [ "$SYNTH_OK" = "false" ]; then
+            echo "⚠️ edge-tts failed after 3 attempts; falling back to bundled assets/intro_voice.wav"
+          fi
 
       - name: 🛡️ Generate YouTube PO Token via Node.js (Tier 2 Pre-flight)
         id: pot_gen
