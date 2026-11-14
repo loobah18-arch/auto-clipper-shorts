@@ -64,7 +64,7 @@ OPENROUTER_MODEL = os.environ.get("RECAP_OPENROUTER_MODEL", "deepseek/deepseek-c
 DEFAULT_BGM = os.environ.get("RECAP_BGM", "main_attraction_phonk.mp3")
 DEFAULT_VOICE = os.environ.get("RECAP_VOICE", "en-US-AndrewMultilingualNeural")
 BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.05"))
-VOICE_VOLUME = float(os.environ.get("RECAP_VOICE_VOLUME", "2.2"))
+VOICE_VOLUME = float(os.environ.get("RECAP_VOICE_VOLUME", "1.6"))
 
 
 def log(msg: str) -> None:

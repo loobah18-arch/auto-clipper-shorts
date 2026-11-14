@@ -122,10 +122,10 @@ class TestBgmAndVoice(unittest.TestCase):
         self.assertTrue(path.exists())
         self.assertIn("phonk", path.name.lower())
 
-    def test_bgm_volume_is_quiet_and_narrator_is_boosted(self):
+    def test_bgm_volume_is_quiet_and_narrator_balanced(self):
         self.assertLessEqual(nr.BGM_VOLUME, 0.08)
         self.assertGreater(nr.BGM_VOLUME, 0.0)
-        self.assertGreaterEqual(nr.VOICE_VOLUME, 2.0)
+        self.assertEqual(nr.VOICE_VOLUME, 1.6)
 
     def test_human_voice_selection(self):
         self.assertIn("MultilingualNeural", nr.DEFAULT_VOICE)
