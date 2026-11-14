@@ -14,7 +14,7 @@
       "svml_source": "sources/nileblue_experiment.svml",
       "default_title": "He Turned Air Into Drinkable Alcohol",
       "default_description": "NileRed turns thin air into drinkable alcohol through a full lab synthesis.",
-      "narrator_voice": "en-US-ChristopherNeural",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
       "voice_style": "Intrigued, inquisitive scientific pacing with high clarity",
       "packaging": {
         "shock_emojis": "😳",
@@ -74,7 +74,7 @@
       "svml_source": "sources/mark_rober_gadget.svml",
       "default_title": "Can An Engineer Stop Porch Thieves With Glitter?",
       "default_description": "Ex-NASA engineer Mark Rober builds the ultimate high-tech glitter bomb revenge trap to outsmart porch thieves!",
-      "narrator_voice": "en-US-GuyNeural",
+      "narrator_voice": "en-US-AndrewMultilingualNeural",
       "voice_style": "Friendly, fast-paced engineer enthusiasm with sharp comedic timing",
       "packaging": {
         "shock_emojis": "🐿️🚀",

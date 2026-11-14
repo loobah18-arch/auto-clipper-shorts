@@ -114,7 +114,7 @@ class TestCutsAndCaptions(unittest.TestCase):
         self.assertIn("0:00:01.20", ass)
 
 
-class TestBgm(unittest.TestCase):
+class TestBgmAndVoice(unittest.TestCase):
     def test_default_bgm_resolution(self):
         self.assertEqual(nr.DEFAULT_BGM, "main_attraction_phonk.mp3")
         path = nr.pick_bgm({})
@@ -122,9 +122,20 @@ class TestBgm(unittest.TestCase):
         self.assertTrue(path.exists())
         self.assertIn("phonk", path.name.lower())
 
-    def test_bgm_volume_is_low(self):
-        self.assertLessEqual(nr.BGM_VOLUME, 0.15)
+    def test_bgm_volume_is_quiet_and_narrator_is_boosted(self):
+        self.assertLessEqual(nr.BGM_VOLUME, 0.08)
         self.assertGreater(nr.BGM_VOLUME, 0.0)
+        self.assertGreaterEqual(nr.VOICE_VOLUME, 2.0)
+
+    def test_human_voice_selection(self):
+        self.assertIn("MultilingualNeural", nr.DEFAULT_VOICE)
+        # Default fallback
+        self.assertEqual(nr.pick_voice({}), nr.DEFAULT_VOICE)
+        # Filters out robotic legacy GuyNeural and upgrades to modern human voice
+        self.assertEqual(nr.pick_voice({"narrator_voice": "en-US-GuyNeural"}), nr.DEFAULT_VOICE)
+        # Keeps authentic human multilingual voices
+        self.assertEqual(nr.pick_voice({"narrator_voice": "en-US-BrianMultilingualNeural"}),
+                         "en-US-BrianMultilingualNeural")
 
 
 if __name__ == "__main__":

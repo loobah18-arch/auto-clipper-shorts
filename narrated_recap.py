@@ -62,7 +62,9 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = os.environ.get("RECAP_OPENROUTER_MODEL", "deepseek/deepseek-chat-v3-0324:free")
 
 DEFAULT_BGM = os.environ.get("RECAP_BGM", "main_attraction_phonk.mp3")
-BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.12"))
+DEFAULT_VOICE = os.environ.get("RECAP_VOICE", "en-US-AndrewMultilingualNeural")
+BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.05"))
+VOICE_VOLUME = float(os.environ.get("RECAP_VOICE_VOLUME", "2.2"))
 
 
 def log(msg: str) -> None:
@@ -518,6 +520,19 @@ def pick_bgm(creator_info: Dict[str, Any]) -> Optional[Path]:
     return path if path.exists() else None
 
 
+def pick_voice(creator_info: Dict[str, Any]) -> str:
+    env_voice = os.environ.get("RECAP_VOICE", "").strip()
+    if env_voice:
+        return env_voice
+    recap_voice = (creator_info.get("recap") or {}).get("voice", "").strip()
+    if recap_voice:
+        return recap_voice
+    cat_voice = creator_info.get("narrator_voice", "").strip()
+    if cat_voice and "Guy" not in cat_voice and "Christopher" not in cat_voice:
+        return cat_voice
+    return DEFAULT_VOICE
+
+
 def final_mux(video: Path, voice: Path, ass: Path, bgm: Optional[Path], output: Path, duration: float) -> None:
     ass_arg = ass.as_posix().replace(":", r"\:")
     fonts_arg = FONTS_DIR.as_posix().replace(":", r"\:")
@@ -526,14 +541,14 @@ def final_mux(video: Path, voice: Path, ass: Path, bgm: Optional[Path], output: 
     if bgm:
         cmd += ["-stream_loop", "-1", "-i", str(bgm)]
         af = (
-            "[1:a]aresample=44100,volume=1.6,asplit=2[vo][sc];"
+            f"[1:a]aresample=44100,volume={VOICE_VOLUME:.2f},asplit=2[vo][sc];"
             f"[2:a]aresample=44100,volume={BGM_VOLUME:.2f}[bg];"
-            "[bg][sc]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=300[duck];"
+            "[bg][sc]sidechaincompress=threshold=0.02:ratio=12:attack=15:release=250[duck];"
             f"[vo][duck]amix=inputs=2:normalize=0:duration=first,atrim=0:{duration:.3f},"
             "loudnorm=I=-14:TP=-1.5:LRA=11[a]"
         )
     else:
-        af = f"[1:a]aresample=44100,atrim=0:{duration:.3f},loudnorm=I=-14:TP=-1.5:LRA=11[a]"
+        af = f"[1:a]aresample=44100,volume={VOICE_VOLUME:.2f},atrim=0:{duration:.3f},loudnorm=I=-14:TP=-1.5:LRA=11[a]"
     cmd += [
         "-filter_complex", f"{vf};{af}", "-map", "[v]", "-map", "[a]",
         "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
@@ -600,8 +615,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     catalog = json.loads(args.catalog.read_text(encoding="utf-8"))
     creator_info = catalog["creators"][args.creator]
-    voice = (creator_info.get("recap") or {}).get("voice") or creator_info.get("narrator_voice", "en-US-ChristopherNeural")
-    rate = (creator_info.get("recap") or {}).get("rate", "+12%")
+    voice = pick_voice(creator_info)
+    rate = (creator_info.get("recap") or {}).get("rate", "+6%")
 
     work = Path(tempfile.mkdtemp(prefix="recap_"))
     try:
