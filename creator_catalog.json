@@ -74,7 +74,7 @@
       "svml_source": "sources/mark_rober_gadget.svml",
       "default_title": "Can An Engineer Stop Porch Thieves With Glitter?",
       "default_description": "Ex-NASA engineer Mark Rober builds the ultimate high-tech glitter bomb revenge trap to outsmart porch thieves!",
-      "narrator_voice": "en-US-AndrewMultilingualNeural",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
       "voice_style": "Friendly, fast-paced engineer enthusiasm with sharp comedic timing",
       "packaging": {
         "shock_emojis": "🐿️🚀",
@@ -104,7 +104,7 @@
       "svml_source": "sources/ishowspeed_viral.svml",
       "default_title": "Can Speed Jump Over Two Moving Supercars?",
       "default_description": "IShowSpeed attempts the impossible viral stunt — leaping over two high-speed moving supercars in real life!",
-      "narrator_voice": "en-US-AndrewMultilingualNeural",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
       "voice_style": "High-octane, punchy modern delivery matching chaotic hype moments",
       "packaging": {
         "shock_emojis": "⚡🔥",

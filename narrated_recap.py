@@ -62,7 +62,7 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = os.environ.get("RECAP_OPENROUTER_MODEL", "deepseek/deepseek-chat-v3-0324:free")
 
 DEFAULT_BGM = os.environ.get("RECAP_BGM", "main_attraction_phonk.mp3")
-DEFAULT_VOICE = os.environ.get("RECAP_VOICE", "en-US-AndrewMultilingualNeural")
+DEFAULT_VOICE = os.environ.get("RECAP_VOICE", "en-US-BrianMultilingualNeural")
 BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.02"))
 VOICE_VOLUME = float(os.environ.get("RECAP_VOICE_VOLUME", "1.6"))
 
