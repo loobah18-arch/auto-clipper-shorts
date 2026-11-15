@@ -210,26 +210,35 @@ def condense_transcript(segments: List[Dict[str, Any]], block_seconds: float = 2
 
 SCRIPT_SYSTEM = """You write voiceovers for a YouTube Shorts channel that retells long YouTube videos (science experiments, challenges, engineering builds, stunts, documentaries) in under 60 seconds, in the exact style of the channel @TestedNProved.
 
+CRITICAL TITLE HOOK RULE (MANDATORY):
+- Line 1 MUST state the exact title of the video as the opening spoken line! NEVER start with "What would happen if...", "Can this guy...", or speculative questions. The narrator immediately states the title hook: e.g. "He compressed 100 Red Bulls into one drink." or "He stole a car in 15 seconds with a dark-web gadget."
+- The title saying and the narration are voiced as ONE seamless continuous voiceover: Line 1 states the title hook, and Line 2 immediately jumps into the story without any weird cuts or disconnect.
+
 STYLE (copy it closely):
 - Third person, casual, energetic: "This guy...", "He...". Never "I" or "we".
-- Line 1 is a curiosity hook, usually a question: "What would happen if you compressed 100 cans of Red Bull into one drink?"
+- Line 1: The title of the video, spoken naturally as the opening sentence.
 - Then: the goal ("the goal was simple: ..."), the method, a setback or failure, a twist ("But here's where it gets crazy."), the final test, and a punchy payoff/result in the last line.
+- Each item in `lines` MUST be exactly one clear spoken sentence.
 - Short spoken sentences, concrete numbers and details from the transcript, zero filler, no hashtags, no emojis, no stage directions.
 - Only state things that actually happen in the transcript. Always write in English, even if the transcript is in another language.
 - Keep the energy high: use at least one twist line like "But here's where it gets crazy." and end on a punchy payoff sentence.
-- Hit the word count: aim for about 170 words total. Too short sounds rushed and flat.
+- Hit the word count: aim for about 160-185 words total. Too short sounds rushed and flat.
 
 EXAMPLE (another video):
-"What would happen if you compressed 100 cans of Red Bull into one drink? This guy bought 100 cans of sugar-free Red Bull and poured every single one into a giant bucket. That's 25 liters of energy drink, and the goal was simple: concentrate all of it into the size of one can. To do that, he used this insane machine..."
+"He compressed 100 cans of Red Bull into one drink. This guy bought 100 cans of sugar-free Red Bull and poured every single one into a giant bucket. That's 25 liters of energy drink, and the goal was simple: concentrate all of it into the size of one can. To do that, he used this insane machine..."
 
 OUTPUT: strict JSON, no markdown:
 {
   "title_hook": "He Compressed 100 RedBulls into 1 Drink",
   "description": "One or two plain sentences telling the story, like: This scientist took 100 cans of sugar-free Red Bull and ran them through a machine that removes all the water.",
-  "lines": [ {"text": "spoken sentence(s)", "start": 123, "end": 140}, ... ]
+  "lines": [
+    {"text": "He compressed 100 cans of Red Bull into one drink.", "start": 0, "end": 15},
+    {"text": "This guy bought 100 cans of sugar-free Red Bull and poured every single one into a giant bucket.", "start": 15, "end": 35}
+  ]
 }
 - title_hook: starts with "He", "She", "They" or "This Guy", states the result as a completed act, Title Case, max 60 characters, no emoji, no @handle.
-- lines: 9 to 14 items, in story order, together """ + f"{TARGET_WORDS[0]}-{TARGET_WORDS[1]}" + """ words.
+- lines[0]: MUST be the exact spoken version of title_hook.
+- lines: 9 to 14 items, in story order, together """ + f"{TARGET_WORDS[0]}-{TARGET_WORDS[1]}" + """ words. Each item is ONE complete spoken sentence.
 - start/end: seconds in the SOURCE video (use the [start-end] tags of the transcript) where the footage for that line is shown. Each range should be 4-40 seconds long and inside the video. Ranges must move forward through the video (non-decreasing start), and the final line must point at the actual final result near the end."""
 
 
@@ -334,6 +343,22 @@ def validate_script(raw: Dict[str, Any], source_duration: float) -> Dict[str, An
         last_start = start
         lines.append({"text": text, "start": round(start, 2), "end": round(end, 2)})
 
+    clean_hook = clean_title_hook(raw.get("title_hook"))
+    if clean_hook and lines:
+        first_text = lines[0].get("text", "")
+        # Enforce that Line 1 speaks the title of the video instead of "what would happen"
+        if not first_text or re.match(r"^(what\s+(would\s+)?happen|can\s+|is\s+it\s+possible|have\s+you\s+ever)", first_text, re.IGNORECASE):
+            hook_sentence = clean_hook
+            if not hook_sentence.endswith((".", "!", "?")):
+                hook_sentence += "."
+            lines[0]["text"] = hook_sentence
+
+    # Ensure all lines end with punctuation for clean prosody and sentence separation
+    for l in lines:
+        t = l["text"].strip()
+        if not t.endswith((".", "!", "?")):
+            l["text"] = t + "."
+
     words = sum(len(l["text"].split()) for l in lines)
     if len(lines) < 5 or words < 80:
         raise ValueError(f"script too thin ({len(lines)} lines, {words} words)")
@@ -341,7 +366,7 @@ def validate_script(raw: Dict[str, Any], source_duration: float) -> Dict[str, An
     description = re.sub(r"\s+", " ", str(raw.get("description", ""))).strip()
     description = re.sub(r"#\w+", "", description).strip()
     return {
-        "title_hook": clean_title_hook(raw.get("title_hook")),
+        "title_hook": clean_hook,
         "description": description[:600],
         "lines": lines,
         "word_count": words,
@@ -396,9 +421,91 @@ async def _tts_line(text: str, voice: str, rate: str, out: Path) -> None:
         raise last_exc
 
 
-def synthesize_lines(lines: List[Dict[str, Any]], voice: str, work: Path,
-                     rate: str = "+12%", gap: float = 0.06) -> Tuple[Path, List[Dict[str, Any]]]:
-    """Voices each line separately so every line's start/end on the output timeline is exact."""
+async def _synthesize_continuous_tts(full_text: str, voice: str, rate: str, out_mp3: Path) -> List[Tuple[float, float, str]]:
+    import edge_tts
+
+    voices_to_try = [voice]
+    for alt in ["en-US-BrianMultilingualNeural", "en-US-ChristopherNeural", "en-US-GuyNeural"]:
+        if alt not in voices_to_try:
+            voices_to_try.append(alt)
+
+    clean_text = re.sub(r"[^\x00-\x7F]+", " ", full_text).replace("*", "").replace('"', "").strip()
+    clean_text = re.sub(r"\s+", " ", clean_text)
+    if not clean_text:
+        clean_text = full_text.strip()
+
+    last_exc = None
+    for v in voices_to_try:
+        for attempt in range(2):
+            try:
+                communicate = edge_tts.Communicate(clean_text, v, rate=rate)
+                sentences: List[Tuple[float, float, str]] = []
+                audio_chunks: List[bytes] = []
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        audio_chunks.append(chunk["data"])
+                    elif chunk["type"] == "SentenceBoundary":
+                        sentences.append((chunk["offset"] / 1e7, chunk["duration"] / 1e7, chunk["text"]))
+                total_audio = b"".join(audio_chunks)
+                if len(total_audio) > 1000:
+                    out_mp3.write_bytes(total_audio)
+                    return sentences
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                await asyncio.sleep(0.8 * (attempt + 1))
+    if last_exc:
+        raise last_exc
+    return []
+
+
+def map_sentences_to_lines(lines: List[Dict[str, Any]], sentences: List[Tuple[float, float, str]],
+                           total_duration: float) -> List[Dict[str, Any]]:
+    """Maps continuous TTS sentence boundaries onto script lines."""
+    if not sentences:
+        timed = []
+        cursor = 0.0
+        total_chars = sum(len(l["text"]) for l in lines) or 1
+        for line in lines:
+            dur = total_duration * (len(line["text"]) / total_chars)
+            timed.append({**line, "out_start": round(cursor, 3), "out_end": round(cursor + dur, 3)})
+            cursor += dur
+        return timed
+
+    timed: List[Dict[str, Any]] = []
+    s_idx = 0
+    for line in lines:
+        text = line["text"].strip()
+        matched = []
+        accum = ""
+        while s_idx < len(sentences):
+            s_start, s_dur, s_text = sentences[s_idx]
+            accum = (accum + " " + s_text).strip()
+            matched.append(sentences[s_idx])
+            s_idx += 1
+            if len(accum) >= len(text) - 5:
+                break
+        if matched:
+            out_start = matched[0][0]
+            out_end = matched[-1][0] + matched[-1][1]
+            timed.append({**line, "out_start": round(out_start, 3), "out_end": round(out_end, 3)})
+
+    if len(timed) < len(lines):
+        last_end = timed[-1]["out_end"] if timed else 0.0
+        remaining_dur = max(total_duration - last_end, 1.0)
+        unmatched = lines[len(timed):]
+        chars = sum(len(l["text"]) for l in unmatched) or 1
+        cursor = last_end
+        for line in unmatched:
+            dur = remaining_dur * (len(line["text"]) / chars)
+            timed.append({**line, "out_start": round(cursor, 3), "out_end": round(cursor + dur, 3)})
+            cursor += dur
+
+    return timed
+
+
+def _synthesize_lines_fallback(lines: List[Dict[str, Any]], voice: str, work: Path,
+                               rate: str = "+12%", gap: float = 0.06) -> Tuple[Path, List[Dict[str, Any]]]:
+    """Per-line synthesis fallback if continuous stream fails."""
     import time
 
     parts: List[Path] = []
@@ -410,7 +517,6 @@ def synthesize_lines(lines: List[Dict[str, Any]], voice: str, work: Path,
         mp3 = work / f"vo_{i:02d}.mp3"
         wav = work / f"vo_{i:02d}.wav"
         asyncio.run(_tts_line(line["text"], voice, rate, mp3))
-        # trim TTS lead/trail silence, add a tiny breath gap
         run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp3), "-af",
              "silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
              "silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
@@ -425,8 +531,37 @@ def synthesize_lines(lines: List[Dict[str, Any]], voice: str, work: Path,
     voice_wav = work / "voice_full.wav"
     run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(concat_list),
          "-c", "copy", str(voice_wav)])
+    return voice_wav, timed
 
-    total = probe_duration(voice_wav)
+
+def synthesize_lines(lines: List[Dict[str, Any]], voice: str, work: Path,
+                     rate: str = "+12%") -> Tuple[Path, List[Dict[str, Any]]]:
+    """Voices the entire narration (title hook + story) in ONE continuous audio stream.
+
+    Ensures natural prosody, continuous cadence, and zero weird cuts or pitch
+    jumps between the title saying and the narration.
+    """
+    clean_lines = []
+    for l in lines:
+        t = l["text"].strip()
+        if not t.endswith((".", "!", "?")):
+            t += "."
+        clean_lines.append({**l, "text": t})
+
+    full_text = " ".join(l["text"] for l in clean_lines)
+    mp3 = work / "voice_full.mp3"
+    voice_wav = work / "voice_full.wav"
+
+    try:
+        sentences = asyncio.run(_synthesize_continuous_tts(full_text, voice, rate, mp3))
+        run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp3), "-ar", "44100", "-ac", "2", str(voice_wav)])
+        total = probe_duration(voice_wav)
+        timed = map_sentences_to_lines(clean_lines, sentences, total)
+    except Exception as exc:  # noqa: BLE001
+        log(f"continuous synthesis failed ({exc}); falling back to line-by-line synthesis")
+        voice_wav, timed = _synthesize_lines_fallback(clean_lines, voice, work, rate)
+        total = probe_duration(voice_wav)
+
     if total > MAX_SECONDS:
         tempo = min(total / MAX_SECONDS, 1.35)
         log(f"voiceover {total:.1f}s > {MAX_SECONDS}s, speeding up x{tempo:.3f}")

@@ -74,6 +74,18 @@ class TestScriptValidation(unittest.TestCase):
         text = "<think>hmm</think>\n```json\n" + json.dumps({"a": 1}) + "\n```"
         self.assertEqual(nr._extract_json(text), {"a": 1})
 
+    def test_enforces_title_hook_as_first_spoken_line_when_question(self):
+        raw = self._raw()
+        raw["lines"][0]["text"] = "What would happen if you compressed 100 cans of Red Bull into one drink?"
+        s = nr.validate_script(raw, 600)
+        self.assertEqual(s["lines"][0]["text"], "He Turned Air Into Alcohol.")
+
+    def test_preserves_declarative_first_line(self):
+        raw = self._raw()
+        raw["lines"][0]["text"] = "He turned air into drinkable alcohol."
+        s = nr.validate_script(raw, 600)
+        self.assertEqual(s["lines"][0]["text"], "He turned air into drinkable alcohol.")
+
 
 class TestTranscriptCondense(unittest.TestCase):
     def test_blocks_and_budget(self):
@@ -151,6 +163,39 @@ class TestBgmAndVoice(unittest.TestCase):
         # Keeps authentic human multilingual voices
         self.assertEqual(nr.pick_voice({"narrator_voice": "en-US-BrianMultilingualNeural"}),
                          "en-US-BrianMultilingualNeural")
+
+
+class TestSentenceMapping(unittest.TestCase):
+    def test_exact_sentence_boundary_mapping(self):
+        lines = [
+            {"text": "He Stole a Car in 15 Seconds with a Dark-Web Gadget.", "start": 0, "end": 10},
+            {"text": "Mark Rober bought a 12,000-dollar relay-attack kit from the dark web.", "start": 10, "end": 20},
+            {"text": "He rebuilt it with cheap baby-monitor parts, and used it to unlock and start a real car.", "start": 20, "end": 30},
+        ]
+        sentences = [
+            (0.05, 3.71, "He Stole a Car in 15 Seconds with a Dark-Web Gadget."),
+            (3.76, 4.61, "Mark Rober bought a 12,000-dollar relay-attack kit from the dark web."),
+            (8.37, 5.46, "He rebuilt it with cheap baby-monitor parts, and used it to unlock and start a real car."),
+        ]
+        timed = nr.map_sentences_to_lines(lines, sentences, total_duration=13.83)
+        self.assertEqual(len(timed), 3)
+        self.assertEqual(timed[0]["out_start"], 0.05)
+        self.assertEqual(timed[0]["out_end"], 3.76)
+        self.assertEqual(timed[1]["out_start"], 3.76)
+        self.assertEqual(timed[1]["out_end"], 8.37)
+        self.assertEqual(timed[2]["out_start"], 8.37)
+        self.assertEqual(timed[2]["out_end"], 13.83)
+
+    def test_proportional_fallback_without_boundaries(self):
+        lines = [
+            {"text": "Line one here.", "start": 0, "end": 10},
+            {"text": "Line two is slightly longer here.", "start": 10, "end": 20},
+        ]
+        timed = nr.map_sentences_to_lines(lines, sentences=[], total_duration=10.0)
+        self.assertEqual(len(timed), 2)
+        self.assertEqual(timed[0]["out_start"], 0.0)
+        self.assertAlmostEqual(timed[-1]["out_end"], 10.0, places=2)
+        self.assertLess(timed[0]["out_end"], timed[1]["out_end"])
 
 
 if __name__ == "__main__":
