@@ -18,7 +18,12 @@
       "voice_style": "Intrigued, inquisitive scientific pacing with high clarity",
       "packaging": {
         "shock_emojis": "😳",
-        "hashtags": ["#shorts", "#nilered", "#science", "#chemistry"],
+        "hashtags": [
+          "#shorts",
+          "#nilered",
+          "#science",
+          "#chemistry"
+        ],
         "category_id": "28",
         "madeForKids": false
       },
@@ -48,7 +53,12 @@
       "voice_style": "Deep, authentic cinema baritone with warm 110Hz chest resonance",
       "packaging": {
         "shock_emojis": "😳😳",
-        "hashtags": ["#shorts", "#challenge", "#mrbeast", "#viral"],
+        "hashtags": [
+          "#shorts",
+          "#challenge",
+          "#mrbeast",
+          "#viral"
+        ],
         "category_id": "24",
         "madeForKids": false
       },
@@ -61,6 +71,70 @@
         "$1 vs $1,000,000,000 Yacht",
         "Last To Fall Wins $500,000",
         "Survive 100 Days In Circle"
+      ]
+    },
+    "itchy_boots": {
+      "id": "itchy_boots",
+      "name": "Itchy Boots",
+      "channel_id": "UCEIs9nkveW9WmYtsOcJBwTg",
+      "channel_handle": "@itchyboots",
+      "channel_url": "https://www.youtube.com/@itchyboots",
+      "niche": "moto_adventure",
+      "description": "Noraly rides solo across continents on her motorcycle",
+      "svml_source": "sources/moto_ride.svml",
+      "default_title": "Itchy Boots Rides The World's Most Dangerous Road",
+      "default_description": "Noraly rides solo across continents on her motorcycle",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "🏍️",
+        "hashtags": [
+          "#shorts",
+          "#itchyboots",
+          "#motovlog",
+          "#adventure"
+        ],
+        "category_id": "19",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "expedition_hud",
+        "badge_prefix": "🏍️"
+      },
+      "sample_topics": [
+        "Itchy Boots Rides The World's Most Dangerous Road"
+      ]
+    },
+    "ryan_trahan": {
+      "id": "ryan_trahan",
+      "name": "Ryan Trahan",
+      "channel_id": "UCnmGIkw-KdI0W5siakKPKog",
+      "channel_handle": "@ryan",
+      "channel_url": "https://www.youtube.com/@ryan",
+      "niche": "challenge_vlogs",
+      "description": "Ryan Trahan runs wild challenge vlogs across the country",
+      "svml_source": "sources/travel_vlog.svml",
+      "default_title": "Ryan Trahan Survives On A Penny",
+      "default_description": "Ryan Trahan runs wild challenge vlogs across the country",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "😳",
+        "hashtags": [
+          "#shorts",
+          "#ryantrahan",
+          "#vlog",
+          "#challenge"
+        ],
+        "category_id": "22",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "gold_stakes",
+        "badge_prefix": "🗺️"
+      },
+      "sample_topics": [
+        "Ryan Trahan Survives On A Penny"
       ]
     },
     "mark_rober": {
@@ -78,7 +152,12 @@
       "voice_style": "Friendly, fast-paced engineer enthusiasm with sharp comedic timing",
       "packaging": {
         "shock_emojis": "🐿️🚀",
-        "hashtags": ["#shorts", "#engineering", "#markrober", "#viral"],
+        "hashtags": [
+          "#shorts",
+          "#engineering",
+          "#markrober",
+          "#viral"
+        ],
         "category_id": "28",
         "madeForKids": false
       },
@@ -91,6 +170,70 @@
         "Backyard Squirrel Obstacle Course 2.0",
         "World's Largest Super Soaker",
         "Automatic Bullseye Dartboard"
+      ]
+    },
+    "yammie_noob": {
+      "id": "yammie_noob",
+      "name": "Yammie Noob",
+      "channel_id": "UCkegEsZItEPQNItECCZA_pw",
+      "channel_handle": "@YammieNoob",
+      "channel_url": "https://www.youtube.com/@YammieNoob",
+      "niche": "motovlog",
+      "description": "Yammie Noob rides, reviews and stunts with bikes of every kind",
+      "svml_source": "sources/moto_ride.svml",
+      "default_title": "Yammie Noob Rides A Crazy Bike",
+      "default_description": "Yammie Noob rides, reviews and stunts with bikes of every kind",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "🏍️",
+        "hashtags": [
+          "#shorts",
+          "#yammienoob",
+          "#motovlog",
+          "#motorcycle"
+        ],
+        "category_id": "2",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "neon_hype",
+        "badge_prefix": "🏍️"
+      },
+      "sample_topics": [
+        "Yammie Noob Rides A Crazy Bike"
+      ]
+    },
+    "yes_theory": {
+      "id": "yes_theory",
+      "name": "Yes Theory",
+      "channel_id": "UCvK4bOhULCpmLabd2pDMtnA",
+      "channel_handle": "@YesTheory",
+      "channel_url": "https://www.youtube.com/@YesTheory",
+      "niche": "adventure_vlogs",
+      "description": "Yes Theory seeks discomfort with strangers and adventures",
+      "svml_source": "sources/travel_vlog.svml",
+      "default_title": "Yes Theory Says Yes To Strangers",
+      "default_description": "Yes Theory seeks discomfort with strangers and adventures",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "🌍",
+        "hashtags": [
+          "#shorts",
+          "#yestheory",
+          "#adventure",
+          "#travel"
+        ],
+        "category_id": "19",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "expedition_hud",
+        "badge_prefix": "🌍"
+      },
+      "sample_topics": [
+        "Yes Theory Says Yes To Strangers"
       ]
     },
     "ishowspeed": {
@@ -108,7 +251,12 @@
       "voice_style": "High-octane, punchy modern delivery matching chaotic hype moments",
       "packaging": {
         "shock_emojis": "⚡🔥",
-        "hashtags": ["#shorts", "#ishowspeed", "#speed", "#viral"],
+        "hashtags": [
+          "#shorts",
+          "#ishowspeed",
+          "#speed",
+          "#viral"
+        ],
         "category_id": "24",
         "madeForKids": false
       },
@@ -121,6 +269,198 @@
         "Speed Meets Cristiano Ronaldo In Real Life",
         "IShowSpeed Extreme Robot Dog Encounter",
         "Speed Full Sprint Race Against Olympic Sprinter"
+      ]
+    },
+    "mikeshifts": {
+      "id": "mikeshifts",
+      "name": "Mikeshifts",
+      "channel_id": "UCXOR07ZYQdn3kEJrLG_6FJQ",
+      "channel_handle": "@MikeShifts",
+      "channel_url": "https://www.youtube.com/@MikeShifts",
+      "niche": "motovlog",
+      "description": "Mikeshifts rides, crashes and fixes up wild motorcycles",
+      "svml_source": "sources/moto_ride.svml",
+      "default_title": "Mikeshifts Buys A Wrecked Bike",
+      "default_description": "Mikeshifts rides, crashes and fixes up wild motorcycles",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "🏍️",
+        "hashtags": [
+          "#shorts",
+          "#mikeshifts",
+          "#motovlog",
+          "#bikes"
+        ],
+        "category_id": "2",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "neon_hype",
+        "badge_prefix": "🏍️"
+      },
+      "sample_topics": [
+        "Mikeshifts Buys A Wrecked Bike"
+      ]
+    },
+    "casey_neistat": {
+      "id": "casey_neistat",
+      "name": "Casey Neistat",
+      "channel_id": "UCtinbF-Q-fVthA0qrFQTgXQ",
+      "channel_handle": "@casey",
+      "channel_url": "https://www.youtube.com/@casey",
+      "niche": "daily_vlogs",
+      "description": "Casey Neistat tells cinematic stories from his life and travels",
+      "svml_source": "sources/travel_vlog.svml",
+      "default_title": "Casey Neistat Vlog Story",
+      "default_description": "Casey Neistat tells cinematic stories from his life and travels",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "😳",
+        "hashtags": [
+          "#shorts",
+          "#caseyneistat",
+          "#vlog",
+          "#nyc"
+        ],
+        "category_id": "22",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "expedition_hud",
+        "badge_prefix": "🎥"
+      },
+      "sample_topics": [
+        "Casey Neistat Vlog Story"
+      ]
+    },
+    "airrack": {
+      "id": "airrack",
+      "name": "Airrack",
+      "channel_id": "UCyps-v4WNjWDnYRKmZ4BUGw",
+      "channel_handle": "@Airrack",
+      "channel_url": "https://www.youtube.com/@Airrack",
+      "niche": "extreme_challenges",
+      "description": "Airrack takes on huge, chaotic real-world challenges",
+      "svml_source": "sources/generic_challenge.svml",
+      "default_title": "Airrack Takes On An Impossible Challenge",
+      "default_description": "Airrack takes on huge, chaotic real-world challenges",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "😳",
+        "hashtags": [
+          "#shorts",
+          "#airrack",
+          "#challenge",
+          "#viral"
+        ],
+        "category_id": "24",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "gold_stakes",
+        "badge_prefix": "🏆"
+      },
+      "sample_topics": [
+        "Airrack Takes On An Impossible Challenge"
+      ]
+    },
+    "cj_kirk": {
+      "id": "cj_kirk",
+      "name": "CJ Kirk",
+      "channel_id": "UCItjPjyP_G5J8h_PyUngZDw",
+      "channel_handle": "@CJKirk",
+      "channel_url": "https://www.youtube.com/@CJKirk",
+      "niche": "moto_vlog",
+      "description": "CJ Kirk rides and reviews motorcycles with honest takes",
+      "svml_source": "sources/moto_ride.svml",
+      "default_title": "CJ Kirk Rides A New Bike",
+      "default_description": "CJ Kirk rides and reviews motorcycles with honest takes",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "🏍️",
+        "hashtags": [
+          "#shorts",
+          "#cjkirk",
+          "#motovlog",
+          "#motorcycle"
+        ],
+        "category_id": "2",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "blueprint_tech",
+        "badge_prefix": "🏍️"
+      },
+      "sample_topics": [
+        "CJ Kirk Rides A New Bike"
+      ]
+    },
+    "drew_binsky": {
+      "id": "drew_binsky",
+      "name": "Drew Binsky",
+      "channel_id": "UC0Ize0RLIbGdH5x4wI45G-A",
+      "channel_handle": "@drewbinsky",
+      "channel_url": "https://www.youtube.com/@drewbinsky",
+      "niche": "travel_vlogs",
+      "description": "Drew Binsky visits every country and shows how people really live",
+      "svml_source": "sources/travel_vlog.svml",
+      "default_title": "Drew Binsky Visits A Hidden Country",
+      "default_description": "Drew Binsky visits every country and shows how people really live",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "🌍",
+        "hashtags": [
+          "#shorts",
+          "#drewbinsky",
+          "#travel",
+          "#vlog"
+        ],
+        "category_id": "19",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "expedition_hud",
+        "badge_prefix": "✈️"
+      },
+      "sample_topics": [
+        "Drew Binsky Visits A Hidden Country"
+      ]
+    },
+    "dude_perfect": {
+      "id": "dude_perfect",
+      "name": "Dude Perfect",
+      "channel_id": "UCRijo3ddMTht_IHyNSNXpNQ",
+      "channel_handle": "@DudePerfect",
+      "channel_url": "https://www.youtube.com/@DudePerfect",
+      "niche": "trick_shots_sports",
+      "description": "Dude Perfect pulls off trick shots and over-the-top sports battles",
+      "svml_source": "sources/generic_challenge.svml",
+      "default_title": "Dude Perfect Trick Shot Battle",
+      "default_description": "Dude Perfect pulls off trick shots and over-the-top sports battles",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "🤯",
+        "hashtags": [
+          "#shorts",
+          "#dudeperfect",
+          "#trickshot",
+          "#sports"
+        ],
+        "category_id": "17",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "neon_hype",
+        "badge_prefix": "🎯"
+      },
+      "sample_topics": [
+        "Dude Perfect Trick Shot Battle"
       ]
     },
     "ruhi_cenet": {
@@ -138,7 +478,12 @@
       "voice_style": "Grave, atmospheric documentary baritone building suspense and geopolitical mystery",
       "packaging": {
         "shock_emojis": "🥶🚨",
-        "hashtags": ["#shorts", "#documentary", "#survival", "#viral"],
+        "hashtags": [
+          "#shorts",
+          "#documentary",
+          "#survival",
+          "#viral"
+        ],
         "category_id": "19",
         "madeForKids": false
       },
@@ -151,6 +496,38 @@
         "Inside The World's Deadliest Toxic Acid Volcano",
         "Touching The North Korea Border Fence",
         "The Isolated Tribe That Rejects Modern Civilisation"
+      ]
+    },
+    "sidemen": {
+      "id": "sidemen",
+      "name": "Sidemen",
+      "channel_id": "UCDogdKl7t7NHzQ95aEwkdMw",
+      "channel_handle": "@Sidemen",
+      "channel_url": "https://www.youtube.com/@Sidemen",
+      "niche": "group_challenges",
+      "description": "The Sidemen compete in chaotic group challenges",
+      "svml_source": "sources/generic_challenge.svml",
+      "default_title": "Sidemen Group Challenge",
+      "default_description": "The Sidemen compete in chaotic group challenges",
+      "narrator_voice": "en-US-BrianMultilingualNeural",
+      "voice_style": "High-energy, curious question hook, then original audio",
+      "packaging": {
+        "shock_emojis": "😂",
+        "hashtags": [
+          "#shorts",
+          "#sidemen",
+          "#challenge",
+          "#funny"
+        ],
+        "category_id": "24",
+        "madeForKids": false
+      },
+      "hud_theme": {
+        "style": "neon_hype",
+        "badge_prefix": "🔥"
+      },
+      "sample_topics": [
+        "Sidemen Group Challenge"
       ]
     }
   }

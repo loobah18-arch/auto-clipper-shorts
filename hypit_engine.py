@@ -818,7 +818,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Hypit Video Authoring & Render Engine")
     parser.add_argument("manifest", nargs="?", default="sources/production.svrun", help="Path to .svrun manifest")
-    parser.add_argument("--creator", choices=["mrbeast", "nileblue", "mark_rober", "ishowspeed", "ruhi_cenet"], help="Override creator SVML source")
+    parser.add_argument("--creator", help="Override creator SVML source")
     parser.add_argument("--raw-video", help="Path to custom raw input video file")
     parser.add_argument("--output", "-o", help="Custom output destination path")
     parser.add_argument("--script-json", help="Per-video hook->payoff script (cues + HUD badges)")

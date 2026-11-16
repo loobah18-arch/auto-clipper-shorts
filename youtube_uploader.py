@@ -160,6 +160,15 @@ class YouTubeUploader:
         hashtags = creator_info.get("packaging", {}).get("hashtags", ["#shorts", "#viral"])
         tag_line = " ".join(hashtags)
 
+        if metadata and metadata.get("highlight_clip"):
+            # woo's clips highlight format: story description + credit + tags
+            return (
+                f"{raw_description}\n\n"
+                f"🎥 Original video by {creator_name}: {creator_url}\n"
+                f"All footage and audio belong to {creator_name}. Hook, cut and captions are ours.\n\n"
+                f"{tag_line}"
+            )
+
         if metadata and metadata.get("narrated_recap"):
             # @TestedNProved format: plain story description + credit + tags
             return (
