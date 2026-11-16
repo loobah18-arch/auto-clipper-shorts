@@ -22,6 +22,17 @@ on:
           - 'mark_rober'
           - 'ishowspeed'
           - 'ruhi_cenet'
+          - 'airrack'
+          - 'dude_perfect'
+          - 'sidemen'
+          - 'ryan_trahan'
+          - 'casey_neistat'
+          - 'yes_theory'
+          - 'drew_binsky'
+          - 'itchy_boots'
+          - 'yammie_noob'
+          - 'mikeshifts'
+          - 'cj_kirk'
       video_url:
         description: 'Specific YouTube video to clip (leave blank to auto-pick the next unclipped video)'
         required: false

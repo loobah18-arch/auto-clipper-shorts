@@ -65,8 +65,9 @@ class TestYouTubeUploader(unittest.TestCase):
         self.assertEqual(res2["creator_id"], "mrbeast")
         self.assertEqual(res2["output_filename"], "hypit_mrbeast_short.mp4")
 
-        # After ruhi_cenet (last creator), it loops back to nileblue
-        self.test_history.write_text(json.dumps([{"creator": "ruhi_cenet", "video_id": "test2"}]), encoding="utf-8")
+        # After the last creator in the catalog, it loops back to nileblue
+        last = list(json.loads((ROOT_DIR / "creator_catalog.json").read_text(encoding="utf-8"))["creators"])[-1]
+        self.test_history.write_text(json.dumps([{"creator": last, "video_id": "test2"}]), encoding="utf-8")
         res3 = resolve_next_creator_rotation(history_file=self.test_history)
         self.assertEqual(res3["creator_id"], "nileblue")
 
