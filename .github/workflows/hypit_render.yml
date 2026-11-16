@@ -27,15 +27,6 @@ on:
         required: false
         default: ''
         type: string
-      aspect_ratio:
-        description: 'Shape of the Short'
-        required: false
-        default: '1:1'
-        type: choice
-        options:
-          - '1:1'
-          - '9:16'
-          - '4:5'
       manifest:
         description: 'Path to Hypit manifest (optional override, leave blank for creator SVML)'
         required: false
@@ -190,8 +181,8 @@ jobs:
           narrator_voice = creator_info['narrator_voice']
           narration_text = hook_text(source_vid['title'])
 
-          # Per-video hook->payoff script (captions + HUD badges) and upload metadata (original audio mode)
-          write_run_artifacts(selection, creator_info, '.run_script.json', 'metadata.json', has_narration=False)
+          # Per-video hook->payoff script (captions + HUD badges) and upload metadata
+          write_run_artifacts(selection, creator_info, '.run_script.json', 'metadata.json', has_narration=True)
           print(f'🎙️ Narration text: {narration_text}')
 
           print(f'🎯 Selected Creator: {creator} ({selection[\"creator_name\"]})')
@@ -242,8 +233,7 @@ jobs:
             echo "TITLE_EOF"
           } >> "$GITHUB_ENV"
 
-      - name: 🎙️ Regenerate Per-Title Intro Narration (TTS - Disabled for Original Audio)
-        if: false # Disabled: Woo's Clips keeps original audio from the video instead of narrating
+      - name: 🎙️ Regenerate Per-Title Intro Narration (TTS)
         env:
           TITLE: ${{ steps.resolve.outputs.narration_text }}
           VOICE: ${{ steps.resolve.outputs.narrator_voice }}
@@ -553,56 +543,7 @@ jobs:
             exit 1
           fi
 
-      - name: 🎬 Render Deliverable with Original Video Audio (@woosclips)
-        id: recap
-        env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          RECAP_ASPECT: ${{ inputs.aspect_ratio || '1:1' }}
-          SOURCE_TITLE: ${{ steps.resolve.outputs.raw_source_title }}
-          FALLBACK_TITLE: ${{ env.validated_title || steps.resolve.outputs.formatted_title }}
-        run: |
-          set -uo pipefail
-          mkdir -p output
-          RAW="${raw_video_flag#--raw-video }"
-          RAW="${RAW# }"
-          if [ -z "${GROQ_API_KEY}${OPENROUTER_API_KEY}" ]; then
-            echo "::warning title=Missing LLM Keys::Using classic render with original audio."
-            MANIFEST="${{ steps.resolve.outputs.manifest }}"
-            CREATOR_ID="${{ steps.resolve.outputs.creator }}"
-            OUTPUT_NAME="${{ steps.resolve.outputs.output_filename }}"
-            SCRIPT_ARGS=()
-            if [ -f .run_script.json ]; then
-              SCRIPT_ARGS=(--script-json .run_script.json)
-            fi
-            python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" $raw_video_flag \
-              --no-narration "${SCRIPT_ARGS[@]}" --output "output/$OUTPUT_NAME"
-            echo "ok=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ -z "$RAW" ] || [ ! -f "$RAW" ]; then
-            echo "::error title=Missing Source Video::No downloaded source video found."
-            exit 1
-          fi
-          python3 narrated_recap.py \
-              --raw-video "$RAW" \
-              --creator "${{ steps.resolve.outputs.creator }}" \
-              --source-title "$SOURCE_TITLE" \
-              --fallback-title "$FALLBACK_TITLE" \
-              --metadata metadata.json \
-              --output "output/${{ steps.resolve.outputs.output_filename }}" \
-              --title-out .recap_title.txt \
-              --original-audio
-          echo "ok=true" >> "$GITHUB_OUTPUT"
-          {
-            echo "recap_title<<TITLE_EOF"
-            cat .recap_title.txt
-            echo ""
-            echo "TITLE_EOF"
-          } >> "$GITHUB_ENV"
-
-      - name: 🎬 Render Hypit Deliverable (classic fallback with original audio)
-        if: steps.recap.outputs.ok != 'true'
+      - name: 🎬 Render Hypit Deliverable
         run: |
           set -euo pipefail
           mkdir -p output
@@ -614,7 +555,7 @@ jobs:
             SCRIPT_ARGS=(--script-json .run_script.json)
           fi
           python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" $raw_video_flag \
-            --no-narration "${SCRIPT_ARGS[@]}" --output "output/$OUTPUT_NAME"
+            "${SCRIPT_ARGS[@]}" --output "output/$OUTPUT_NAME"
 
       - name: 📦 Upload Generated Video Artifact
         if: always()
@@ -631,7 +572,7 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
-          VIDEO_TITLE: ${{ env.recap_title || env.validated_title || steps.resolve.outputs.formatted_title }}
+          VIDEO_TITLE: ${{ env.validated_title || steps.resolve.outputs.formatted_title }}
           OUTPUT_NAME: ${{ steps.resolve.outputs.output_filename }}
           CREATOR_ID: ${{ steps.resolve.outputs.creator }}
           SOURCE_VIDEO_ID: ${{ steps.resolve.outputs.source_video_id }}

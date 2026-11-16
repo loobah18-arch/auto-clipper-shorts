@@ -55,14 +55,15 @@ python3 test_hypit_engine.py
 ```
 
 
-## Original Audio Delivery Format (@woosclips)
+## Tested&Proved Benchmark Format (@woosclips)
 
-Woo's clips keeps the **authentic original audio from the source video** across all moments and scenes instead of narrating the video with an AI voiceover.
-- Transcribe (Groq Whisper) -> LLM selects the highest-retention continuous story moments.
-- Footage is cut directly to those moments with **original dialogue and audio preserved**.
-- Mastered with broadcast loudness normalization (`loudnorm=I=-14:TP=-1.5:LRA=11`), kinetic captions, and subtle ambient bed.
-- Hypit deliverable runs with `--original-audio` (or `--no-narration` for classic SVML arc cutter).
-- AI TTS voiceover narration can optionally be re-enabled with `--narrate`.
+The automated Shorts pipeline mirrors the top-performing benchmark format from [@woosclips](https://youtube.com/shorts/GKz-NtMJFg8):
+- **Aspect Ratio**: 1080x1440 (3:4 vertical canvas) to maximize phone screen real estate without black bars.
+- **Audio Architecture**:
+  - **0.0s – 3.75s (Hook Window)**: Deep human baritone voiceover (`BrianMultilingualNeural`) reading the declarative hook title, with source audio dimmed in the background.
+  - **3.75s – 60.0s (Main Story Arc)**: 100% authentic original video audio (`volume=1.10`) preserving the creator's real dialogue, reactions, and sound effects.
+- **Story Arc**: 6-stage "Completion Compulsion" curve (`HOOK -> RISING ACTION -> CONFLICT -> COMEBACK -> RISING ACTION -> PAYOFF`) cut across the entire raw source video.
+- **HUD & Packaging**: Top-left stage badges (`[ 01 · HOOK ]`, `[ 02 · RISING ACTION ]`, etc.), giant yellow title card, and cinematic transition whoosh SFX (`assets/sfx/whoosh.mp3`).
 
 Setup: add a free Groq API key (https://console.groq.com/keys) as the repo secret `GROQ_API_KEY`.
 `OPENROUTER_API_KEY` works as a backup script writer. With neither key, the workflow falls back to the classic render.
