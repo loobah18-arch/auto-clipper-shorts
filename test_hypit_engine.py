@@ -207,6 +207,16 @@ class TestStoryArcCutting(unittest.TestCase):
         self.assertIn("[2:a]volume=0.90[a_sfx];", fc)
         self.assertIn("alimiter=limit=0.95[a]", fc)
 
+    def test_filter_builder_without_narration_uses_original_audio_only(self):
+        cuts = plan_arc_cuts(900.0, 60.0, has_narration=False)
+        fc = build_arc_filter_complex(cuts, 1080, 1920, "sub.ass", "", has_narration=False, has_sfx=False)
+        self.assertNotIn("[a_vox]", fc)
+        self.assertNotIn("[1:a]", fc)
+        # All 6 stages must use original source audio [0:a]
+        self.assertEqual(fc.count("[0:a]atrim=start="), 6)
+        self.assertIn("concat=n=6:v=0:a=1[a_dialogue];", fc)
+        self.assertIn("[a_dialogue]alimiter=limit=0.95[a]", fc)
+
 
 if __name__ == "__main__":
     unittest.main()

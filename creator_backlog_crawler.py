@@ -505,7 +505,7 @@ def write_run_artifacts(
     script_path: Path = Path(".run_script.json"),
     metadata_path: Path = Path("metadata.json"),
     total: float = 60.0,
-    has_narration: bool = True,
+    has_narration: bool = False,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Writes the renderer script and upload metadata for the selected video."""
     source_title = selection["source_video"]["title"]

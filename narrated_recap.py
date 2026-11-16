@@ -65,6 +65,7 @@ DEFAULT_BGM = os.environ.get("RECAP_BGM", "main_attraction_phonk.mp3")
 DEFAULT_VOICE = os.environ.get("RECAP_VOICE", "en-US-BrianMultilingualNeural")
 BGM_VOLUME = float(os.environ.get("RECAP_BGM_VOLUME", "0.02"))
 VOICE_VOLUME = float(os.environ.get("RECAP_VOICE_VOLUME", "1.6"))
+ORIGINAL_AUDIO_VOLUME = float(os.environ.get("RECAP_ORIGINAL_AUDIO_VOLUME", "1.05"))
 
 
 def log(msg: str) -> None:
@@ -643,6 +644,42 @@ def plan_cuts(timed_lines: List[Dict[str, Any]], source_duration: float,
     return cuts
 
 
+def plan_original_audio_cuts(
+    lines: List[Dict[str, Any]],
+    source_duration: float,
+    target_total: float = 56.0,
+) -> Tuple[List[Dict[str, float]], List[Dict[str, Any]], float]:
+    """Plans continuous cuts with original audio directly from the source video moments."""
+    if not lines:
+        raise ValueError("Cannot plan cuts from empty script lines")
+
+    raw_durs = [min(max(2.5, float(l.get("end", 0)) - float(l.get("start", 0))), 12.0) for l in lines]
+    tot = sum(raw_durs)
+    target = min(target_total, max(10.0, source_duration - 1.0))
+    scale = target / tot if tot > 0 else 1.0
+
+    cuts: List[Dict[str, float]] = []
+    timed: List[Dict[str, Any]] = []
+    t = 0.0
+
+    for i, line in enumerate(lines):
+        dur = max(2.0, round(raw_durs[i] * scale, 2))
+        src_start = max(0.0, float(line.get("start", 0.0)))
+        if src_start + dur > source_duration:
+            src_start = max(0.0, source_duration - dur - 0.05)
+
+        cuts.append({"src_start": round(src_start, 3), "duration": round(dur, 3)})
+        timed_item = dict(line)
+        timed_item["out_start"] = round(t, 2)
+        timed_item["out_end"] = round(t + dur, 2)
+        timed_item["is_title"] = (i == 0)
+        timed.append(timed_item)
+        t += dur
+
+    total_duration = round(t, 2)
+    return cuts, timed, total_duration
+
+
 # ---------------------------------------------------------------------------
 # 5. Captions
 # ---------------------------------------------------------------------------
@@ -727,17 +764,24 @@ def build_ass(cues: List[Any], font: str = "Montserrat") -> str:
 # 6. Render
 # ---------------------------------------------------------------------------
 
-def render_shots(source: Path, cuts: List[Dict[str, float]], work: Path) -> Path:
+def render_shots(source: Path, cuts: List[Dict[str, float]], work: Path,
+                 include_audio: bool = False) -> Path:
     vf = (f"scale={OUT_W}:{OUT_H}:force_original_aspect_ratio=increase,crop={OUT_W}:{OUT_H},"
           f"setsar=1,fps={FPS},eq=contrast=1.06:saturation=1.12")
     parts: List[Path] = []
     for i, cut in enumerate(cuts):
         out = work / f"shot_{i:03d}.mp4"
-        run([
+        cmd = [
             "ffmpeg", "-y", "-loglevel", "error", "-ss", f"{cut['src_start']:.3f}", "-i", str(source),
-            "-t", f"{cut['duration']:.3f}", "-an", "-vf", vf,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", str(out),
-        ])
+            "-t", f"{cut['duration']:.3f}", "-vf", vf,
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+        ]
+        if include_audio:
+            cmd += ["-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2"]
+        else:
+            cmd += ["-an"]
+        cmd.append(str(out))
+        run(cmd)
         parts.append(out)
     lst = work / "shots.txt"
     lst.write_text("".join(f"file '{p.as_posix()}'\n" for p in parts), encoding="utf-8")
@@ -765,12 +809,22 @@ def pick_voice(creator_info: Dict[str, Any]) -> str:
     return DEFAULT_VOICE
 
 
-def build_audio_filter(duration: float, has_bgm: bool) -> str:
+def build_audio_filter(duration: float, has_bgm: bool, keep_original_audio: bool = False) -> str:
     """Builds the FFmpeg audio filtergraph.
 
-    BGM volume is held completely constant across the entire video (no sidechain ducking)
-    so the track does not pump or swell during pauses in narration.
+    If keep_original_audio is True, normalizes the source video audio from [0:a]
+    and optionally mixes subtle BGM at constant volume.
+    Otherwise, mixes narrator voiceover [1:a] and constant BGM [2:a].
     """
+    if keep_original_audio:
+        if has_bgm:
+            return (
+                f"[0:a]aresample=44100,volume={ORIGINAL_AUDIO_VOLUME:.2f},loudnorm=I=-14:TP=-1.5:LRA=11[orig];"
+                f"[1:a]aresample=44100,volume={BGM_VOLUME:.2f}[bg];"
+                f"[orig][bg]amix=inputs=2:normalize=0:duration=first,atrim=0:{duration:.3f},alimiter=limit=0.95[a]"
+            )
+        return f"[0:a]aresample=44100,volume={ORIGINAL_AUDIO_VOLUME:.2f},atrim=0:{duration:.3f},loudnorm=I=-14:TP=-1.5:LRA=11[a]"
+
     if has_bgm:
         return (
             f"[1:a]aresample=44100,volume={VOICE_VOLUME:.2f},loudnorm=I=-14:TP=-2.0:LRA=11[vo];"
@@ -780,14 +834,22 @@ def build_audio_filter(duration: float, has_bgm: bool) -> str:
     return f"[1:a]aresample=44100,volume={VOICE_VOLUME:.2f},atrim=0:{duration:.3f},loudnorm=I=-14:TP=-1.5:LRA=11[a]"
 
 
-def final_mux(video: Path, voice: Path, ass: Path, bgm: Optional[Path], output: Path, duration: float) -> None:
+def build_original_audio_filter(duration: float, has_bgm: bool) -> str:
+    return build_audio_filter(duration, has_bgm=has_bgm, keep_original_audio=True)
+
+
+def final_mux(video: Path, voice: Optional[Path], ass: Path, bgm: Optional[Path], output: Path, duration: float,
+              keep_original_audio: bool = False) -> None:
     ass_arg = ass.as_posix().replace(":", r"\:")
     fonts_arg = FONTS_DIR.as_posix().replace(":", r"\:")
     vf = f"[0:v]subtitles='{ass_arg}':fontsdir='{fonts_arg}',tpad=stop_mode=clone:stop_duration=2,trim=0:{duration:.3f},setpts=PTS-STARTPTS[v]"
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video), "-i", str(voice)]
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video)]
+    if not keep_original_audio:
+        if voice:
+            cmd += ["-i", str(voice)]
     if bgm:
         cmd += ["-stream_loop", "-1", "-i", str(bgm)]
-    af = build_audio_filter(duration, has_bgm=bool(bgm))
+    af = build_audio_filter(duration, has_bgm=bool(bgm), keep_original_audio=keep_original_audio)
     cmd += [
         "-filter_complex", f"{vf};{af}", "-map", "[v]", "-map", "[a]",
         "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
@@ -811,7 +873,8 @@ def package_title(hook: Optional[str], fallback_title: str, creator_info: Dict[s
 
 
 def update_metadata(metadata_path: Path, title: str, script: Dict[str, Any], timed: List[Dict[str, Any]],
-                    creator_info: Dict[str, Any], duration: float, voice: str) -> None:
+                    creator_info: Dict[str, Any], duration: float, voice: Optional[str] = None,
+                    original_audio: bool = False) -> None:
     meta: Dict[str, Any] = {}
     if metadata_path.exists():
         try:
@@ -823,14 +886,20 @@ def update_metadata(metadata_path: Path, title: str, script: Dict[str, Any], tim
     meta.update({
         "title": title,
         "description": description,
-        "narrated_recap": True,
+        "narrated_recap": not original_audio,
+        "original_audio": original_audio,
         "aspect_ratio": ASPECT_LABEL,
         "resolution": f"{OUT_W}x{OUT_H}",
         "duration_seconds": round(duration, 2),
-        "voiceover": {"voice": voice, "words": script["word_count"],
-                      "script": [{"text": t["text"], "source": [t["start"], t["end"]],
-                                  "at": [t["out_start"], t["out_end"]]} for t in timed]},
     })
+    if original_audio:
+        meta["audio_format"] = "original_video_audio"
+        meta["scenes"] = [{"text": t["text"], "source": [t["start"], t["end"]],
+                           "at": [t["out_start"], t["out_end"]]} for t in timed]
+    else:
+        meta["voiceover"] = {"voice": voice or DEFAULT_VOICE, "words": script["word_count"],
+                             "script": [{"text": t["text"], "source": [t["start"], t["end"]],
+                                         "at": [t["out_start"], t["out_end"]]} for t in timed]}
     metadata_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
@@ -839,7 +908,7 @@ def update_metadata(metadata_path: Path, title: str, script: Dict[str, Any], tim
 # ---------------------------------------------------------------------------
 
 def main(argv: Optional[List[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description="Render a @TestedNProved-style narrated recap Short")
+    ap = argparse.ArgumentParser(description="Render a Short with original audio or @TestedNProved recap")
     ap.add_argument("--raw-video", required=True, type=Path)
     ap.add_argument("--creator", required=True)
     ap.add_argument("--source-title", required=True)
@@ -849,6 +918,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--title-out", type=Path, default=ROOT_DIR / ".recap_title.txt")
     ap.add_argument("--transcript-json", type=Path, help="reuse a saved transcript instead of transcribing")
+    ap.add_argument("--original-audio", action="store_true", default=True,
+                    help="keep original audio from the video instead of narrating (default: True)")
+    ap.add_argument("--narrate", dest="original_audio", action="store_false",
+                    help="synthesize AI voiceover narration instead of keeping original audio")
     ap.add_argument("--keep-work", action="store_true")
     args = ap.parse_args(argv)
 
@@ -878,20 +951,34 @@ def main(argv: Optional[List[str]] = None) -> int:
         script = write_script(segments, args.source_title, creator_info.get("name", args.creator), source_duration)
         log(f"script: {len(script['lines'])} lines, {script['word_count']} words; hook={script['title_hook']!r}")
 
+        if args.original_audio:
+            cuts, timed, duration = plan_original_audio_cuts(script["lines"], source_duration)
+            log(f"original audio mode: {duration:.1f}s, {len(cuts)} continuous scenes (zero narration)")
+            shots = render_shots(args.raw_video, cuts, work, include_audio=True)
+            ass = work / "captions.ass"
+            ass.write_text(build_ass(caption_chunks(timed)), encoding="utf-8")
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            final_mux(shots, None, ass, pick_bgm(creator_info), args.output, duration, keep_original_audio=True)
+            title = package_title(script["title_hook"], args.fallback_title, creator_info)
+            update_metadata(args.metadata, title, script, timed, creator_info, duration, voice=None, original_audio=True)
+            args.title_out.write_text(title, encoding="utf-8")
+            log(f"done: {args.output} | title: {title}")
+            return 0
+
         voice_wav, timed = synthesize_lines(script["lines"], voice, work, rate=rate)
         duration = probe_duration(voice_wav) + 0.25
         cuts = plan_cuts(timed, source_duration)
         log(f"voiceover {duration:.1f}s, {len(cuts)} shots")
 
-        shots = render_shots(args.raw_video, cuts, work)
+        shots = render_shots(args.raw_video, cuts, work, include_audio=False)
         ass = work / "captions.ass"
         ass.write_text(build_ass(caption_chunks(timed)), encoding="utf-8")
 
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        final_mux(shots, voice_wav, ass, pick_bgm(creator_info), args.output, duration)
+        final_mux(shots, voice_wav, ass, pick_bgm(creator_info), args.output, duration, keep_original_audio=False)
 
         title = package_title(script["title_hook"], args.fallback_title, creator_info)
-        update_metadata(args.metadata, title, script, timed, creator_info, duration, voice)
+        update_metadata(args.metadata, title, script, timed, creator_info, duration, voice, original_audio=False)
         args.title_out.write_text(title, encoding="utf-8")
         log(f"done: {args.output} | title: {title}")
         return 0

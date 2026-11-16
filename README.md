@@ -55,13 +55,14 @@ python3 test_hypit_engine.py
 ```
 
 
-## Narrated recap format (Tested&Proved style)
+## Original Audio Delivery Format (@woosclips)
 
-`narrated_recap.py` turns the full source video into a ~60s, 1080x1080 square Short (set RECAP_ASPECT=9:16 for vertical) with an AI voiceover:
-transcribe (Groq Whisper) -> LLM writes a hook-to-payoff script that points every line at its moment
-in the source -> edge-tts voices each line -> footage is cut to those moments with the original audio muted
--> captions follow the voice, background music ducks under it. The LLM also writes the title
-("He Turned X Into Y 😳 (@NileRed/YT)") and a plain story description.
+Woo's clips keeps the **authentic original audio from the source video** across all moments and scenes instead of narrating the video with an AI voiceover.
+- Transcribe (Groq Whisper) -> LLM selects the highest-retention continuous story moments.
+- Footage is cut directly to those moments with **original dialogue and audio preserved**.
+- Mastered with broadcast loudness normalization (`loudnorm=I=-14:TP=-1.5:LRA=11`), kinetic captions, and subtle ambient bed.
+- Hypit deliverable runs with `--original-audio` (or `--no-narration` for classic SVML arc cutter).
+- AI TTS voiceover narration can optionally be re-enabled with `--narrate`.
 
 Setup: add a free Groq API key (https://console.groq.com/keys) as the repo secret `GROQ_API_KEY`.
 `OPENROUTER_API_KEY` works as a backup script writer. With neither key, the workflow falls back to the classic render.

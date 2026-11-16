@@ -190,8 +190,8 @@ jobs:
           narrator_voice = creator_info['narrator_voice']
           narration_text = hook_text(source_vid['title'])
 
-          # Per-video hook->payoff script (captions + HUD badges) and upload metadata
-          write_run_artifacts(selection, creator_info, '.run_script.json', 'metadata.json')
+          # Per-video hook->payoff script (captions + HUD badges) and upload metadata (original audio mode)
+          write_run_artifacts(selection, creator_info, '.run_script.json', 'metadata.json', has_narration=False)
           print(f'🎙️ Narration text: {narration_text}')
 
           print(f'🎯 Selected Creator: {creator} ({selection[\"creator_name\"]})')
@@ -242,7 +242,8 @@ jobs:
             echo "TITLE_EOF"
           } >> "$GITHUB_ENV"
 
-      - name: 🎙️ Regenerate Per-Title Intro Narration (TTS)
+      - name: 🎙️ Regenerate Per-Title Intro Narration (TTS - Disabled for Original Audio)
+        if: false # Disabled: Woo's Clips keeps original audio from the video instead of narrating
         env:
           TITLE: ${{ steps.resolve.outputs.narration_text }}
           VOICE: ${{ steps.resolve.outputs.narrator_voice }}
@@ -552,7 +553,7 @@ jobs:
             exit 1
           fi
 
-      - name: 🎙️ Render Narrated Recap (Tested&Proved voiceover format)
+      - name: 🎬 Render Deliverable with Original Video Audio (@woosclips)
         id: recap
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -566,8 +567,18 @@ jobs:
           RAW="${raw_video_flag#--raw-video }"
           RAW="${RAW# }"
           if [ -z "${GROQ_API_KEY}${OPENROUTER_API_KEY}" ]; then
-            echo "::error title=Missing LLM Keys::Add GROQ_API_KEY or OPENROUTER_API_KEY secret to enable the recap format."
-            exit 1
+            echo "::warning title=Missing LLM Keys::Using classic render with original audio."
+            MANIFEST="${{ steps.resolve.outputs.manifest }}"
+            CREATOR_ID="${{ steps.resolve.outputs.creator }}"
+            OUTPUT_NAME="${{ steps.resolve.outputs.output_filename }}"
+            SCRIPT_ARGS=()
+            if [ -f .run_script.json ]; then
+              SCRIPT_ARGS=(--script-json .run_script.json)
+            fi
+            python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" $raw_video_flag \
+              --no-narration "${SCRIPT_ARGS[@]}" --output "output/$OUTPUT_NAME"
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           if [ -z "$RAW" ] || [ ! -f "$RAW" ]; then
             echo "::error title=Missing Source Video::No downloaded source video found."
@@ -580,7 +591,8 @@ jobs:
               --fallback-title "$FALLBACK_TITLE" \
               --metadata metadata.json \
               --output "output/${{ steps.resolve.outputs.output_filename }}" \
-              --title-out .recap_title.txt
+              --title-out .recap_title.txt \
+              --original-audio
           echo "ok=true" >> "$GITHUB_OUTPUT"
           {
             echo "recap_title<<TITLE_EOF"
@@ -589,8 +601,8 @@ jobs:
             echo "TITLE_EOF"
           } >> "$GITHUB_ENV"
 
-      - name: 🎬 Render Hypit Deliverable (classic fallback - manual trigger only)
-        if: steps.recap.outputs.ok != 'true' && inputs.creator == 'classic_manual'
+      - name: 🎬 Render Hypit Deliverable (classic fallback with original audio)
+        if: steps.recap.outputs.ok != 'true'
         run: |
           set -euo pipefail
           mkdir -p output
@@ -602,7 +614,7 @@ jobs:
             SCRIPT_ARGS=(--script-json .run_script.json)
           fi
           python3 hypit_engine.py "$MANIFEST" --creator "$CREATOR_ID" $raw_video_flag \
-            "${SCRIPT_ARGS[@]}" --output "output/$OUTPUT_NAME"
+            --no-narration "${SCRIPT_ARGS[@]}" --output "output/$OUTPUT_NAME"
 
       - name: 📦 Upload Generated Video Artifact
         if: always()

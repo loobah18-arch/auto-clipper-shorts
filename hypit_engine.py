@@ -656,7 +656,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         cs = int((s - int(s)) * 100)
         return f"{h}:{m:02d}:{int(s):02d}.{cs:02d}"
 
-    def render(self, destination: Optional[Path] = None) -> Path:
+    def render(self, destination: Optional[Path] = None, no_narration: bool = False) -> Path:
         """Executes video composition through FFmpeg engine."""
         dest = destination or self.svrun.target_output
         if not dest:
@@ -681,7 +681,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             raise FileNotFoundError(f"Input source video not found: {raw_video}")
 
         narrator_audio = self.svrun.inputs.get("narrator_intro")
-        has_intro_narration = narrator_audio is not None and narrator_audio.exists()
+        has_intro_narration = (not no_narration) and (narrator_audio is not None and narrator_audio.exists())
 
         ass_path = dest.parent / "hypit_subtitles.ass"
         self.generate_subtitles(ass_path)
@@ -822,6 +822,7 @@ def main():
     parser.add_argument("--raw-video", help="Path to custom raw input video file")
     parser.add_argument("--output", "-o", help="Custom output destination path")
     parser.add_argument("--script-json", help="Per-video hook->payoff script (cues + HUD badges)")
+    parser.add_argument("--no-narration", action="store_true", help="Keep original video audio across all cuts (disable intro voiceover)")
     parser.add_argument("--check", action="store_true", help="Validate SVML / SVRun without rendering")
     args = parser.parse_args()
 
@@ -854,7 +855,7 @@ def main():
         return
 
     output_path = Path(args.output).resolve() if args.output else None
-    engine.render(destination=output_path)
+    engine.render(destination=output_path, no_narration=args.no_narration)
 
 
 if __name__ == "__main__":

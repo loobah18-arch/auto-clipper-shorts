@@ -224,5 +224,48 @@ class TestSentenceMapping(unittest.TestCase):
         self.assertLess(timed[0]["out_end"], timed[1]["out_end"])
 
 
+class TestOriginalAudio(unittest.TestCase):
+    def test_plan_original_audio_cuts(self):
+        lines = [
+            {"text": "He Escaped 100 Real Cops.", "start": 0.0, "end": 10.0},
+            {"text": "Jimmy introduces the challenge.", "start": 25.0, "end": 35.0},
+            {"text": "Nolan runs through the first door.", "start": 60.0, "end": 72.0},
+            {"text": "The massive explosion diversion.", "start": 120.0, "end": 130.0},
+            {"text": "They corner him in the dead end.", "start": 200.0, "end": 210.0},
+            {"text": "The cops catch him and win.", "start": 280.0, "end": 292.0},
+        ]
+        cuts, timed, total_duration = nr.plan_original_audio_cuts(lines, source_duration=300.0, target_total=56.0)
+        self.assertEqual(len(cuts), 6)
+        self.assertEqual(len(timed), 6)
+        self.assertLessEqual(total_duration, 59.0)
+        self.assertGreaterEqual(total_duration, 45.0)
+
+        # First line is marked as TitleCard
+        self.assertTrue(timed[0]["is_title"])
+        self.assertFalse(timed[1]["is_title"])
+
+        # Cuts match timeline positions and stay within source video duration
+        for cut, item in zip(cuts, timed):
+            self.assertEqual(cut["duration"], round(item["out_end"] - item["out_start"], 3))
+            self.assertGreaterEqual(cut["src_start"], 0.0)
+            self.assertLessEqual(cut["src_start"] + cut["duration"], 300.0)
+
+    def test_build_original_audio_filter(self):
+        # With BGM
+        af_bgm = nr.build_original_audio_filter(50.0, has_bgm=True)
+        self.assertIn("[0:a]aresample=44100", af_bgm)
+        self.assertIn("loudnorm=I=-14:TP=-1.5:LRA=11[orig]", af_bgm)
+        self.assertIn("amix=inputs=2:normalize=0", af_bgm)
+        self.assertIn("alimiter=limit=0.95[a]", af_bgm)
+        # Should NOT use [1:a] as voice
+        self.assertNotIn("[vo]", af_bgm)
+
+        # Without BGM
+        af_no_bgm = nr.build_original_audio_filter(50.0, has_bgm=False)
+        self.assertIn("[0:a]aresample=44100", af_no_bgm)
+        self.assertIn("loudnorm=I=-14:TP=-1.5:LRA=11[a]", af_no_bgm)
+        self.assertNotIn("amix", af_no_bgm)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
