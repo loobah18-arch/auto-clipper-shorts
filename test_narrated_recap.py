@@ -118,12 +118,38 @@ class TestCutsAndCaptions(unittest.TestCase):
         self.assertEqual(" ".join(c[2] for c in cues), timed[0]["text"])
         self.assertTrue(all(len(c[2].split()) >= 2 for c in cues))
 
+    def test_caption_chunks_with_title_card(self):
+        timed = [
+            {"text": "He engineered the perfect first date.", "out_start": 0.0, "out_end": 2.25, "is_title": True},
+            {"text": "This guy wanted to build a laser setup.", "out_start": 2.25, "out_end": 4.5, "is_title": False},
+        ]
+        cues = nr.caption_chunks(timed)
+        # First cue must be the TitleCard
+        self.assertEqual(cues[0][3], "TitleCard")
+        self.assertEqual(cues[0][0], 0.0)
+        self.assertEqual(cues[0][1], 2.25)
+        self.assertIn(r"\N", cues[0][2])
+        # Subsequent cues must be Cap
+        self.assertTrue(all(c[3] == "Cap" for c in cues[1:]))
+
     def test_ass_output(self):
         ass = nr.build_ass([(0.0, 1.2, "hello {world}")])
         self.assertIn(f"PlayResY: {nr.OUT_H}", ass)
         self.assertEqual(nr.OUT_W, 1080)
         self.assertIn("HELLO (WORLD)", ass)
         self.assertIn("0:00:01.20", ass)
+        self.assertIn("Style: Cap,", ass)
+        self.assertIn("Style: TitleCard,", ass)
+
+    def test_ass_title_card_formatting(self):
+        cues = [
+            (0.0, 2.25, r"HE ENGINEERED THE\NPERFECT FIRST DATE", "TitleCard"),
+            (2.25, 3.5, "THIS GUY WANTED", "Cap"),
+        ]
+        ass = nr.build_ass(cues)
+        self.assertIn("Dialogue: 0,0:00:00.00,0:00:02.25,TitleCard", ass)
+        self.assertIn(r"HE ENGINEERED THE\NPERFECT FIRST DATE", ass)
+        self.assertIn("Dialogue: 0,0:00:02.25,0:00:03.50,Cap", ass)
 
 
 class TestBgmAndVoice(unittest.TestCase):

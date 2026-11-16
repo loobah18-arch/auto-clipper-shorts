@@ -392,7 +392,7 @@ def write_script(segments: List[Dict[str, Any]], source_title: str, creator_name
 # 3. Voiceover
 # ---------------------------------------------------------------------------
 
-async def _tts_line(text: str, voice: str, rate: str, out: Path) -> None:
+async def _tts_line(text: str, voice: str, rate: str, out: Path, pitch: str = "+0Hz") -> None:
     import edge_tts
 
     voices_to_try = [voice]
@@ -410,7 +410,7 @@ async def _tts_line(text: str, voice: str, rate: str, out: Path) -> None:
     for v in voices_to_try:
         for attempt in range(2):
             try:
-                communicate = edge_tts.Communicate(clean_text, v, rate=rate)
+                communicate = edge_tts.Communicate(clean_text, v, rate=rate, pitch=pitch)
                 await communicate.save(str(out))
                 if out.exists() and out.stat().st_size > 200:
                     return
@@ -421,7 +421,8 @@ async def _tts_line(text: str, voice: str, rate: str, out: Path) -> None:
         raise last_exc
 
 
-async def _synthesize_continuous_tts(full_text: str, voice: str, rate: str, out_mp3: Path) -> List[Tuple[float, float, str]]:
+async def _synthesize_continuous_tts(full_text: str, voice: str, rate: str, out_mp3: Path,
+                                     pitch: str = "+0Hz") -> List[Tuple[float, float, str]]:
     import edge_tts
 
     voices_to_try = [voice]
@@ -438,7 +439,7 @@ async def _synthesize_continuous_tts(full_text: str, voice: str, rate: str, out_
     for v in voices_to_try:
         for attempt in range(2):
             try:
-                communicate = edge_tts.Communicate(clean_text, v, rate=rate)
+                communicate = edge_tts.Communicate(clean_text, v, rate=rate, pitch=pitch)
                 sentences: List[Tuple[float, float, str]] = []
                 audio_chunks: List[bytes] = []
                 async for chunk in communicate.stream():
@@ -516,13 +517,17 @@ def _synthesize_lines_fallback(lines: List[Dict[str, Any]], voice: str, work: Pa
             time.sleep(0.35)
         mp3 = work / f"vo_{i:02d}.mp3"
         wav = work / f"vo_{i:02d}.wav"
-        asyncio.run(_tts_line(line["text"], voice, rate, mp3))
+        is_title = (i == 0 and len(lines) > 1)
+        line_rate = "+2%" if is_title else rate
+        line_pitch = "-2Hz" if is_title else "+0Hz"
+        line_gap = 0.45 if is_title else gap
+        asyncio.run(_tts_line(line["text"], voice, line_rate, mp3, pitch=line_pitch))
         run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp3), "-af",
              "silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
              "silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
-             f"apad=pad_dur={gap}", "-ar", "44100", "-ac", "2", str(wav)])
+             f"apad=pad_dur={line_gap}", "-ar", "44100", "-ac", "2", str(wav)])
         dur = probe_duration(wav)
-        timed.append({**line, "out_start": round(cursor, 3), "out_end": round(cursor + dur, 3)})
+        timed.append({**line, "out_start": round(cursor, 3), "out_end": round(cursor + dur, 3), "is_title": is_title})
         cursor += dur
         parts.append(wav)
 
@@ -536,10 +541,9 @@ def _synthesize_lines_fallback(lines: List[Dict[str, Any]], voice: str, work: Pa
 
 def synthesize_lines(lines: List[Dict[str, Any]], voice: str, work: Path,
                      rate: str = "+12%") -> Tuple[Path, List[Dict[str, Any]]]:
-    """Voices the entire narration (title hook + story) in ONE continuous audio stream.
-
-    Ensures natural prosody, continuous cadence, and zero weird cuts or pitch
-    jumps between the title saying and the narration.
+    """Voices the narration with the title hook delivered in authoritative trailer cadence,
+    followed by a 0.45s dramatic breath pause, followed by continuous storytelling narration,
+    voiced seamlessly by the exact same narrator with zero weird cuts.
     """
     clean_lines = []
     for l in lines:
@@ -548,18 +552,57 @@ def synthesize_lines(lines: List[Dict[str, Any]], voice: str, work: Path,
             t += "."
         clean_lines.append({**l, "text": t})
 
-    full_text = " ".join(l["text"] for l in clean_lines)
-    mp3 = work / "voice_full.mp3"
+    if not clean_lines:
+        raise ValueError("no lines to synthesize")
+
+    if len(clean_lines) == 1:
+        line = clean_lines[0]
+        mp3 = work / "voice_00.mp3"
+        wav = work / "voice_full.wav"
+        asyncio.run(_tts_line(line["text"], voice, rate=rate, pitch="-2Hz", out=mp3))
+        run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp3), "-ar", "44100", "-ac", "2", str(wav)])
+        dur = probe_duration(wav)
+        return wav, [{**line, "out_start": 0.0, "out_end": round(dur, 3), "is_title": True}]
+
+    title_line = clean_lines[0]
+    story_lines = clean_lines[1:]
+
+    title_mp3 = work / "title.mp3"
+    title_wav = work / "title.wav"
+    story_mp3 = work / "story.mp3"
+    story_wav = work / "story.wav"
     voice_wav = work / "voice_full.wav"
 
     try:
-        sentences = asyncio.run(_synthesize_continuous_tts(full_text, voice, rate, mp3))
-        run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp3), "-ar", "44100", "-ac", "2", str(voice_wav)])
+        # Title: authoritative cadence (pitch=-2Hz, rate=+2%), silence trimmed, 0.45s breath beat
+        asyncio.run(_tts_line(title_line["text"], voice, rate="+2%", pitch="-2Hz", out=title_mp3))
+        run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(title_mp3), "-af",
+             "silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
+             "silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
+             "apad=pad_dur=0.45", "-ar", "44100", "-ac", "2", str(title_wav)])
+        title_dur = probe_duration(title_wav)
+        timed_title = {**title_line, "out_start": 0.0, "out_end": round(title_dur, 3), "is_title": True}
+
+        # Story: continuous storytelling pace (pitch=+0Hz, rate=rate)
+        story_text = " ".join(l["text"] for l in story_lines)
+        sentences = asyncio.run(_synthesize_continuous_tts(story_text, voice, rate=rate, pitch="+0Hz", out_mp3=story_mp3))
+        run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(story_mp3), "-ar", "44100", "-ac", "2", str(story_wav)])
+        story_dur = probe_duration(story_wav)
+        story_timed = map_sentences_to_lines(story_lines, sentences, story_dur)
+        for st in story_timed:
+            st["out_start"] = round(st["out_start"] + title_dur, 3)
+            st["out_end"] = round(st["out_end"] + title_dur, 3)
+            st["is_title"] = False
+
+        concat_list = work / "vo_full_list.txt"
+        concat_list.write_text(f"file '{title_wav.as_posix()}'\nfile '{story_wav.as_posix()}'\n", encoding="utf-8")
+        run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(concat_list),
+             "-c", "copy", str(voice_wav)])
+        timed = [timed_title] + story_timed
         total = probe_duration(voice_wav)
-        timed = map_sentences_to_lines(clean_lines, sentences, total)
     except Exception as exc:  # noqa: BLE001
-        log(f"continuous synthesis failed ({exc}); falling back to line-by-line synthesis")
-        voice_wav, timed = _synthesize_lines_fallback(clean_lines, voice, work, rate)
+        log(f"continuous title+story synthesis failed ({exc}); falling back to line-by-line synthesis")
+        voice_wav, timed = _synthesize_lines_fallback(clean_lines, voice, work, rate=rate)
         total = probe_duration(voice_wav)
 
     if total > MAX_SECONDS:
@@ -604,10 +647,22 @@ def plan_cuts(timed_lines: List[Dict[str, Any]], source_duration: float,
 # 5. Captions
 # ---------------------------------------------------------------------------
 
-def caption_chunks(timed_lines: List[Dict[str, Any]], words_per_chunk: int = 3) -> List[Tuple[float, float, str]]:
-    """Splits each voiced line into 2-3 word chunks, timed by character length."""
-    cues: List[Tuple[float, float, str]] = []
+def caption_chunks(timed_lines: List[Dict[str, Any]], words_per_chunk: int = 3) -> List[Any]:
+    """Splits voiced lines into captions. Line 0 (title hook) becomes a prominent TitleCard cue;
+    subsequent story lines are split into 2-3 word chunks for dynamic popping captions.
+    """
+    cues = []
     for line in timed_lines:
+        if line.get("is_title"):
+            words = line["text"].strip().rstrip(".!?").split()
+            if len(words) > 4:
+                mid = len(words) // 2
+                title_fmt = " ".join(words[:mid]) + r"\N" + " ".join(words[mid:])
+            else:
+                title_fmt = " ".join(words)
+            cues.append((line["out_start"], line["out_end"], title_fmt, "TitleCard"))
+            continue
+
         words = line["text"].split()
         groups = [words[i:i + words_per_chunk] for i in range(0, len(words), words_per_chunk)]
         if len(groups) > 1 and len(groups[-1]) == 1:
@@ -618,7 +673,7 @@ def caption_chunks(timed_lines: List[Dict[str, Any]], words_per_chunk: int = 3) 
         cursor = line["out_start"]
         for g, w in zip(groups, weights):
             dur = span * w / total_w
-            cues.append((round(cursor, 3), round(cursor + dur, 3), " ".join(g)))
+            cues.append((round(cursor, 3), round(cursor + dur, 3), " ".join(g), "Cap"))
             cursor += dur
     return cues
 
@@ -631,7 +686,7 @@ def _ass_time(t: float) -> str:
     return f"{h}:{m:02d}:{s:05.2f}"
 
 
-def build_ass(cues: List[Tuple[float, float, str]], font: str = "Montserrat") -> str:
+def build_ass(cues: List[Any], font: str = "Montserrat") -> str:
     header = (
         "[Script Info]\nScriptType: v4.00+\n"
         f"PlayResX: {OUT_W}\nPlayResY: {OUT_H}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n\n"
@@ -640,16 +695,31 @@ def build_ass(cues: List[Tuple[float, float, str]], font: str = "Montserrat") ->
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
         f"Style: Cap,{font},{84 if OUT_H <= 1350 else 92},&H00FFFFFF,&H0000FFFF,&H00000000,&H64000000,"
-        f"-1,0,0,0,100,100,0,0,1,7,3,2,70,70,{int(OUT_H * 0.16) if OUT_H <= 1350 else 620},1\n\n"
+        f"-1,0,0,0,100,100,0,0,1,7,3,2,70,70,{int(OUT_H * 0.16) if OUT_H <= 1350 else 620},1\n"
+        f"Style: TitleCard,{font},{92 if OUT_H <= 1350 else 104},&H0000E5FF,&H0000FFFF,&H00000000,&H80000000,"
+        f"-1,0,0,0,100,100,0,0,1,8,4,5,60,60,0,1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     events = []
-    for i, (start, end, text) in enumerate(cues):
+    cap_idx = 0
+    for item in cues:
+        if len(item) == 4:
+            start, end, text, style = item
+        else:
+            start, end, text = item
+            style = "Cap"
+
         safe = text.upper().replace("{", "(").replace("}", ")").replace("\\", "/")
-        # every other chunk in yellow for the punchy two-tone look; quick pop-in
-        colour = r"\c&H0000E5FF&" if i % 2 else ""
-        pop = r"\fscx80\fscy80\t(0,90,\fscx100\fscy100)"
-        events.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{{{pop}{colour}}}{safe}")
+        if style == "TitleCard":
+            safe = safe.replace("/N", r"\N")
+            pop = r"\fscx95\fscy95\t(0,120,\fscx100\fscy100)"
+            events.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},TitleCard,,0,0,0,,{{{pop}}}{safe}")
+        else:
+            # every other chunk in yellow for the punchy two-tone look; quick pop-in
+            colour = r"\c&H0000E5FF&" if cap_idx % 2 else ""
+            pop = r"\fscx80\fscy80\t(0,90,\fscx100\fscy100)"
+            events.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{{{pop}{colour}}}{safe}")
+            cap_idx += 1
     return header + "\n".join(events) + "\n"
 
 
