@@ -67,3 +67,14 @@ The automated Shorts pipeline mirrors the top-performing benchmark format from [
 
 Setup: add a free Groq API key (https://console.groq.com/keys) as the repo secret `GROQ_API_KEY`.
 `OPENROUTER_API_KEY` works as a backup script writer. With neither key, the workflow falls back to the classic render.
+
+
+## Highlight Short format (default when GROQ_API_KEY is set)
+
+Matches the channel's benchmark Short (GKz-NtMJFg8), with the hook read like YDOHG7UgzNc:
+
+1. Groq Whisper transcribes the full source video with word timestamps.
+2. An LLM picks a spoken curiosity hook ("Can he escape 100 real cops for $500,000?"), the upload title hook, a teaser moment and 4-7 clips that start and end on full sentences.
+3. The narrator (BrianMultilingualNeural, +6%) reads the hook over the teaser with the original audio ducked, then the clips play with the creator's original audio, captions follow the real words, and a small HUD badge names each beat. Output is 1080x1440 (3:4), under 58s.
+
+`highlight_clip.py` does the render; if it fails or no key is set, the workflow falls back to the classic `hypit_engine.py` render.

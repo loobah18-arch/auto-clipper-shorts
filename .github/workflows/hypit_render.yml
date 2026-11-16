@@ -126,6 +126,7 @@ jobs:
           python3 test_youtube_uploader.py
           python3 test_crawler.py
           python3 test_narrated_recap.py
+          python3 test_highlight_clip.py
 
       - name: 🔄 Resolve Creator Rotation & Backlog Upload
         id: resolve
@@ -543,7 +544,51 @@ jobs:
             exit 1
           fi
 
-      - name: 🎬 Render Hypit Deliverable
+      - name: 🎬 Render Highlight Short (narrated hook + original audio, GKz-NtMJFg8 format)
+        id: highlight
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SOURCE_TITLE: ${{ steps.resolve.outputs.raw_source_title }}
+          FALLBACK_TITLE: ${{ env.validated_title || steps.resolve.outputs.formatted_title }}
+          CREATOR_ID: ${{ steps.resolve.outputs.creator }}
+          OUTPUT_NAME: ${{ steps.resolve.outputs.output_filename }}
+        run: |
+          set -uo pipefail
+          mkdir -p output
+          RAW="${raw_video_flag:-}"
+          RAW="${RAW#--raw-video }"
+          RAW="${RAW# }"
+          if [ -z "${GROQ_API_KEY}${OPENROUTER_API_KEY}" ]; then
+            echo "::warning title=Highlight skipped::No GROQ_API_KEY secret. Falling back to the classic render."
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -z "$RAW" ] || [ ! -f "$RAW" ]; then
+            echo "::warning title=Highlight skipped::No downloaded source video. Falling back to the classic render."
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if python3 highlight_clip.py \
+              --raw-video "$RAW" \
+              --creator "$CREATOR_ID" \
+              --source-title "$SOURCE_TITLE" \
+              --fallback-title "$FALLBACK_TITLE" \
+              --metadata metadata.json \
+              --output "output/$OUTPUT_NAME" \
+              --title-out .recap_title.txt; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "recap_title<<TITLE_EOF"
+              cat .recap_title.txt
+              echo ""
+              echo "TITLE_EOF"
+            } >> "$GITHUB_ENV"
+          else
+            echo "::warning title=Highlight failed::Falling back to the classic render."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 🎬 Render Hypit Deliverable (classic fallback)
+        if: steps.highlight.outputs.ok != 'true'
         run: |
           set -euo pipefail
           mkdir -p output
@@ -572,7 +617,7 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
-          VIDEO_TITLE: ${{ env.validated_title || steps.resolve.outputs.formatted_title }}
+          VIDEO_TITLE: ${{ env.recap_title || env.validated_title || steps.resolve.outputs.formatted_title }}
           OUTPUT_NAME: ${{ steps.resolve.outputs.output_filename }}
           CREATOR_ID: ${{ steps.resolve.outputs.creator }}
           SOURCE_VIDEO_ID: ${{ steps.resolve.outputs.source_video_id }}
