@@ -22,7 +22,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from candle_gate import CandleGate
@@ -103,7 +103,10 @@ def decide(
         return {**base, "proceed": True,
                 "sleep_seconds": min(spacing["spacing_sleep_seconds"], HARD_SLEEP_CAP_SECONDS),
                 "reason": spacing["recommendation"]}
-    return {**base, "proceed": False, "sleep_seconds": 0, "reason": spacing["recommendation"]}
+    remaining = max(int(round((min_spacing_hours - elapsed_hours) * 3600)), 0)
+    due_at = published_at + timedelta(hours=min_spacing_hours)
+    return {**base, "proceed": False, "sleep_seconds": 0, "remaining_seconds": remaining,
+            "due_at": due_at.strftime("%Y-%m-%dT%H:%M:%SZ"), "reason": spacing["recommendation"]}
 
 
 def main() -> int:
@@ -131,6 +134,8 @@ def main() -> int:
 
     icon = "✅ PROCEED" if result["proceed"] else "🛑 SKIP"
     print(f"{icon} | elapsed={result['elapsed_hours']}h | last_upload={result['last_video_id']}")
+    if not result["proceed"] and result.get("due_at"):
+        print(f"⏰ Next upload due at {result['due_at']} ({result['remaining_seconds']}s from now)")
     print(result["reason"])
 
     out_file = os.environ.get("GITHUB_OUTPUT")
@@ -138,6 +143,8 @@ def main() -> int:
         with open(out_file, "a", encoding="utf-8") as f:
             f.write(f"proceed={'true' if result['proceed'] else 'false'}\n")
             f.write(f"sleep_seconds={result['sleep_seconds']}\n")
+            f.write(f"remaining_seconds={result.get('remaining_seconds', 0)}\n")
+            f.write(f"due_at={result.get('due_at', '')}\n")
 
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
