@@ -67,9 +67,21 @@ on:
         required: false
         default: false
         type: boolean
+      from_timer:
+        description: 'Internal: dispatched by the exact-due timer (keeps the 24h gate on)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
+  actions: write
+
+# One pipeline run at a time per branch. A run that arrives while another is
+# going waits its turn, then its gate re-reads the fresh upload history.
+concurrency:
+  group: hypit-pipeline-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   preflight_gate:
@@ -79,18 +91,49 @@ jobs:
 
     outputs:
       proceed: ${{ steps.gate.outputs.proceed }}
+      remaining_seconds: ${{ steps.gate.outputs.remaining_seconds }}
+      due_at: ${{ steps.gate.outputs.due_at }}
 
     steps:
       - name: 📥 Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: 🕯️ Evaluate 24-Hour Upload Spacing (skip pipeline unless due)
         id: gate
         env:
-          PREFLIGHT_BYPASS: ${{ github.event_name != 'schedule' }}
+          PREFLIGHT_BYPASS: ${{ github.event_name != 'schedule' && !inputs.from_timer }}
         run: |
           set -euo pipefail
           python3 preflight_gate.py
+
+  # When the 24h gate skips, wait for the exact moment the next upload is due
+  # and dispatch the pipeline then, instead of waiting for the next 6-hour cron.
+  # Only arms when the due time falls before the next cron (job limit is 6h).
+  exact_due_timer:
+    name: ⏰ Trigger Pipeline Exactly When 24h Is Up
+    needs: preflight_gate
+    if: needs.preflight_gate.outputs.proceed == 'false' && needs.preflight_gate.outputs.remaining_seconds != '' && fromJSON(needs.preflight_gate.outputs.remaining_seconds) > 0 && fromJSON(needs.preflight_gate.outputs.remaining_seconds) <= 21300
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    concurrency:
+      group: hypit-exact-due-timer
+      cancel-in-progress: true
+    steps:
+      - name: ⏳ Sleep until due (${{ needs.preflight_gate.outputs.due_at }})
+        run: |
+          DUE=$(date -u -d "${{ needs.preflight_gate.outputs.due_at }}" +%s)
+          WAIT=$(( DUE - $(date -u +%s) + 60 ))
+          echo "Sleeping ${WAIT}s until ${{ needs.preflight_gate.outputs.due_at }} (+60s margin)"
+          [ "$WAIT" -gt 0 ] && sleep "$WAIT" || true
+      - name: 🚀 Dispatch the pipeline now
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run hypit_render.yml \
+            --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" \
+            -f creator=auto -f upload_to_youtube=true -f privacy_status=public -f from_timer=true
 
   hypit_build_render_and_publish:
     needs: preflight_gate

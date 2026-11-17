@@ -62,6 +62,13 @@ class TestPreflightDecide(unittest.TestCase):
         self.assertEqual(res["sleep_seconds"], 0)
         self.assertAlmostEqual(res["elapsed_hours"], 5.0, places=1)
 
+    def test_skip_reports_exact_due_time(self):
+        self.write([entry(ts=(NOW - timedelta(hours=21)).isoformat())])
+        res = decide(self.path, NOW)
+        self.assertFalse(res["proceed"])
+        self.assertEqual(res["remaining_seconds"], 3 * 3600)
+        self.assertEqual(res["due_at"], (NOW + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+
     def test_24h_elapsed_proceeds(self):
         self.write([entry(ts=(NOW - timedelta(hours=25)).isoformat())])
         res = decide(self.path, NOW)
