@@ -211,15 +211,30 @@ def validate_clips(raw_clips: Any, segments: List[Dict[str, Any]], source_durati
     if not merged:
         raise RuntimeError("LLM returned no usable clips")
     # Fit the budget: trim the longest clip back to an earlier sentence end, else hard trim.
-    while sum(c["end"] - c["start"] for c in merged) > budget:
+    max_iters = 100
+    while sum(c["end"] - c["start"] for c in merged) > budget and max_iters > 0:
+        max_iters -= 1
         over = sum(c["end"] - c["start"] for c in merged) - budget
         longest = max(merged, key=lambda c: c["end"] - c["start"])
         if longest["end"] - longest["start"] <= 4.0:
             merged.pop(len(merged) // 2)
             continue
+        prev_end = longest["end"]
         target = longest["end"] - over
-        inner = [x for x in ends if longest["start"] + 4.0 <= x < longest["end"] and x >= target]
-        longest["end"] = round(min(inner) if inner else max(longest["start"] + 4.0, target), 2)
+        inner = [x for x in ends if longest["start"] + 4.0 <= x < longest["end"] - 0.05 and x >= target]
+        new_end = round(min(inner) if inner else max(longest["start"] + 4.0, target), 2)
+        if new_end >= prev_end:
+            new_end = round(max(longest["start"] + 4.0, prev_end - max(0.1, over)), 2)
+        if new_end >= prev_end:
+            merged.remove(longest)
+            continue
+        longest["end"] = new_end
+
+    while sum(c["end"] - c["start"] for c in merged) > budget and merged:
+        over = sum(c["end"] - c["start"] for c in merged) - budget
+        merged[-1]["end"] = round(max(merged[-1]["start"] + 2.0, merged[-1]["end"] - over), 2)
+        if merged[-1]["end"] - merged[-1]["start"] < 2.5:
+            merged.pop()
     return merged
 
 
@@ -431,7 +446,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         # hook first, so the clip budget knows how long the intro is
         draft_hook = fallback_spoken_hook(args.source_title, creator_name)
+        log("picking highlight moments from transcript via LLM...")
         plan = pick_moments(segments, args.source_title, creator_name, source_duration, CLIP_BUDGET[1])
+        log(f"picked {len(plan['clips'])} candidate clips; synthesizing spoken hook...")
         hook_wav = synth_hook(plan["spoken_hook"] or draft_hook, work)
         intro = round(nr.probe_duration(hook_wav) + 0.45, 2)
         budget = MAX_SECONDS - intro
@@ -441,11 +458,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         for c in plan["clips"]:
             log(f"  clip {c['start']:.1f}-{c['end']:.1f}s  [{c['badge']}]")
 
+        log("rendering teaser shot...")
         parts = [work / "p00_teaser.mp4"]
         render_teaser(args.raw_video, plan["teaser_start"], hook_wav, intro, parts[0])
         badges: List[Tuple[float, float, str]] = []
         cursor = intro
         for i, c in enumerate(plan["clips"], start=1):
+            log(f"rendering clip {i}/{len(plan['clips'])} ({c['start']:.1f}-{c['end']:.1f}s)...")
             p = work / f"p{i:02d}.mp4"
             render_clip(args.raw_video, c, p)
             parts.append(p)
@@ -454,6 +473,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             cursor += dur
         duration = round(cursor, 2)
 
+        log("generating subtitles and muxing final output...")
         ass = work / "captions.ass"
         ass.write_text(build_ass(plan["spoken_hook"], intro, caption_cues(plan["clips"], words, intro), badges),
                        encoding="utf-8")

@@ -52,6 +52,13 @@ class TestClips(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             hc.validate_clips([], SEGMENTS, 400, 50)
 
+    def test_infinite_loop_prevention_on_sub_second_rounding(self):
+        # A single clip where inner end point rounds back to longest['end'] must terminate immediately
+        segments = [{"start": 0.0, "end": 19.996, "text": "edge case"}]
+        raw = [{"start": 0.0, "end": 20.0, "badge": "LOOP"}]
+        clips = hc.validate_clips(raw, segments, 30.0, 19.5)
+        self.assertLessEqual(sum(c["end"] - c["start"] for c in clips), 19.51)
+
 
 class TestCaptions(unittest.TestCase):
     def test_cues_follow_real_words_on_output_timeline(self):

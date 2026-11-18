@@ -76,8 +76,8 @@ def log(msg: str) -> None:
 # Media helpers
 # ---------------------------------------------------------------------------
 
-def run(cmd: List[str]) -> None:
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+def run(cmd: List[str], timeout: Optional[int] = 600) -> None:
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout)
     if res.returncode != 0:
         raise RuntimeError(f"command failed ({res.returncode}): {' '.join(cmd[:6])} ...\n{res.stderr[-1500:]}")
 
@@ -412,7 +412,7 @@ async def _tts_line(text: str, voice: str, rate: str, out: Path, pitch: str = "+
         for attempt in range(2):
             try:
                 communicate = edge_tts.Communicate(clean_text, v, rate=rate, pitch=pitch)
-                await communicate.save(str(out))
+                await asyncio.wait_for(communicate.save(str(out)), timeout=25.0)
                 if out.exists() and out.stat().st_size > 200:
                     return
             except Exception as exc:
