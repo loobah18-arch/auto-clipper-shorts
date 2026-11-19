@@ -3,9 +3,14 @@ name: 🎮 Woo's Clips — GTA 6 Stream Highlight Pipeline (2-Hour Cadence)
 # Upload stream clips of GTA 6 to woo's clips (@woosclips) every 2 hours.
 # Sources: big Twitch GTA 6 streamers (streamers_gta6.txt, freshest VODs first). YouTube entries
 # (@IShowSpeed) are only used when YOUTUBE_PROXY is set: runner downloads are bot-blocked otherwise.
+#
+# Schedule: an hourly check at :17 (off the top of the hour, where GitHub delays and drops scheduled
+# runs under load: the old '0 */2 * * *' never fired once). The 2.0h spacing pre-flight gate decides:
+# runs that come too soon after the last upload stop in a ~20 s job before any install, so the real
+# cadence stays one Short per >= 2 hours, and a slot GitHub drops is recovered the next hour.
 on:
   schedule:
-    - cron: '0 */2 * * *'  # Every 2 hours (00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC)
+    - cron: '17 * * * *'   # hourly at :17 UTC; the 2h spacing gate turns this into a 2-hour cadence
 
   workflow_dispatch:
     inputs:
@@ -55,11 +60,14 @@ jobs:
       proceed: ${{ steps.gate.outputs.proceed }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # scheduled runs can sit in the queue: read the CURRENT upload history, not the trigger commit's
+          ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
 
       - name: 2-Hour Upload Spacing Evaluation
         id: gate
         env:
-          PREFLIGHT_BYPASS: ${{ github.event_name != 'schedule' }}
+          PREFLIGHT_BYPASS: ${{ github.event_name != 'schedule' }}   # schedule: gate always active
           MIN_UPLOAD_SPACING_HOURS: '2.0'
           MAX_INLINE_WAIT_HOURS: '0.4'
         run: |
@@ -79,11 +87,15 @@ jobs:
       COUNT: ${{ inputs.count || '1' }}
       TOP: ${{ inputs.top || '1' }}
       MIN_VIEWS: ${{ inputs.min_views || '1000' }}
-      DO_UPLOAD: ${{ (github.event_name == 'workflow_dispatch' && inputs.upload_to_youtube) || github.event_name == 'schedule' }}
+      DO_UPLOAD: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.upload_to_youtube) }}
       PRIVACY: ${{ inputs.privacy || 'public' }}
       MIN_UPLOAD_SPACING_HOURS: '2.0'
+      # YouTube sources need a proxy on GitHub runners; without one the PO-token / bgutil setup is wasted
+      YT_SETUP: ${{ secrets.YOUTUBE_PROXY != '' || vars.YOUTUBE_FORCE == 'true' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -94,13 +106,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-noto-color-emoji
-          pip install -U yt-dlp yt-dlp-ejs bgutil-ytdlp-pot-provider
+          pip install -U yt-dlp yt-dlp-ejs
+          if [ "$YT_SETUP" = "true" ]; then pip install -U bgutil-ytdlp-pot-provider; fi
           pip install -r requirements.txt -r requirements-test.txt
 
       - name: Unit tests (titles, sticker text, spacing gate, chat clips)
         continue-on-error: true   # report, but never block a scheduled post on a flaky test
         run: |
-          python3 -m unittest test_titles test_preflight_gate test_chat_clips test_youtube_uploader
+          python3 -m unittest test_titles test_preflight_gate test_chat_clips test_youtube_uploader test_facecam
 
       - name: Cache Whisper model
         uses: actions/cache@v4
@@ -110,6 +123,7 @@ jobs:
 
       - name: 🛡️ Generate YouTube PO Token via Node.js
         id: pot_gen
+        if: ${{ env.YT_SETUP == 'true' }}   # only when YouTube sources are usable (YOUTUBE_PROXY / YOUTUBE_FORCE)
         run: |
           set -uo pipefail
           echo "📦 Installing youtube-po-token-generator..."
@@ -139,6 +153,7 @@ jobs:
           fi
 
       - name: YouTube cookies (from repo secret)
+        if: ${{ env.YT_SETUP == 'true' }}
         env:
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
         run: |
