@@ -47,7 +47,7 @@ def main(argv=None):
     p.add_argument("--top", type=int, default=1, help="Shorts per stream/video (default 1)")
     p.add_argument("--min-views", type=int, default=1000)
     p.add_argument("--min-minutes", type=int, default=10)
-    p.add_argument("--streamers", default="streamers.txt")
+    p.add_argument("--streamers", default="streamers_gta6.txt")
     p.add_argument("--only-streamers", action="store_true", help="strictly only pick candidates matching streamers file")
     p.add_argument("--out", default="clips")
     p.add_argument("--cookies")
@@ -66,15 +66,16 @@ def main(argv=None):
     state = load_state()
 
     print(f"🔎 Looking for today's top {'GTA 6' if a.game == 'gta6' else a.game} streams and videos...", flush=True)
-    only_streamers = a.only_streamers or ("ishowspeed" in a.streamers.lower())
+    only_streamers = a.only_streamers
     seen_successful = {k for k, v in state.items() if v.get("ok") is True}
     picks, ranked = discover.discover(a.game, a.count, a.min_minutes, a.min_views, seen_successful,
                                       cookies, proxy, a.streamers, only_streamers=only_streamers)
     print(f"\n{len(ranked)} new candidates passed the filters. Top 10:")
     for i, c in enumerate(ranked[:10], 1):
         mins = int(c["duration"] // 60) if c["duration"] else "?"
-        tag = "ended stream" if c["live_status"] == "was_live" else "video"
-        print(f"  {i:>2}. {(format(c['views'], ',') if c.get('views_known', True) else '?'):>9} views  {mins:>4} min  {tag:<12} {c['channel'][:22]:<22} | {c['title'][:60]}")
+        tag = ("twitch vod" if c["platform"] == "twitch" else "ended stream") if c["live_status"] == "was_live" else "video"
+        age = f"{c['age_hours']:.0f}h ago" if c.get("age_hours") is not None else ""
+        print(f"  {i:>2}. {(format(c['views'], ',') if c.get('views_known', True) else '?'):>9} views  {mins:>4} min  {tag:<12} {age:>7}  {c['channel'][:22]:<22} | {c['title'][:60]}")
     if a.list or not picks:
         if not picks:
             print("\nNothing new worth clipping right now.")
@@ -90,9 +91,14 @@ def main(argv=None):
         sub = out_root / f"{done + 1:02d}_{c['id'].replace(':', '_')}"
         credit = c.get("streamer_name") or c["channel"] or ""
         print(f"\n🎬 [Short {done + 1}/{a.count} - Candidate {n}/{len(candidates)}] {credit} ({c['channel']}) | {c['title']}\n   {c['url']}", flush=True)
+        # quality gate: a real spike (>= 3.0x normal, >= 40 raw messages in 10s on Twitch), payoff ~3s in,
+        # finished clip 20-35s. The segment downloaded is a bit wider so the audio peak can be found.
         cmd = [sys.executable, "chat_clips.py", "--url", c["url"], "--game", "gta6" if a.game == "gta6" else "none", "--top", str(a.top),
                "--out", str(sub), "--credit", credit, "--layout", "stack", "--require-cam", "--chat-delay", "4.0",
-               "--before", "34", "--after", "18", "--emotes", "--min-score", "3.0"]
+               "--before", "14", "--after", "30", "--emotes", "--min-score", "3.0",
+               "--target-min", "20", "--target-max", "35", "--payoff-lead", "3", "--captions", "both"]
+        if c["platform"] == "twitch":
+            cmd += ["--min-msgs", "40"]
         if cookies:
             cmd += ["--cookies", str(cookies)]
         if proxy:
@@ -110,6 +116,8 @@ def main(argv=None):
             for post in posts:
                 post["source_url"] = c["url"]
                 post["source_title"] = c["title"]
+                post["creator"] = c.get("creator") or "generic"
+                post["streamer"] = post.get("streamer") or credit
             all_posts += posts
             done += 1
         else:

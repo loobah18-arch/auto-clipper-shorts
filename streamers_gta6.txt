@@ -1,0 +1,16 @@
+# Woo's Clips: GTA 6 streamers, in priority order (biggest Twitch GTA 6 streams first).
+# Twitch: twitch:login   YouTube: the @handle (only used when a YouTube download tier works,
+# i.e. YOUTUBE_PROXY is set; GitHub runners are bot-blocked otherwise).
+# YouTube picks must come from the streamer's OWN channel (never other clippers' compilations).
+twitch:kaicenat
+twitch:ohnepixel
+twitch:jynxzi
+twitch:zarbex
+twitch:xqc
+twitch:tarik
+twitch:summit1g
+twitch:ludwig
+twitch:hasanabi
+twitch:caseoh_
+twitch:shroud
+@IShowSpeed

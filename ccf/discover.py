@@ -139,6 +139,15 @@ def _twitch_get(path, token, client_id):
         return json.load(r)
 
 
+def _age_hours(created_at):
+    from datetime import datetime, timezone
+    try:
+        dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0)
+    except Exception:
+        return None
+
+
 def twitch_top(game_name="Grand Theft Auto VI", n=20, logins=()):
     if game_name.lower() == "gta6":
         game_name = "Grand Theft Auto VI"
@@ -157,10 +166,21 @@ def twitch_top(game_name="Grand Theft Auto VI", n=20, logins=()):
             return []
         gid = games[0]["id"]
         vids = _twitch_get(f"videos?game_id={gid}&period=day&sort=views&type=archive&first={n}", token, cid)["data"]
+        for v in vids:
+            v["_in_category"] = True
+        # followed streamers: their newest past broadcasts (category unknown -> title must say GTA 6,
+        # unless the same VOD also showed up in the GTA VI category list)
+        in_cat = {v["id"] for v in vids}
         for login in logins:
-            u = _twitch_get("users?login=" + urllib.parse.quote(login), token, cid).get("data") or []
-            if u:
-                vids += _twitch_get(f"videos?user_id={u[0]['id']}&type=archive&first=3", token, cid)["data"]
+            try:
+                u = _twitch_get("users?login=" + urllib.parse.quote(login), token, cid).get("data") or []
+                if u:
+                    for v in _twitch_get(f"videos?user_id={u[0]['id']}&type=archive&first=3", token, cid)["data"]:
+                        if v["id"] not in in_cat:
+                            v["_in_category"] = False
+                            vids.append(v)
+            except Exception as e:
+                print(f"   ! Twitch lookup for {login} failed: {e}", flush=True)
     except Exception as e:
         print(f"   ! Twitch lookup failed: {e}", flush=True)
         return []
@@ -169,11 +189,36 @@ def twitch_top(game_name="Grand Theft Auto VI", n=20, logins=()):
         m = re.findall(r"(\d+)([hms])", v.get("duration", ""))
         dur = sum(int(x) * {"h": 3600, "m": 60, "s": 1}[u] for x, u in m)
         out.append({"id": f"tw:{v['id']}", "url": v["url"], "title": v.get("title", ""),
-                    "channel": v.get("user_name", ""), "views": int(v.get("view_count") or 0),
+                    "channel": v.get("user_name", ""), "login": (v.get("user_login") or "").lower(),
+                    "views": int(v.get("view_count") or 0),
                     "duration": float(dur), "live_status": "was_live", "platform": "twitch",
-                    "origin": "twitch", "gameplay_hint": True, "category_gta6": True,
+                    "origin": "twitch", "gameplay_hint": True, "category_gta6": bool(v.get("_in_category")),
+                    "age_hours": _age_hours(v.get("created_at", "")),
                     "followed": v.get("user_login", "").lower() in {l.lower() for l in logins}})
     return out
+
+
+def youtube_usable(proxy=None):
+    """YouTube segment downloads are bot-blocked on GitHub runners at every tier. Only spend time on
+    YouTube when a proxy is configured (or YOUTUBE_FORCE=1 says a download tier works)."""
+    return bool(proxy or os.environ.get("YOUTUBE_PROXY") or os.environ.get("YOUTUBE_FORCE") == "1")
+
+
+def _norm(s):
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def own_channel(c, yt_handles):
+    """True when a YouTube candidate was uploaded by one of the target streamers' own channels
+    (no re-clipping other clippers' compilations; empty channel names are rejected)."""
+    if c.get("platform") != "youtube":
+        return True
+    if c.get("origin", "").startswith("channel "):
+        return True   # listed straight from the streamer's own /streams or /videos tab
+    chan = _norm(c.get("channel"))
+    if not chan:
+        return False
+    return any(chan == _norm(h.lstrip("@")) or chan == _norm(h.lstrip("@")) + "live" for h in yt_handles)
 
 
 def load_followed(path="streamers.txt"):
@@ -193,32 +238,29 @@ def load_followed(path="streamers.txt"):
 
 def discover(game="gta6", count=2, min_minutes=10, min_views=1000, seen=(), cookies=None, proxy=None,
              streamers_file="streamers.txt", only_streamers=False):
-    """Return the best `count` new candidates, best first, plus the full ranked list."""
+    """Return the best `count` new candidates, best first, plus the full ranked list.
+
+    Twitch first (VOD downloads work on GitHub runners): the game's top past broadcasts of the day plus the
+    followed streamers' newest broadcasts, freshest first. YouTube only from the target streamers' own
+    channels, and only when a download tier can work (proxy)."""
     yt_handles, tw_logins = load_followed(streamers_file)
-    streamer_queries = []
-    if yt_handles and (only_streamers or "ishowspeed" in streamers_file.lower()):
+    priority = {l.lower(): i for i, l in enumerate(tw_logins)}
+    cands = twitch_top(game, n=20, logins=tw_logins)
+    if yt_handles and youtube_usable(proxy):
+        cands += youtube_channels(yt_handles, cookies=cookies, proxy=proxy)
+        streamer_queries = []
         for h in yt_handles:
             clean = h.lstrip("@")
-            streamer_queries.extend([
-                f"{clean} {game} gameplay",
-                f"{clean} {game} stream",
-                f"{clean} {game} funny moments",
-                f"{clean} plays {game}",
-            ])
-    cands = youtube_search(cookies=cookies, proxy=proxy, game=game, streamer_queries=streamer_queries if only_streamers else None)
-    if yt_handles:
-        cands += youtube_channels(yt_handles, cookies=cookies, proxy=proxy)
-    if not only_streamers:
-        cands += twitch_top(game, n=20, logins=tw_logins)
-    elif tw_logins:
-        cands += twitch_top(game, n=20, logins=tw_logins)
+            streamer_queries += [f"{clean} {game} stream", f"{clean} {game} gameplay"]
+        cands += youtube_search(cookies=cookies, proxy=proxy, game=game, streamer_queries=streamer_queries)
+    elif yt_handles:
+        print(f"   (YouTube skipped for {', '.join(yt_handles)}: downloads are blocked on this runner without YOUTUBE_PROXY)",
+              flush=True)
 
     best, why = {}, {}
 
     def skip(reason):
         why[reason] = why.get(reason, 0) + 1
-
-    clean_targets = [h.lstrip("@").lower() for h in yt_handles] + [l.lower() for l in tw_logins]
 
     for c in cands:
         if c["id"] in seen or c["id"] in best:
@@ -227,29 +269,34 @@ def discover(game="gta6", count=2, min_minutes=10, min_views=1000, seen=(), cook
             skip("still live"); continue  # chat replay + seeking only work once the stream has ended
         if c["duration"] and c["duration"] < min_minutes * 60:
             skip("too short"); continue  # Shorts and short edits: nothing left to clip
+        if c["platform"] == "youtube" and not own_channel(c, yt_handles):
+            skip("not the streamer's own channel"); continue
+        if only_streamers and not c.get("followed"):
+            skip("not target streamer"); continue
 
-        if only_streamers or "ishowspeed" in streamers_file.lower():
-            chan = (c.get("channel") or "").lower()
-            tit = (c.get("title") or "").lower()
-            is_match = any(t in chan or t in tit for t in clean_targets) or c.get("followed")
-            if not is_match:
-                skip("not target streamer"); continue
-            for t in clean_targets:
-                if t in chan or t in tit:
-                    c["streamer_name"] = "IShowSpeed" if "speed" in t else c.get("channel", "")
-
-        if not is_gta6_gameplay(c["title"], game):
+        if c["platform"] == "twitch":
+            if not c.get("category_gta6"):
+                t = c["title"] or ""
+                if game == "gta6" and (not GTA6_RE.search(t) or OTHER_GTA_RE.search(t)):
+                    skip("followed VOD is not GTA 6"); continue
+                if game != "gta6" and not is_game_gameplay(t, game):
+                    skip("not gameplay of this game"); continue
+        elif not is_gta6_gameplay(c["title"], game):
             skip("not gameplay of this game"); continue
         # some regions/runners get no view count from search: the search is already sorted by views
         if c.get("views_known", True) and c["views"] < min_views and not c.get("followed"):
             skip("too few views"); continue
-        # rank: followed creators first (+2).
-        # On Twitch: finished streams (+1) have chat replays.
-        # On YouTube: regular uploaded videos (+1) download cleanly without live manifest bot gates.
-        is_twitch_vod = (c["platform"] == "twitch" and c["live_status"] == "was_live")
-        is_yt_video = (c["platform"] == "youtube" and c["live_status"] != "was_live")
-        c["score"] = (2.0 if c.get("followed") else 0.0) \
-            + (1.0 if (is_twitch_vod or is_yt_video) else 0.0) \
+
+        c["streamer_name"] = c.get("channel") or ""
+        c["creator"] = (c.get("login") or _norm(c.get("channel"))) or "generic"
+        # rank: Twitch VODs (they download) > YouTube; followed creators by their order in the file;
+        # freshest first (a just-ended stream beats yesterday's); views as a tie-breaker.
+        age = c.get("age_hours")
+        fresh = max(0.0, 1.0 - age / 48.0) * 2.0 if age is not None else 0.5
+        follow = 0.0
+        if c.get("followed"):
+            follow = 2.0 + (1.0 - priority.get(c.get("login", ""), len(priority)) / max(1, len(priority) + 1))
+        c["score"] = (3.0 if c["platform"] == "twitch" else 0.0) + follow + fresh \
             + (0.5 if c["gameplay_hint"] else 0.0) + min(c["views"], 5_000_000) / 5_000_000
         best[c["id"]] = c
     if why:

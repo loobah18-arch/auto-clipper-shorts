@@ -99,7 +99,7 @@ def fetch_chat(url, out_dir, cookies=None, proxy=None, tdl="TwitchDownloaderCLI"
     k = kind_of(url)
     if k == "twitch":
         out = out_dir / "chat.json"
-        _run([tdl, "chatdownload", "--id", url, "-o", str(out)], "Twitch chat download")
+        _run([tdl, "chatdownload", "--id", url, "-o", str(out)], "Twitch chat download", timeout=1500)
         return out
     if k in ("youtube", "ytdlp"):
         tmpl = str(out_dir / "chat")
