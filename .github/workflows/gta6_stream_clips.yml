@@ -1,7 +1,8 @@
 name: 🎮 Woo's Clips — GTA 6 Stream Highlight Pipeline (2-Hour Cadence)
 
-# Upload stream clips of GTA 6 to woo's clips (@woosclips) every 2 hours,
-# prioritizing IShowSpeed streams (today & tomorrow).
+# Upload stream clips of GTA 6 to woo's clips (@woosclips) every 2 hours.
+# Sources: big Twitch GTA 6 streamers (streamers_gta6.txt, freshest VODs first). YouTube entries
+# (@IShowSpeed) are only used when YOUTUBE_PROXY is set: runner downloads are bot-blocked otherwise.
 on:
   schedule:
     - cron: '0 */2 * * *'  # Every 2 hours (00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC)
@@ -13,7 +14,7 @@ on:
         default: 'gta6'
       streamers:
         description: 'Streamers priority file'
-        default: 'streamers_ishowspeed.txt'
+        default: 'streamers_gta6.txt'
       count:
         description: 'How many new streams/videos to clip'
         default: '1'
@@ -74,7 +75,7 @@ jobs:
       contents: write   # saves state/processed.json, upload_history.json, candle_gate_state.json
     env:
       GAME: ${{ inputs.game || 'gta6' }}
-      STREAMERS: ${{ inputs.streamers || 'streamers_ishowspeed.txt' }}
+      STREAMERS: ${{ inputs.streamers || 'streamers_gta6.txt' }}
       COUNT: ${{ inputs.count || '1' }}
       TOP: ${{ inputs.top || '1' }}
       MIN_VIEWS: ${{ inputs.min_views || '1000' }}
@@ -94,7 +95,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-noto-color-emoji
           pip install -U yt-dlp yt-dlp-ejs bgutil-ytdlp-pot-provider
-          pip install -r requirements.txt
+          pip install -r requirements.txt -r requirements-test.txt
+
+      - name: Unit tests (titles, sticker text, spacing gate, chat clips)
+        continue-on-error: true   # report, but never block a scheduled post on a flaky test
+        run: |
+          python3 -m unittest test_titles test_preflight_gate test_chat_clips test_youtube_uploader
 
       - name: Cache Whisper model
         uses: actions/cache@v4
@@ -154,7 +160,7 @@ jobs:
           [ -z "$URL" ] && URL="https://github.com/lay295/TwitchDownloader/releases/download/1.55.2/TwitchDownloaderCLI-1.55.2-Linux-x64.zip"
           curl -sL "$URL" -o tdl.zip && unzip -q -o tdl.zip && chmod +x TwitchDownloaderCLI && rm -f tdl.zip
 
-      - name: Find IShowSpeed / GTA 6 stream peak & render Short
+      - name: Find GTA 6 stream peak & render Short
         env:
           YOUTUBE_PROXY: ${{ secrets.YOUTUBE_PROXY }}
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
@@ -189,7 +195,7 @@ jobs:
           EXTRA=()
           [ "${{ inputs.force_upload }}" = "true" ] && EXTRA+=(--force)
           RC=0
-          python3 youtube_uploader.py --posts clips/posts.json --max 1 --privacy "$PRIVACY" --creator ishowspeed "${EXTRA[@]}" || RC=$?
+          python3 youtube_uploader.py --posts clips/posts.json --max 1 --privacy "$PRIVACY" --creator auto "${EXTRA[@]}" || RC=$?
           if [ "$RC" -eq 2 ]; then echo "⏸️ Upload deferred by the Candle Gate (protecting the last Short)."
           elif [ "$RC" -ne 0 ]; then exit $RC; fi
 
@@ -198,9 +204,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state/processed.json upload_history.json candle_gate_state.json 2>/dev/null || true
+          git add state/processed.json upload_history.json candle_gate_state.json title_history.json 2>/dev/null || true
           if git diff --cached --quiet; then echo "No state changes"; exit 0; fi
-          git commit -m "🤖 Update GTA 6 highlight stream state & upload history [skip ci]"
+          git commit -m "🤖 Update GTA 6 highlight stream state, upload & title history [skip ci]"
           git fetch origin main
           git rebase origin/main
           git push origin HEAD:main

@@ -160,6 +160,10 @@ class YouTubeUploader:
         hashtags = creator_info.get("packaging", {}).get("hashtags", ["#shorts", "#viral"])
         tag_line = " ".join(hashtags)
 
+        if metadata and metadata.get("stream_clip"):
+            # GTA 6 stream clips: description already carries the title, streamer credit and hashtags
+            return raw_description
+
         if metadata and metadata.get("highlight_clip"):
             # woo's clips highlight format: story description + credit + tags
             return (
@@ -272,6 +276,7 @@ class YouTubeUploader:
         auto_timer: bool = True,
         source_video_id: Optional[str] = None,
         custom_title: Optional[str] = None,
+        title_as_is: bool = False,
         sleep_fn=time.sleep,
     ) -> Dict[str, Any]:
         """Executes full upload pipeline."""
@@ -288,6 +293,8 @@ class YouTubeUploader:
         creators = self.catalog.get("creators", {})
         creator_info = creators.get(creator_id, {})
         category_id = creator_info.get("packaging", {}).get("category_id", "24")
+        if meta.get("stream_clip"):
+            category_id = (meta.get("packaging") or {}).get("category_id", "20")
 
         # Determine raw title and description
         if custom_title:
@@ -304,7 +311,10 @@ class YouTubeUploader:
 
         tags = meta.get("tags", creator_info.get("packaging", {}).get("hashtags", ["shorts", "viral", creator_id]))
 
-        title = self.format_title(raw_title, creator_id) if not custom_title or "@" not in custom_title else custom_title
+        if title_as_is and custom_title:
+            title = custom_title[:100]
+        else:
+            title = self.format_title(raw_title, creator_id) if not custom_title or "@" not in custom_title else custom_title
         description = self.format_description(raw_desc, creator_id, meta)
 
         log(f"📋 Title: '{title}'")
@@ -408,6 +418,59 @@ class YouTubeUploader:
             "privacy": privacy_status,
         }
 
+    def check_upload_spacing(self, min_spacing_hours: Optional[float] = None) -> Tuple[bool, str]:
+        """Layer 0 at upload time: never post twice inside MIN_UPLOAD_SPACING_HOURS (reads the committed
+        upload_history.json, the same record the pre-flight gate uses)."""
+        from preflight_gate import decide
+        hours = float(min_spacing_hours if min_spacing_hours is not None
+                      else os.environ.get("MIN_UPLOAD_SPACING_HOURS", "0") or 0)
+        if hours <= 0:
+            return True, "No upload spacing configured."
+        res = decide(self.history_file, min_spacing_hours=hours, max_inline_wait_hours=0.0)
+        if res.get("proceed"):
+            return True, f"Spacing OK (last upload {res.get('last_video_id')} {res.get('elapsed_hours')}h ago)."
+        return False, (f"Last upload {res.get('last_video_id')} was {res.get('elapsed_hours')}h ago "
+                       f"(< {hours}h); next due {res.get('due_at')}.")
+
+    def upload_short(
+        self,
+        video_path: Path,
+        metadata: Dict[str, Any],
+        privacy_status: str = "public",
+        dry_run: bool = False,
+        bypass_gate: bool = False,
+        creator_id: str = "generic",
+        source_video_id: Optional[str] = None,
+        title: Optional[str] = None,
+        sleep_fn=time.sleep,
+    ) -> Dict[str, Any]:
+        """Stream-clip Shorts (auto_clips posts.json): the title and description were already built from
+        the moment, so they are published as-is (no catalog creator title rewrite)."""
+        if not bypass_gate and not dry_run:
+            ok, msg = self.check_upload_spacing()
+            log(f"⏱️ Spacing gate: {msg}")
+            if not ok:
+                return {"status": "blocked_by_candle_gate", "reason": msg, "video_path": str(video_path)}
+        meta = dict(metadata or {})
+        meta["stream_clip"] = True
+        tmp = Path(video_path).with_suffix(".upload_meta.json")
+        tmp.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+        try:
+            return self.upload(
+                video_path=Path(video_path),
+                metadata_path=tmp,
+                creator_id=creator_id,
+                privacy_status=privacy_status,
+                dry_run=dry_run,
+                force=bypass_gate,
+                source_video_id=source_video_id,
+                custom_title=title or meta.get("title"),
+                title_as_is=True,
+                sleep_fn=sleep_fn,
+            )
+        finally:
+            tmp.unlink(missing_ok=True)
+
     def _record_history(self, entry: Dict[str, Any]) -> None:
         history = []
         if self.history_file.exists():
@@ -424,7 +487,8 @@ def main():
     parser = argparse.ArgumentParser(description="Hypit Tested&Proved YouTube Uploader")
     parser.add_argument("--video", type=Path, default=Path("output/hypit_mrbeast_short.mp4"), help="Path to video file")
     parser.add_argument("--metadata", type=Path, default=Path("metadata.json"), help="Path to metadata JSON")
-    parser.add_argument("--creator", type=str, default="mrbeast", help="Creator ID from creator_catalog.json")
+    parser.add_argument("--creator", type=str, default="mrbeast",
+                        help="Creator ID from creator_catalog.json ('auto' = per clip from posts.json)")
     parser.add_argument("--source-id", type=str, help="Original YouTube source video ID that was clipped")
     parser.add_argument("--title", type=str, help="Custom formatted title override")
     parser.add_argument("--privacy", choices=["public", "unlisted", "private"], default="public", help="Upload privacy status")
@@ -454,9 +518,10 @@ def main():
             metadata_dict = {
                 "title": t,
                 "description": desc,
+                "tags": tags if isinstance(tags, list) else tags.split(","),
                 "packaging": {
                     "hashtags": tags if isinstance(tags, list) else tags.split(","),
-                    "category_id": "24",
+                    "category_id": "20",  # Gaming
                 }
             }
             res = uploader.upload_short(
@@ -465,7 +530,7 @@ def main():
                 privacy_status=args.privacy,
                 dry_run=args.dry_run,
                 bypass_gate=args.force,
-                creator_id=args.creator or "ishowspeed",
+                creator_id=(post.get("creator") or "generic") if args.creator in (None, "", "auto") else args.creator,
                 source_video_id=src,
                 title=t,
             )

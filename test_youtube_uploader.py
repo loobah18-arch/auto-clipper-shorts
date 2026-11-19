@@ -88,6 +88,33 @@ class TestYouTubeUploader(unittest.TestCase):
             if video_sample.exists():
                 video_sample.unlink()
 
+    def test_upload_short_keeps_moment_title(self):
+        video_sample = ROOT_DIR / "test_sample_short.mp4"
+        video_sample.write_bytes(b"dummy mp4 content")
+        try:
+            t = "Chat Spammed \"NO WAY\" After xQc Did This in GTA 6 😳"
+            res = self.uploader.upload_short(video_path=video_sample,
+                                             metadata={"title": t, "description": t + "\nCredit: @xQc", "tags": ["GTA6"]},
+                                             dry_run=True, bypass_gate=True, creator_id="xqc", title=t)
+            self.assertEqual(res["status"], "dry_run_success")
+            self.assertEqual(res["title"], t)
+        finally:
+            video_sample.unlink(missing_ok=True)
+
+    def test_upload_spacing_blocks_double_post(self):
+        import os
+        from datetime import datetime, timedelta, timezone
+        recent = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+        self.test_history.write_text(json.dumps([{"video_id": "abc123", "status": "uploaded", "timestamp": recent}]),
+                                     encoding="utf-8")
+        ok, msg = self.uploader.check_upload_spacing(2.0)
+        self.assertFalse(ok)
+        self.assertIn("abc123", msg)
+        old = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
+        self.test_history.write_text(json.dumps([{"video_id": "abc123", "status": "uploaded", "timestamp": old}]),
+                                     encoding="utf-8")
+        self.assertTrue(self.uploader.check_upload_spacing(2.0)[0])
+
 
 if __name__ == "__main__":
     unittest.main()
