@@ -67,7 +67,8 @@ def main(argv=None):
 
     print(f"🔎 Looking for today's top {'GTA 6' if a.game == 'gta6' else a.game} streams and videos...", flush=True)
     only_streamers = a.only_streamers or ("ishowspeed" in a.streamers.lower())
-    picks, ranked = discover.discover(a.game, a.count, a.min_minutes, a.min_views, set(state),
+    seen_successful = {k for k, v in state.items() if v.get("ok") is True}
+    picks, ranked = discover.discover(a.game, a.count, a.min_minutes, a.min_views, seen_successful,
                                       cookies, proxy, a.streamers, only_streamers=only_streamers)
     print(f"\n{len(ranked)} new candidates passed the filters. Top 10:")
     for i, c in enumerate(ranked[:10], 1):
