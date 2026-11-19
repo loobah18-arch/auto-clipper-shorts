@@ -66,13 +66,14 @@ def _ytdlp_base(cookies=None, proxy=None, client=None, pot=True, no_cookies=Fals
         ]
 
     # Check for bgutil POT provider on localhost:4416
-    try:
-        import urllib.request
-        with urllib.request.urlopen("http://127.0.0.1:4416/ping", timeout=0.5) as r:
-            if r.status == 200:
-                cmd += ["--extractor-args", "youtubepot-provider:url=http://127.0.0.1:4416"]
-    except Exception:
-        pass
+    if pot:
+        try:
+            import urllib.request
+            with urllib.request.urlopen("http://127.0.0.1:4416/ping", timeout=0.5) as r:
+                if r.status == 200:
+                    cmd += ["--extractor-args", "youtubepot-provider:url=http://127.0.0.1:4416"]
+        except Exception:
+            pass
 
     if client:
         cmd += ["--extractor-args", f"youtube:player_client={client}"]
@@ -175,7 +176,7 @@ def download_section(url, start, end, out_path, cookies=None, proxy=None, tdl="T
         return out_path
 
     # YouTube: Multi-tier cascading fallback (strictly >=720p, <=1080p)
-    fmt_hd = "bv*[height>=720][height<=1080][fps<=60]+ba/b[height>=720][height<=1080]"
+    fmt_hd = "311+140/311+139/298+140/bv*[height>=720][height<=1080][fps<=60]+ba/b[height>=720][height<=1080]/22/bv*[height<=1080]+ba/b"
     tiers = [
         ("web,mweb", fmt_hd, "Tier 1: 1080p/720p web,mweb + bgutil/cookies"),
         ("android,mweb,web", f"{fmt_hd}/22", "Tier 2: 1080p/720p android,mweb,web native bypass"),
@@ -186,32 +187,33 @@ def download_section(url, start, end, out_path, cookies=None, proxy=None, tdl="T
 
     last_err = None
     for client, fmt, label in tiers:
-        try:
-            print(f"   🔄 Attempting segment download via {label}...", flush=True)
-            use_cookies = "no cookies" not in label
-            cmd = _ytdlp_base(
-                cookies=cookies if use_cookies else None,
-                proxy=proxy,
-                client=client,
-                pot=use_cookies,
-                no_cookies=not use_cookies
-            ) + [
-                "-4",
-                "--downloader", "native",
-                "-f", fmt,
-                "--download-sections", f"*{start:.2f}-{end:.2f}",
-                "--force-keyframes-at-cuts",
-                "--merge-output-format", "mp4",
-                "-o", str(out_path),
-                url
-            ]
-            _run(cmd, f"segment download ({client})")
-            if out_path.exists() and out_path.stat().st_size > 10000:
-                print(f"   ✅ Segment downloaded successfully via {client}", flush=True)
-                return out_path
-        except Exception as e:
-            print(f"   ⚠️ {label} failed: {e}", flush=True)
-            last_err = e
+        for try_cookies in ([True, False] if cookies and "no cookies" not in label else [False]):
+            try:
+                sub_label = label + (" [with cookies]" if try_cookies else " [no cookies]")
+                print(f"   🔄 Attempting segment download via {sub_label}...", flush=True)
+                cmd = _ytdlp_base(
+                    cookies=cookies if try_cookies else None,
+                    proxy=proxy,
+                    client=client,
+                    pot=try_cookies,
+                    no_cookies=not try_cookies
+                ) + [
+                    "-4",
+                    "--downloader", "native",
+                    "-f", fmt,
+                    "--download-sections", f"*{start:.2f}-{end:.2f}",
+                    "--force-keyframes-at-cuts",
+                    "--merge-output-format", "mp4",
+                    "-o", str(out_path),
+                    url
+                ]
+                _run(cmd, f"segment download ({client})")
+                if out_path.exists() and out_path.stat().st_size > 10000:
+                    print(f"   ✅ Segment downloaded successfully via {client}", flush=True)
+                    return out_path
+            except Exception as e:
+                print(f"   ⚠️ {label} failed: {e}", flush=True)
+                last_err = e
 
     raise RuntimeError(f"segment download failed all tiers. Last error: {last_err}")
 
@@ -234,43 +236,44 @@ def download_audio(url, out_path, cookies=None, proxy=None):
         _run(cmd, "audio download")
         return target_m4a
 
-    # YouTube: Multi-tier cascading fallback (copied from auto-clipper-shorts Tier 3c)
+    # YouTube: Multi-tier cascading fallback
     tiers = [
-        ("android,mweb,web", "ba/b/bestaudio/18/b", "Tier 3c: android,mweb,web (fmt ba/b/18)"),
-        ("web,mweb", "ba/b/bestaudio/18/b", "Tier 1: web,mweb + bgutil/cookies"),
-        ("ios", "best/18/b", "Tier 2: ios HLS (no cookies)"),
-        ("android_vr", "best/18/b", "Tier 2: android_vr (no cookies)"),
-        ("android", "18/b", "Tier 2: android (no cookies)"),
+        ("android,mweb,web", "139/140/234/233/ba[ext=m4a]/ba/b", "Tier 1: progressive m4a audio (139/140)"),
+        ("web,mweb", "139/140/234/233/ba[ext=m4a]/ba/b", "Tier 2: web/mweb progressive m4a"),
+        ("mweb", "139/140", "Tier 3: mweb m4a (no cookies)"),
+        ("android", "18/b", "Tier 4: android format 18 audio (no cookies)"),
+        ("ios", "best/18/b", "Tier 5: ios HLS (no cookies)"),
     ]
 
     last_err = None
     for client, fmt, label in tiers:
-        try:
-            print(f"   🔄 Attempting audio download via {label}...", flush=True)
-            use_cookies = "no cookies" not in label
-            cmd = _ytdlp_base(
-                cookies=cookies if use_cookies else None,
-                proxy=proxy,
-                client=client,
-                pot=use_cookies,
-                no_cookies=not use_cookies
-            ) + [
-                "-4",
-                "--downloader", "native",
-                "-f", fmt,
-                "-x", "--audio-format", "m4a",
-                "-o", tmpl,
-                url
-            ]
-            _run(cmd, f"audio download ({client})")
-            if target_m4a.exists() and target_m4a.stat().st_size > 1000:
-                print(f"   ✅ Audio downloaded successfully via {client}", flush=True)
-                return target_m4a
-            for cand in out_path.parent.glob(f"{out_path.stem}.*"):
-                if cand.is_file() and cand.stat().st_size > 1000:
-                    return cand
-        except Exception as e:
-            print(f"   ⚠️ {label} failed: {e}", flush=True)
-            last_err = e
+        for try_cookies in ([True, False] if cookies and "no cookies" not in label else [False]):
+            try:
+                sub_label = label + (" [with cookies]" if try_cookies else " [no cookies]")
+                print(f"   🔄 Attempting audio download via {sub_label}...", flush=True)
+                cmd = _ytdlp_base(
+                    cookies=cookies if try_cookies else None,
+                    proxy=proxy,
+                    client=client,
+                    pot=try_cookies,
+                    no_cookies=not try_cookies
+                ) + [
+                    "-4",
+                    "--downloader", "native",
+                    "-f", fmt,
+                    "-x", "--audio-format", "m4a",
+                    "-o", tmpl,
+                    url
+                ]
+                _run(cmd, f"audio download ({client})")
+                if target_m4a.exists() and target_m4a.stat().st_size > 1000:
+                    print(f"   ✅ Audio downloaded successfully via {client}", flush=True)
+                    return target_m4a
+                for cand in out_path.parent.glob(f"{out_path.stem}.*"):
+                    if cand.is_file() and cand.stat().st_size > 1000:
+                        return cand
+            except Exception as e:
+                print(f"   ⚠️ {label} failed: {e}", flush=True)
+                last_err = e
 
     raise RuntimeError(f"audio download failed all tiers. Last error: {last_err}")
