@@ -1,12 +1,9 @@
 name: 🎬 Hypit Cloud Render & YouTube Upload Pipeline
 
 on:
-  schedule:
-    # 6-hour polling cadence: 00/06/12/18 UTC. The pre-flight gate job
-    # (preflight_gate.py, Layer 0) skips the pipeline unless >= 24h have
-    # elapsed since the last successful upload in upload_history.json.
-    # Cadence only bounds post-24h latency; the gate enforces the true cycle.
-    - cron: '0 0,6,12,18 * * *'
+  # Scheduled cadence temporarily paused in favor of gta6_stream_clips.yml (2-hour GTA 6 Speed highlights)
+  # schedule:
+  #   - cron: '0 0,6,12,18 * * *'
 
   workflow_dispatch:
     inputs:

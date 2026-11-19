@@ -13,6 +13,7 @@ Implements the 2-layer algorithmic rules governing when to upload the next video
 4. Average View Duration (AVD) Gate: At least 80% average view retention (>= 48s for 60s Shorts).
 """
 
+import os
 import sys
 import json
 import argparse
@@ -36,8 +37,8 @@ NEAR_THRESHOLD_PERCENT = 0.85  # 85% of threshold (e.g. >= 1,700 views when thre
 NEAR_THRESHOLD_VIEWS = int(EARLY_VIEWS_THRESHOLD * NEAR_THRESHOLD_PERCENT)
 TIMER_DELAY_SECONDS = 3600     # 1 hour recheck timer
 
-# Layer 0 Constants: 24-Hour Minimum Upload Spacing Guard
-MIN_UPLOAD_SPACING_HOURS = 24.0  # Only trigger next upload after 24 hours of prior upload
+# Layer 0 Constants: Configurable Minimum Upload Spacing Guard (defaults to 24h, overridden e.g. 2h)
+MIN_UPLOAD_SPACING_HOURS = float(os.environ.get("MIN_UPLOAD_SPACING_HOURS", "24.0"))
 
 
 class CandleGate:

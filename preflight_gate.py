@@ -28,8 +28,8 @@ from pathlib import Path
 from candle_gate import CandleGate
 
 DEFAULT_HISTORY = Path(__file__).resolve().parent / "upload_history.json"
-DEFAULT_MIN_SPACING_HOURS = 24.0
-DEFAULT_MAX_INLINE_WAIT_HOURS = 0.5
+DEFAULT_MIN_SPACING_HOURS = float(os.environ.get("MIN_UPLOAD_SPACING_HOURS", "24.0"))
+DEFAULT_MAX_INLINE_WAIT_HOURS = float(os.environ.get("MAX_INLINE_WAIT_HOURS", "0.5"))
 HARD_SLEEP_CAP_SECONDS = 1900  # defensive: below the preflight job's 45-min timeout
 
 

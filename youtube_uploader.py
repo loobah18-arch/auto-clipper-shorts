@@ -430,9 +430,51 @@ def main():
     parser.add_argument("--privacy", choices=["public", "unlisted", "private"], default="public", help="Upload privacy status")
     parser.add_argument("--dry-run", action="store_true", help="Simulate upload without calling YouTube API")
     parser.add_argument("--force", action="store_true", help="Bypass 5k views/hour candle gate")
+    parser.add_argument("--posts", type=Path, help="Path to posts.json (auto-clips mode)")
+    parser.add_argument("--max", type=int, default=1, help="Max clips to upload from posts.json")
     args = parser.parse_args()
 
     uploader = YouTubeUploader()
+
+    if args.posts:
+        posts_file = args.posts
+        if not posts_file.exists():
+            log(f"Posts file {posts_file} not found.")
+            sys.exit(1)
+        posts = json.loads(posts_file.read_text(encoding="utf-8"))
+        if not posts:
+            log("No posts found in posts.json.")
+            sys.exit(0)
+        for post in posts[:args.max]:
+            vid_p = Path(post.get("file", ""))
+            t = post.get("title", args.title or "GTA 6 Highlight")
+            desc = post.get("description", "")
+            tags = post.get("tags", ["GTA6", "Shorts", "Gaming"])
+            src = post.get("source_url", "")
+            metadata_dict = {
+                "title": t,
+                "description": desc,
+                "packaging": {
+                    "hashtags": tags if isinstance(tags, list) else tags.split(","),
+                    "category_id": "24",
+                }
+            }
+            res = uploader.upload_short(
+                video_path=vid_p,
+                metadata=metadata_dict,
+                privacy_status=args.privacy,
+                dry_run=args.dry_run,
+                bypass_gate=args.force,
+                creator_id=args.creator or "ishowspeed",
+                source_video_id=src,
+                title=t,
+            )
+            print(json.dumps(res, indent=2))
+            if res.get("status") == "blocked_by_candle_gate":
+                sys.exit(2)
+            elif res.get("status") not in ("uploaded", "dry_run_success"):
+                sys.exit(1)
+        sys.exit(0)
 
     # Fallback paths if default video doesn't exist in output/
     video_path = args.video
