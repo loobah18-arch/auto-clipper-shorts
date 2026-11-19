@@ -132,13 +132,25 @@ def _wrap(text, width=20):
     return " ".join(words[:best]) + r"\N" + " ".join(words[best:])
 
 
+def story_stages(duration):
+    """Internal story-arc split (HOOK -> SETUP -> CLIMAX -> PAYOFF) in seconds, for metadata only.
+    Nothing here is drawn on the video any more (the [ 01 · THE HOOK ] labels were removed)."""
+    if duration < 25.0:
+        return []
+    t_hook = min(4.5, duration * 0.10)
+    t_setup = duration * 0.52
+    t_climax = duration * 0.78
+    return [(0.0, t_hook, "hook"), (t_hook, t_setup, "setup"), (t_setup, t_climax, "climax"),
+            (t_climax, duration, "payoff")]
+
+
 HIGHLIGHT = "&H0000E5FF&"  # yellow (ASS is BGR)
 WHITE = "&H00FFFFFF&"
 
 
 def build_ass(out_path, words, duration, caption_y=1000, hook="", hook_secs=3.5, credit="",
               font="Montserrat Black", hook_font="Montserrat Black", credit_v=180,
-              ig_comment=None, style=None):
+              ig_comment=None, style=None, card_top=None):
     if style is None:
         style = "ig-comment" if ig_comment else "word"
     head = f"""[Script Info]
@@ -161,7 +173,7 @@ Style: Badge,{font},32,&H0000E6FF,&H00000000,&H00000000,&HB0000000,-1,0,0,0,100,
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     ev = []
-    if style == "word":
+    if style in ("word", "both"):
         pos = rf"\pos(540,{caption_y})"
         groups = group_words(words)
         for gi, g in enumerate(groups):
@@ -181,13 +193,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 pop = r"{\fscx85\fscy85\t(0,90,\fscx100\fscy100)}" if i == 0 else ""
                 ev.append(f"Dialogue: 1,{_ts(s)},{_ts(e)},Cap,,0,0,0,,{{{pos}}}{pop}{' '.join(parts)}")
         hook = _clean(hook or "")
-        if hook:
+        if hook and style == "word":  # "both": the comment sticker is the hook, keep the facecam clear
             ev.append(f"Dialogue: 2,{_ts(0)},{_ts(min(hook_secs, duration))},Hook,,0,0,0,,"
                       r"{\fad(0,250)\fscx90\fscy90\t(0,120,\fscx100\fscy100)}" + _wrap(hook.upper()))
-    elif style == "ig-comment" and ig_comment:
+    if style in ("ig-comment", "both") and ig_comment:
         card_w, card_h = 900, 220
         card_x = (1080 - card_w) // 2  # 90
-        card_y = caption_y - (card_h // 2)  # 590
+        card_y = int(card_top) if card_top is not None else caption_y - (card_h // 2)
         text = ig_comment.get("text", "bro was NOT ready for GTA 6 💀💀")
         uname = ig_comment.get("username", "vicecity_daily")
         time_ago = ig_comment.get("time", "2h")
@@ -214,20 +226,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                   f"{{\\fs24\\b0\\c&H00777777&}}Reply")
         ev.append(f"Dialogue: 2,{_ts(0)},{_ts(duration)},IGText,,0,0,0,,{{\\pos({card_x + 720},{card_y + 158})}}"
                   f"{{\\fs26\\c&H002424ED&}}♥ {{\\fs24\\b0\\c&H00777777&}}{likes}")
-
-    # Story-arc stage HUD badges (woo's clips benchmark format: HOOK -> SETUP -> CLIMAX -> PAYOFF)
-    if duration >= 25.0:
-        t_hook = min(4.5, duration * 0.10)
-        t_setup = duration * 0.52
-        t_climax = duration * 0.78
-        stages = [
-            (0.0, t_hook, "[ 01 · THE HOOK ]"),
-            (t_hook, t_setup, "[ 02 · THE SETUP ]"),
-            (t_setup, t_climax, "[ 03 · THE CLIMAX ]"),
-            (t_climax, duration, "[ 04 · THE PAYOFF ]"),
-        ]
-        for s_t, e_t, label in stages:
-            ev.append(f"Dialogue: 3,{_ts(s_t)},{_ts(e_t)},Badge,,0,0,0,,  {label}  ")
 
     credit = _clean(credit or "")
     if credit:

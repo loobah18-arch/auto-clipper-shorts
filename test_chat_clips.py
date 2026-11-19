@@ -174,11 +174,13 @@ class TestChatClipFinder(unittest.TestCase):
 
     def test_titles_are_unique_per_clip(self):
         from ccf import titles
-        a = titles.make(1, "laugh", "", "kai", "gta6")
-        b = titles.make(2, "shock", "", "kai", "gta6")
+        a = titles.make(1, "laugh", "", "kai", "gta6", seed=1)
+        b = titles.make(2, "shock", "", "kai", "gta6", seed=1, used=[(a["title"], a["template"])])
         self.assertNotEqual(a["title"], b["title"])
+        self.assertNotEqual(a["template"], b["template"])
         self.assertIn("GTA6", a["tags"])
         self.assertEqual(a["credit"], "@kai")
+        self.assertIn("kai", a["title"])
 
     def test_ass_builder(self):
         from ccf.captions import build_ass
@@ -210,15 +212,34 @@ class TestChatClipFinder(unittest.TestCase):
             # Ensure word-by-word subtitles are omitted
             self.assertNotIn("Cap", txt.split("[Events]")[1])
 
-            # When duration >= 25s, verify woo's clips stage HUD badges are present
+            # Stage labels ([ 01 · THE HOOK ] ...) are no longer drawn on the video
             out_50 = Path(tmpdir) / "ig_50.ass"
             build_ass(out_50, [], 50.0, ig_comment=ig_comment, style="ig-comment", credit="@ohnePixel")
             txt_50 = out_50.read_text(encoding="utf-8")
-            self.assertIn("Style: Badge", txt_50)
-            self.assertIn("[ 01 · THE HOOK ]", txt_50)
-            self.assertIn("[ 02 · THE SETUP ]", txt_50)
-            self.assertIn("[ 03 · THE CLIMAX ]", txt_50)
-            self.assertIn("[ 04 · THE PAYOFF ]", txt_50)
+            self.assertNotIn("THE HOOK", txt_50)
+            self.assertNotIn("THE CLIMAX", txt_50)
+            self.assertNotIn(",Badge,", txt_50)
+
+    def test_ass_builder_both_has_words_and_card(self):
+        from ccf.captions import build_ass
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "both.ass"
+            words = [{"w": "no", "s": 0.0, "e": 0.3}, {"w": "way", "s": 0.3, "e": 0.7}]
+            ig = {"text": "he really thought he was safe lmao", "username": "kai_fan22", "time": "5h", "likes": "3.1K"}
+            build_ass(out, words, 30.0, caption_y=1456, ig_comment=ig, style="both", hook="WAIT", card_top=722)
+            txt = out.read_text(encoding="utf-8")
+            self.assertIn(",Cap,", txt)                 # word-by-word captions are back
+            self.assertIn("\\pos(540,1456)", txt)       # lower third of the gameplay panel
+            self.assertIn("\\pos(90,722)", txt)         # card under the facecam seam
+            self.assertNotIn("WAIT", txt)               # no hook box over the facecam
+            self.assertNotIn("THE HOOK", txt)
+
+    def test_sticker_sits_below_facecam(self):
+        from ccf.render import sticker_and_caption_y, CAM_H
+        top, cap = sticker_and_caption_y("stack", CAM_H, "both")
+        self.assertGreater(top, CAM_H)                  # never over the cam panel (the face)
+        self.assertGreater(cap, top + 300)              # captions well below the card
+        self.assertLess(cap, 1920 - 380)                # clear of the Shorts UI
 
     def test_generate_instagram_sticker(self):
         from ccf.sticker import generate_instagram_sticker

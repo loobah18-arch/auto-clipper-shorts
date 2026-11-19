@@ -42,6 +42,7 @@ Making the Short:
 import argparse
 import json
 import math
+import subprocess
 import sys
 from pathlib import Path
 
@@ -71,6 +72,13 @@ def parse_args(argv=None):
     p.add_argument("--game", default="gta6")
     p.add_argument("--emotes", "--filter-emotes", action="store_true")
     p.add_argument("--min-score", type=float, default=1.0)
+    p.add_argument("--min-msgs", type=int, default=0, help="Minimum raw chat messages in the spike window (default 0)")
+    p.add_argument("--target-min", type=float, default=20.0, help="Shortest finished clip in seconds (default 20)")
+    p.add_argument("--target-max", type=float, default=35.0, help="Longest finished clip in seconds (default 35)")
+    p.add_argument("--payoff-lead", type=float, default=3.0, help="Seconds of lead-in before the payoff (default 3)")
+    p.add_argument("--tries", type=int, default=3, help="Backup moments per wanted clip when one fails the quality gate")
+    p.add_argument("--title-history", default="title_history.json", help="Title history file ('' to disable)")
+    p.add_argument("--no-quality-gate", action="store_true", help="Do not skip dark / static moments")
     p.add_argument("--top", type=int, default=5)
     p.add_argument("--before", type=int, default=20)
     p.add_argument("--after", type=int, default=10)
@@ -83,7 +91,7 @@ def parse_args(argv=None):
     p.add_argument("--require-cam", action="store_true", default=True, help="skip candidate if no webcam detected")
     p.add_argument("--no-require-cam", dest="require_cam", action="store_false")
     p.add_argument("--cam", default="auto", choices=["auto", "top-left", "top-right", "bottom-left", "bottom-right"])
-    p.add_argument("--captions", default="ig-comment", choices=["ig-comment", "word", "on", "off"])
+    p.add_argument("--captions", default="both", choices=["both", "ig-comment", "word", "on", "off"])
     p.add_argument("--whisper-model", default="small")
     p.add_argument("--lang")
     p.add_argument("--hook", default="")
@@ -133,7 +141,18 @@ def bucket_counts(a, messages, length):
     return counts
 
 
-def find_peaks(a, counts):
+def raw_bucket_counts(a, messages, length):
+    """Plain message count per bucket (every message, no reaction weighting)."""
+    nb = math.ceil(length / a.bucket) + 1
+    raw = [0] * nb
+    for m in messages:
+        i = int(m["t"] // a.bucket)
+        if 0 <= i < nb:
+            raw[i] += 1
+    return raw
+
+
+def find_peaks(a, counts, raw=None, limit=None):
     nb = len(counts)
     around = max(1, round(300 / a.bucket))
     scores = []
@@ -143,16 +162,21 @@ def find_peaks(a, counts):
     first_ok = math.ceil(a.skip_start / a.bucket) if nb * a.bucket > (a.skip_start + a.skip_end) * 3 else 0
     last_ok = nb - 1 - (math.ceil(a.skip_end / a.bucket) if first_ok else 0)
     peaks = []
+    limit = limit or a.top
+    min_msgs = getattr(a, "min_msgs", 0) or 0
     for idx in sorted(range(nb), key=lambda i: scores[i], reverse=True):
-        if len(peaks) >= a.top:
+        if len(peaks) >= limit:
             break
         if counts[idx] < 5 or scores[idx] < a.min_score or not (first_ok <= idx <= last_ok):
+            continue
+        if raw is not None and min_msgs and raw[idx] < min_msgs:
             continue
         t = idx * a.bucket
         if any(abs(p["t"] - t) < a.gap for p in peaks):
             continue
         msgs = counts[idx]
-        peaks.append({"t": t, "msgs": int(msgs) if float(msgs).is_integer() else msgs, "score": round(scores[idx], 1)})
+        peaks.append({"t": t, "msgs": int(msgs) if float(msgs).is_integer() else msgs, "score": round(scores[idx], 1),
+                      "raw_msgs": raw[idx] if raw is not None and idx < len(raw) else None})
     peaks.sort(key=lambda p: p["t"])
     return peaks
 
@@ -176,6 +200,7 @@ def main(argv=None):
 
     # 1. Signal: chat (file or downloaded) or loudness
     messages, length, chat_file = [], 0.0, None
+    raw_counts = None
     if a.source:
         chat_file = Path(a.source)
         if not chat_file.exists():
@@ -204,6 +229,7 @@ def main(argv=None):
                   file=sys.stderr)
             sys.exit(1)
         counts = bucket_counts(a, messages_used, length)
+        raw_counts = raw_bucket_counts(a, messages, length)
         label = f"{len(messages_used)} chat messages" + (" (reaction filter active)" if a.emotes else "")
     else:
         from ccf import audio
@@ -217,12 +243,17 @@ def main(argv=None):
         length = len(counts) * a.bucket
         label = "audio loudness (no chat)"
 
-    peaks = find_peaks(a, counts)
+    all_peaks = find_peaks(a, counts, raw_counts, limit=a.top * max(1, a.tries))
+    # the published moments.json keeps the classic top-N; the rest are backups for the quality gate
+    by_score = sorted(all_peaks, key=lambda p: p["score"], reverse=True)
+    peaks = sorted(by_score[:a.top], key=lambda p: p["t"])
+    backups = by_score[a.top:]
     print(f"\n💬 {label}, ⏱ {hms(length)} of stream\n")
     print(ascii_graph(counts, length) + "\n")
     if not peaks:
-        print(f"No moments reached the minimum multiplier threshold of {a.min_score}x. Try lowering --min-score.")
-        sys.exit(0)
+        need = f" and {a.min_msgs} chat messages per {a.bucket}s" if a.min_msgs and raw_counts is not None else ""
+        print(f"No moments reached the minimum multiplier threshold of {a.min_score}x{need}. Try lowering --min-score.")
+        sys.exit(0 if a.dry_run or not (a.url or a.video) else 3)
 
     # 2. Name things
     streamer = a.credit or (chatmod.streamer_name(chat_file) if chat_file else "")
@@ -232,24 +263,27 @@ def main(argv=None):
 
     print("Top Moments:")
     moments = []
-    for i, p in enumerate(peaks):
+    history = titles.load_history(a.title_history) if a.title_history else []
+    for i, p in enumerate(peaks + backups):
         nominal_t = max(0.0, p["t"] - a.chat_delay)
         start = max(0, int(nominal_t - a.before) if float(nominal_t).is_integer() else round(nominal_t - a.before, 2))
         end = int(nominal_t + a.after) if float(nominal_t).is_integer() else round(nominal_t + a.after, 2)
         kind, phrase = chatmod.top_reaction(messages, p["t"] - 5, p["t"] + a.bucket + 10, a.game) if messages else (None, "")
-        meta = titles.make(i + 1, kind, phrase, streamer, a.game, a.hook)
+        meta = titles.make(i + 1, kind, phrase, streamer, a.game, a.hook, history=history)
         clip_file = f"clip_{i + 1:02d}.mp4"
         spike_info = f"#{i + 1}  {hms(nominal_t)}" + (f" (chat spike {hms(p['t'])})" if a.chat_delay > 0 else "")
-        print(f"{spike_info}  {p['msgs']} msgs in {a.bucket}s  ({p['score']}x normal)  "
-              f"-> clip {hms(start)} to {hms(end)}" + (f"  [{kind}]" if kind else ""))
+        raw_info = f" / {p['raw_msgs']} raw" if p.get("raw_msgs") is not None else ""
+        print(f"{spike_info}  {p['msgs']} msgs in {a.bucket}s{raw_info}  ({p['score']}x normal)  "
+              f"-> clip {hms(start)} to {hms(end)}" + (f"  [{kind}]" if kind else "") + ("  (backup)" if i >= len(peaks) else ""))
         moments.append({"rank": i + 1, "t": p["t"], "nominalEvent": nominal_t, "chatDelay": a.chat_delay,
                         "timestamp": hms(nominal_t), "chatTimestamp": hms(p["t"]), "msgs": p["msgs"],
+                        "rawMsgs": p.get("raw_msgs"), "backup": i >= len(peaks),
                         "score": p["score"], "start": start, "end": end, "clipStart": hms(start),
                         "clipEnd": hms(end), "duration": end - start, "clipFile": clip_file,
                         "reaction": kind, "chatPhrase": phrase, **meta})
 
     with open(out_dir / "moments.json", "w", encoding="utf-8") as f:
-        json.dump(moments, f, indent=2, ensure_ascii=False)
+        json.dump([m for m in moments if not m["backup"]], f, indent=2, ensure_ascii=False)
     print(f"\n✅ Saved moment data to {out_dir / 'moments.json'}.")
 
     if a.dry_run:
@@ -259,26 +293,37 @@ def main(argv=None):
         print("To cut video clips, provide --url <Twitch/YouTube link> or --video <local.mp4>")
         sys.exit(0)
 
-    # 3. Cut + render
-    from ccf import audio, captions, render
-    posts = []
-    for m in moments:
-        out_path = out_dir / m["clipFile"]
+    # 3. Cut + render (best moments first; backups replace moments that fail the quality gate)
+    from ccf import audio, captions, quality, render
+    posts, used_titles = [], []
+    queue = sorted(moments, key=lambda m: (m["backup"], -float(m["score"])))
+    for m in queue:
+        if len(posts) >= a.top:
+            break
+        out_path = out_dir / f"clip_{len(posts) + 1:02d}.mp4"
         piece = out_dir / f"piece_{m['rank']}.mp4"
-        print(f"\n✂️  #{m['rank']} {m['clipStart']} -> {m['clipEnd']}  \"{m['hook']}\"", flush=True)
-        if a.video:
-            sources.download_section(a.video, m["start"], m["end"], piece)
-        else:
-            sources.download_section(a.url, m["start"], m["end"], piece, a.cookies, a.proxy, tdl)
+        trimmed = out_dir / f"trim_{m['rank']}.mp4"
+        print(f"\n✂️  #{m['rank']} {m['clipStart']} -> {m['clipEnd']}  ({m['msgs']} msgs, {m['score']}x)", flush=True)
+        try:
+            if a.video:
+                sources.download_section(a.video, m["start"], m["end"], piece)
+            else:
+                sources.download_section(a.url, m["start"], m["end"], piece, a.cookies, a.proxy, tdl)
+        except RuntimeError as e:
+            print(f"   ! download failed for this moment: {e}", flush=True)
+            if sources.kind_of(a.url or "") == "youtube":
+                sys.exit(3)   # YouTube blocks are per-video: no point trying other moments
+            continue
 
         # Probe piece resolution and enforce minimum quality (>= 720p)
-        src_w, src_h, _ = render.probe(piece)
+        src_w, src_h, piece_dur = render.probe(piece)
         if a.min_height and src_h < a.min_height:
             print(f"   ! skipping candidate: resolution {src_w}x{src_h} is below minimum {a.min_height}p", flush=True)
             piece.unlink(missing_ok=True)
             sys.exit(3)
 
         # Early check for webcam if required to avoid wasted whisper and render time
+        cam = None
         if a.require_cam:
             layout, cam = render.choose_layout(a.layout, a.cam, piece, src_w, src_h, require_cam=True)
             if not layout:
@@ -286,43 +331,85 @@ def main(argv=None):
                 piece.unlink(missing_ok=True)
                 sys.exit(3)
 
-        # 1. Audio peak alignment around nominal climax
+        # 1. Audio peak = the payoff. Cut so it lands ~payoff_lead seconds in (setup trimmed away)
         climax_offset = max(0.0, float(m["nominalEvent"]) - float(m["start"]))
         peak_sec, peak_db = audio.find_audio_peak(piece, target_offset=climax_offset, window_radius=4.5)
-        print(f"   🔊 Audio peak aligned at {peak_sec:.1f}s ({peak_db:.1f} dB RMS)", flush=True)
+        t0 = max(0.0, peak_sec - a.payoff_lead)
+        if piece_dur - t0 < a.target_min:
+            t0 = max(0.0, piece_dur - a.target_min)
+        length = max(1.0, min(a.target_max, piece_dur - t0))
+        print(f"   🔊 Payoff (audio peak) at {peak_sec:.1f}s ({peak_db:.1f} dB RMS) -> cut {t0:.1f}s..{t0 + length:.1f}s", flush=True)
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{t0:.2f}", "-i", str(piece), "-t", f"{length:.2f}",
+                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-c:a", "aac", "-b:a", "192k",
+                        str(trimmed)], check=False)
+        piece.unlink(missing_ok=True)
+        if not trimmed.exists() or trimmed.stat().st_size < 10000:
+            print("   ! trim failed, trying next moment", flush=True)
+            continue
 
-        # 2. Whisper transcription
-        words = captions.transcribe(piece, a.whisper_model, a.lang) if a.captions != "off" else []
+        # 2. Quality gate: dark / frozen gameplay (menus, loading, BRB) is not a highlight
+        if not a.no_quality_gate:
+            dull, why = quality.is_dull(trimmed, cam, src_w, src_h)
+            print(f"   🖼  Gameplay check: {why}", flush=True)
+            if dull:
+                print("   ! skipping moment: gameplay is dark or static", flush=True)
+                trimmed.unlink(missing_ok=True)
+                continue
 
-        # 3. Sentence & speech boundary snapping
-        snapped_dur = captions.snap_speech_boundaries(words, m["duration"]) if words else m["duration"]
-        if snapped_dur < m["duration"]:
-            print(f"   ✂️ Snapped to natural speech boundary: {snapped_dur:.1f}s (trimmed {m['duration'] - snapped_dur:.1f}s)", flush=True)
+        # 3. Whisper transcription
+        words = captions.transcribe(trimmed, a.whisper_model, a.lang) if a.captions != "off" else []
 
-        # 4. Highlight accuracy & coherence score
+        # 4. Sentence & speech boundary snapping (never below target_min)
+        snapped_dur = captions.snap_speech_boundaries(words, length, min_duration=a.target_min, tail_window=10.0) \
+            if words else length
+        if snapped_dur < length:
+            print(f"   ✂️ Snapped to natural speech boundary: {snapped_dur:.1f}s (trimmed {length - snapped_dur:.1f}s)", flush=True)
+
+        # 5. Highlight accuracy & coherence score
         coherence = chatmod.score_moment(words, peak_db, snapped_dur)
         print(f"   🎯 Highlight accuracy & coherence score: {coherence}/100", flush=True)
 
-        caption_style = "word" if a.captions == "word" else ("off" if a.captions == "off" else "ig-comment")
-        ig_comment = m.get("ig_comment")
-        if caption_style == "ig-comment" and ig_comment:
-            print(f"   💬 Instagram comment sticker: \"{ig_comment['text']}\" (@{ig_comment['username']})", flush=True)
+        # 6. Title + comment sticker from the actual moment (chat + transcript)
+        win_s, win_e = m["t"] - 8, m["t"] + a.bucket + 8
+        chat_text = " ".join(x["text"] for x in messages if win_s <= x["t"] <= win_e)
+        meta = titles.make(m["rank"], m["reaction"], m["chatPhrase"], streamer, a.game, a.hook, words=words,
+                           chat_text=chat_text, history=history, used=used_titles)
+        caption_style = {"on": "word", "word": "word", "off": "off", "ig-comment": "ig-comment"}.get(a.captions, "both")
+        ig_comment = None
+        if caption_style in ("both", "ig-comment"):
+            ig_comment = titles.make_ig_comment(messages, win_s, win_e, peak_t=m["t"], words=words, kind=m["reaction"])
+            print(f"   💬 Comment sticker ({ig_comment['source']}): \"{ig_comment['text']}\" "
+                  f"(@{ig_comment['username']} · {ig_comment['time']} · {ig_comment['likes']})", flush=True)
+        print(f"   🏷  Title: {meta['title']}  [{meta['template']}]", flush=True)
 
-        r = render.render(piece, out_path, a.layout, a.cam, words, m["hook"], m["credit"],
+        r = render.render(trimmed, out_path, a.layout, a.cam, words, meta["hook"], meta["credit"],
                           require_cam=a.require_cam, duration=snapped_dur,
                           ig_comment=ig_comment, caption_style=caption_style)
-        piece.unlink(missing_ok=True)
+        trimmed.unlink(missing_ok=True)
         if not r or not r.get("layout"):
             print(f"   ! skipping candidate: render failed or no webcam detected", flush=True)
             sys.exit(3)
         print(f"   ✅ {out_path}  ({r['layout']} layout, {len(words)} caption words)")
-        posts.append({"file": str(out_path), "title": m["title"], "description": m["description"],
-                      "tags": m["tags"], "layout": r["layout"], "coherence_score": coherence,
-                      "audio_peak_db": round(peak_db, 1), "snapped_duration": snapped_dur})
+        used_titles.append((meta["title"], meta["template"]))
+        posts.append({"file": str(out_path), "title": meta["title"], "template": meta["template"],
+                      "description": meta["description"], "tags": meta["tags"], "streamer": streamer,
+                      "layout": r["layout"], "coherence_score": coherence,
+                      "audio_peak_db": round(peak_db, 1), "snapped_duration": snapped_dur,
+                      "moment": {"chat_time": m["chatTimestamp"], "msgs": m["msgs"], "raw_msgs": m.get("rawMsgs"),
+                                 "score": m["score"], "reaction": m["reaction"],
+                                 "clip_start": round(float(m["start"]) + t0, 2)},
+                      "ig_comment": ig_comment,
+                      "stages": [s[2] for s in captions.story_stages(snapped_dur)]})
 
     with open(out_dir / "posts.json", "w", encoding="utf-8") as f:
         json.dump(posts, f, indent=2, ensure_ascii=False)
+    if posts and a.title_history:
+        titles.record_titles([{"title": p["title"], "template": p["template"], "streamer": streamer} for p in posts],
+                             a.title_history)
     print(f"\n🎉 Finished! {len(posts)} Shorts in {out_dir}/ (titles + captions in posts.json)")
+    if not posts:
+        print("   No moment passed the quality gate for this source.")
+        sys.exit(3)
 
 
 if __name__ == "__main__":
