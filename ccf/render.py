@@ -6,6 +6,7 @@ TikTok buttons and texts sit):
   gameplay  no cam: zoomed gameplay in the middle over a blurred copy,
             hook on top, captions under the gameplay                    (GTA 6 gameplay / trailers)
   blur      the full 16:9 frame over a blurred fill
+  facecrop  fullscreen / IRL cam: one 9:16 panel centred on the streamer's face
   crop      centre crop to 9:16
 Also: loudness normalised to -14 LUFS (what the apps play at), a thin progress bar, faststart.
 """
@@ -34,6 +35,8 @@ def sticker_and_caption_y(layout, cap_y, caption_style):
     if layout == "gameplay":
         top = 360
         return top + SEAM_GAP, top + int(GAME_FG_H * 0.80)
+    if layout == "facecrop":      # the face is in the upper half: card + captions in the lower half
+        return 1060, 1460
     return 260, 1330
 
 
@@ -49,21 +52,41 @@ def _esc(p):
     return str(p).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
 
 
-def choose_layout(layout, cam_pos, piece, src_w, src_h, require_cam=True):
-    """Resolve 'auto' to stack (cam found) or gameplay (no cam). Returns (layout, cam_box)."""
-    cam = None
+def choose_layout(layout, cam_pos, piece, src_w, src_h, require_cam=True, cam_info=None):
+    """Resolve 'auto'/'stack' to stack (webcam overlay found), facecrop (fullscreen/IRL cam: single 9:16
+    crop on the face) or gameplay (no cam). Returns (layout, cam_box). The box is computed once from
+    frames sampled across the clip and stays locked for the whole render.
+    cam_info: a facecam.analyze() result to reuse (so the gate and the render use the same crop)."""
     if layout in ("stack", "auto"):
         if cam_pos in facecam.PRESETS:
-            cam = facecam.preset_box(cam_pos, src_w, src_h)
-        else:
-            cam = facecam.detect(piece)
-        if cam:
-            return "stack", cam
+            return "stack", facecam.preset_box(cam_pos, src_w, src_h)
+        info = cam_info if cam_info is not None else facecam.analyze(piece)
+        if info and info.get("kind") == "overlay":
+            return "stack", tuple(info["box"])
+        if info and info.get("kind") == "fullscreen":
+            print("   📷 fullscreen / IRL cam layout: single-panel 9:16 crop on the face", flush=True)
+            return "facecrop", tuple(info["box"])
         if layout == "stack" or require_cam:
             print("   ! no webcam found; skipping candidate (webcam required)", flush=True)
             return None, None
         return "gameplay", None
     return layout, None
+
+
+def gameplay_crop_x(src_w, gw, cam=None):
+    """Left edge of the gameplay crop: the centre of the screen, nudged sideways when a tall cam overlay
+    would otherwise fill a big part of the gameplay panel (the cam is already shown on top)."""
+    gx = (src_w - gw) // 2
+    if not cam:
+        return gx // 2 * 2
+    cx, cy, cw, ch = cam
+    overlap = max(0, min(gx + gw, cx + cw) - max(gx, cx))
+    if overlap * ch > 0.15 * gw * 1080 and ch > 0:     # cam covers >15% of the panel area (1080p terms)
+        if cx + cw / 2 >= src_w / 2:
+            gx = max(0, min(gx, cx - gw))                 # cam on the right: slide left
+        else:
+            gx = min(src_w - gw, max(gx, cx + cw))        # cam on the left: slide right
+    return int(gx) // 2 * 2
 
 
 def video_graph(layout, src_w, src_h, cam=None, fps=30):
@@ -72,9 +95,11 @@ def video_graph(layout, src_w, src_h, cam=None, fps=30):
         cx, cy, cw, ch = cam
         game_h = 1920 - CAM_H
         gw = min(src_w, int(src_h * 1080 / game_h) // 2 * 2)
-        g = (f"[0:v]crop={cw}:{ch}:{cx}:{cy},scale=1080:{CAM_H}:force_original_aspect_ratio=increase,"
+        gx = gameplay_crop_x(src_w, gw, (cx, cy * 1080 / max(src_h, 1), cw, ch * 1080 / max(src_h, 1)))
+        # cam: the locked overlay box, filled to the panel (centre-cropped, never letterboxed or blurred)
+        g = (f"[0:v]crop={cw}:{ch}:{cx}:{cy},scale=1080:{CAM_H}:force_original_aspect_ratio=increase:flags=lanczos,"
              f"crop=1080:{CAM_H},setsar=1[cam];"
-             f"[0:v]crop={gw}:{src_h}:(iw-{gw})/2:0,scale=1080:{game_h},setsar=1[game];"
+             f"[0:v]crop={gw}:{src_h}:{gx}:0,scale=1080:{game_h}:flags=lanczos,setsar=1[game];"
              f"[cam][game]vstack=inputs=2,fps={fps}[base]")
         return g, CAM_H, 190
     if layout == "gameplay":
@@ -85,6 +110,11 @@ def video_graph(layout, src_w, src_h, cam=None, fps=30):
              f"[0:v]crop={fw}:{src_h}:(iw-{fw})/2:0,scale=1080:{GAME_FG_H},setsar=1[fg];"
              f"[bg][fg]overlay=0:{top},fps={fps}[base]")
         return g, top + GAME_FG_H + 75, top - 60
+    if layout == "facecrop":   # fullscreen / IRL cam: one 9:16 panel centred on the face (locked)
+        cx, cy, cw, ch = cam
+        g = (f"[0:v]crop={cw}:{ch}:{cx}:{cy},scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,"
+             f"crop=1080:1920,setsar=1,fps={fps}[base]")
+        return g, 1300, 190
     if layout == "crop":
         g = (f"[0:v]crop=floor(ih*9/16/2)*2:ih:(iw-ow)/2:0,scale=1080:1920,setsar=1,fps={fps}[base]")
         return g, 1300, 190
@@ -96,12 +126,13 @@ def video_graph(layout, src_w, src_h, cam=None, fps=30):
 
 def render(piece, out_path, layout="auto", cam_pos="auto", words=None, hook="", credit="",
            progress_bar=True, fps=30, require_cam=True, duration=None,
-           ig_comment=None, caption_style="both"):
+           ig_comment=None, caption_style="both", cam_info=None):
     piece, out_path = Path(piece), Path(out_path)
     src_w, src_h, dur = probe(piece)
     if duration is not None:
         dur = min(dur, float(duration))
-    layout, cam = choose_layout(layout, cam_pos, piece, src_w, src_h, require_cam=require_cam)
+    layout, cam = choose_layout(layout, cam_pos, piece, src_w, src_h, require_cam=require_cam,
+                                cam_info=cam_info)
     if not layout:
         return {"layout": None, "cam": None, "duration": dur}
     graph, cap_y, credit_v = video_graph(layout, src_w, src_h, cam, fps)

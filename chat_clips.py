@@ -323,9 +323,16 @@ def main(argv=None):
             sys.exit(3)
 
         # Early check for webcam if required to avoid wasted whisper and render time
-        cam = None
+        cam, cam_info = None, None
         if a.require_cam:
-            layout, cam = render.choose_layout(a.layout, a.cam, piece, src_w, src_h, require_cam=True)
+            from ccf import facecam
+            cam_info = facecam.analyze(piece) if a.cam not in facecam.PRESETS else None
+            layout, cam = render.choose_layout(a.layout, a.cam, piece, src_w, src_h, require_cam=True,
+                                               cam_info=cam_info)
+            if cam_info:
+                print(f"   📷 cam: {cam_info['kind']} face in {cam_info['hits']}/{cam_info['samples']} samples, "
+                      f"crop {tuple(int(v) for v in cam_info['box'])}"
+                      f"{' (snapped to overlay border)' if cam_info.get('snapped') else ''}", flush=True)
             if not layout:
                 print(f"   ! skipping candidate: no webcam detected (require-cam active)", flush=True)
                 piece.unlink(missing_ok=True)
@@ -346,6 +353,14 @@ def main(argv=None):
         if not trimmed.exists() or trimmed.stat().st_size < 10000:
             print("   ! trim failed, trying next moment", flush=True)
             continue
+
+        # Re-check the cam on the exact clip window (the streamer may have moved the overlay); keep the
+        # wider-window result when the clip itself is inconclusive. The crop is locked for the render.
+        if cam_info is not None:
+            clip_info = facecam.analyze(trimmed)
+            if clip_info and clip_info.get("kind") == cam_info.get("kind"):
+                cam_info = clip_info
+                cam = tuple(cam_info["box"])
 
         # 2. Quality gate: dark / frozen gameplay (menus, loading, BRB) is not a highlight
         if not a.no_quality_gate:
@@ -384,7 +399,7 @@ def main(argv=None):
 
         r = render.render(trimmed, out_path, a.layout, a.cam, words, meta["hook"], meta["credit"],
                           require_cam=a.require_cam, duration=snapped_dur,
-                          ig_comment=ig_comment, caption_style=caption_style)
+                          ig_comment=ig_comment, caption_style=caption_style, cam_info=cam_info)
         trimmed.unlink(missing_ok=True)
         if not r or not r.get("layout"):
             print(f"   ! skipping candidate: render failed or no webcam detected", flush=True)
