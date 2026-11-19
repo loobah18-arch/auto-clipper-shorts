@@ -48,6 +48,7 @@ def main(argv=None):
     p.add_argument("--min-views", type=int, default=1000)
     p.add_argument("--min-minutes", type=int, default=10)
     p.add_argument("--streamers", default="streamers.txt")
+    p.add_argument("--only-streamers", action="store_true", help="strictly only pick candidates matching streamers file")
     p.add_argument("--out", default="clips")
     p.add_argument("--cookies")
     p.add_argument("--proxy")
@@ -65,8 +66,9 @@ def main(argv=None):
     state = load_state()
 
     print(f"🔎 Looking for today's top {'GTA 6' if a.game == 'gta6' else a.game} streams and videos...", flush=True)
+    only_streamers = a.only_streamers or ("ishowspeed" in a.streamers.lower())
     picks, ranked = discover.discover(a.game, a.count, a.min_minutes, a.min_views, set(state),
-                                      cookies, proxy, a.streamers)
+                                      cookies, proxy, a.streamers, only_streamers=only_streamers)
     print(f"\n{len(ranked)} new candidates passed the filters. Top 10:")
     for i, c in enumerate(ranked[:10], 1):
         mins = int(c["duration"] // 60) if c["duration"] else "?"
@@ -85,10 +87,11 @@ def main(argv=None):
         if done >= a.count:
             break
         sub = out_root / f"{done + 1:02d}_{c['id'].replace(':', '_')}"
-        print(f"\n🎬 [Short {done + 1}/{a.count} - Candidate {n}/{len(candidates)}] {c['channel']} | {c['title']}\n   {c['url']}", flush=True)
+        credit = c.get("streamer_name") or c["channel"] or ""
+        print(f"\n🎬 [Short {done + 1}/{a.count} - Candidate {n}/{len(candidates)}] {credit} ({c['channel']}) | {c['title']}\n   {c['url']}", flush=True)
         cmd = [sys.executable, "chat_clips.py", "--url", c["url"], "--game", "gta6" if a.game == "gta6" else "none", "--top", str(a.top),
-               "--out", str(sub), "--credit", c["channel"] or "", "--layout", "stack", "--require-cam", "--chat-delay", "4.0",
-               "--before", "34", "--after", "18"]
+               "--out", str(sub), "--credit", credit, "--layout", "stack", "--require-cam", "--chat-delay", "4.0",
+               "--before", "34", "--after", "18", "--emotes", "--min-score", "3.0"]
         if cookies:
             cmd += ["--cookies", str(cookies)]
         if proxy:

@@ -102,9 +102,10 @@ def queries_for(game):
     return [f"{game} gameplay", f"{game} highlights", f"{game} funny moments", f"{game} best plays"]
 
 
-def youtube_search(per_query=20, cookies=None, proxy=None, game="gta6"):
+def youtube_search(per_query=20, cookies=None, proxy=None, game="gta6", streamer_queries=None):
     found = []
-    for q in queries_for(game):
+    queries = streamer_queries if streamer_queries else queries_for(game)
+    for q in queries:
         for tmpl in YT_SEARCHES:
             url = tmpl.format(q=urllib.parse.quote_plus(q))
             entries = _ytdlp_flat(url, per_query, cookies, proxy)
@@ -191,18 +192,33 @@ def load_followed(path="streamers.txt"):
 
 
 def discover(game="gta6", count=2, min_minutes=10, min_views=1000, seen=(), cookies=None, proxy=None,
-             streamers_file="streamers.txt"):
+             streamers_file="streamers.txt", only_streamers=False):
     """Return the best `count` new candidates, best first, plus the full ranked list."""
     yt_handles, tw_logins = load_followed(streamers_file)
-    cands = youtube_search(cookies=cookies, proxy=proxy, game=game)
+    streamer_queries = []
+    if yt_handles and (only_streamers or "ishowspeed" in streamers_file.lower()):
+        for h in yt_handles:
+            clean = h.lstrip("@")
+            streamer_queries.extend([
+                f"{clean} {game} gameplay",
+                f"{clean} {game} stream",
+                f"{clean} {game} funny moments",
+                f"{clean} plays {game}",
+            ])
+    cands = youtube_search(cookies=cookies, proxy=proxy, game=game, streamer_queries=streamer_queries if only_streamers else None)
     if yt_handles:
         cands += youtube_channels(yt_handles, cookies=cookies, proxy=proxy)
-    cands += twitch_top(game, n=20, logins=tw_logins)
+    if not only_streamers:
+        cands += twitch_top(game, n=20, logins=tw_logins)
+    elif tw_logins:
+        cands += twitch_top(game, n=20, logins=tw_logins)
 
     best, why = {}, {}
 
     def skip(reason):
         why[reason] = why.get(reason, 0) + 1
+
+    clean_targets = [h.lstrip("@").lower() for h in yt_handles] + [l.lower() for l in tw_logins]
 
     for c in cands:
         if c["id"] in seen or c["id"] in best:
@@ -211,6 +227,17 @@ def discover(game="gta6", count=2, min_minutes=10, min_views=1000, seen=(), cook
             skip("still live"); continue  # chat replay + seeking only work once the stream has ended
         if c["duration"] and c["duration"] < min_minutes * 60:
             skip("too short"); continue  # Shorts and short edits: nothing left to clip
+
+        if only_streamers or "ishowspeed" in streamers_file.lower():
+            chan = (c.get("channel") or "").lower()
+            tit = (c.get("title") or "").lower()
+            is_match = any(t in chan or t in tit for t in clean_targets) or c.get("followed")
+            if not is_match:
+                skip("not target streamer"); continue
+            for t in clean_targets:
+                if t in chan or t in tit:
+                    c["streamer_name"] = "IShowSpeed" if "speed" in t else c.get("channel", "")
+
         if not is_gta6_gameplay(c["title"], game):
             skip("not gameplay of this game"); continue
         # some regions/runners get no view count from search: the search is already sorted by views
