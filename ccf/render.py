@@ -82,10 +82,14 @@ def gameplay_crop_x(src_w, gw, cam=None):
     cx, cy, cw, ch = cam
     overlap = max(0, min(gx + gw, cx + cw) - max(gx, cx))
     if overlap * ch > 0.15 * gw * 1080 and ch > 0:     # cam covers >15% of the panel area (1080p terms)
+        centre = gx
         if cx + cw / 2 >= src_w / 2:
             gx = max(0, min(gx, cx - gw))                 # cam on the right: slide left
         else:
             gx = min(src_w - gw, max(gx, cx + cw))        # cam on the left: slide right
+        # never lose the middle of the screen (crosshair / car / action): slide at most 20% of the panel
+        max_shift = 0.2 * gw
+        gx = max(centre - max_shift, min(centre + max_shift, gx))
     return int(gx) // 2 * 2
 
 

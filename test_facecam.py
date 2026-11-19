@@ -124,8 +124,12 @@ class Layout(unittest.TestCase):
 
     def test_gameplay_crop_slides_away_from_big_central_cam(self):
         gx = render.gameplay_crop_x(W, 956, (900, 300, 700, 700))
-        self.assertEqual(gx, 0)                               # as far from the cam as the frame allows
-        self.assertEqual(render.gameplay_crop_x(W, 956, (200, 300, 600, 700)), 800)
+        self.assertLess(gx, 482)                              # slid away from the cam...
+        self.assertGreaterEqual(gx, 482 - 0.2 * 956 - 2)      # ...but the screen centre stays in the panel
+        self.assertTrue(gx < W / 2 < gx + 956)
+        gx = render.gameplay_crop_x(W, 956, (200, 300, 600, 700))
+        self.assertGreater(gx, 482)
+        self.assertLess(gx, W / 2)
         self.assertEqual(render.gameplay_crop_x(W, 956, (0, 434, 374, 206)), 482)
 
 
