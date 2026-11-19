@@ -228,5 +228,16 @@
     "privacy": "public",
     "timestamp": "2026-11-19T11:39:40.397467+00:00",
     "status": "uploaded"
+  },
+  {
+    "video_id": "cCXJsgKGTBI",
+    "source_video_id": "https://www.twitch.tv/videos/2934155295",
+    "title": "Ocean Humbled xQc Live on Stream \ud83d\udc80",
+    "url": "https://youtube.com/shorts/cCXJsgKGTBI",
+    "creator": "xqc",
+    "video_path": "clip_01.mp4",
+    "privacy": "public",
+    "timestamp": "2026-11-19T21:33:15.110268+00:00",
+    "status": "uploaded"
   }
 ]
