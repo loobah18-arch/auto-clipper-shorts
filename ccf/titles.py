@@ -67,7 +67,7 @@ TITLE_KEYWORDS = {
     "heli": "Helicopter", "tank": "Tank", "alligator": "Alligator", "gator": "Gator", "boat": "Boat",
     "jetski": "Jet Ski", "plane": "Plane", "car": "Car", "truck": "Truck", "bike": "Bike",
     "motorcycle": "Motorcycle", "train": "Train", "shark": "Shark", "npc": "NPC", "npcs": "NPCs",
-    "lucia": "Lucia", "jason": "Jason", "bank": "Bank", "heist": "Heist", "store": "Store",
+    "bank": "Bank", "heist": "Heist", "store": "Store",
     "stars": "5 Stars", "wanted": "Wanted Level", "explosion": "Explosion", "bomb": "Bomb",
     "grenade": "Grenade", "rpg": "RPG", "beach": "Beach", "club": "Club", "strip": "Strip Club",
     "gas": "Gas Station", "hospital": "Hospital", "jail": "Jail", "parachute": "Parachute",

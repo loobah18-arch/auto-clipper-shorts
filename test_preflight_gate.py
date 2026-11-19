@@ -10,7 +10,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from preflight_gate import decide
+from preflight_gate import decide as _decide
+
+
+def decide(path, now=None, min_spacing_hours=24.0, max_inline_wait_hours=0.5):
+    """Explicit 24h / 30-min defaults so the suite does not depend on MIN_UPLOAD_SPACING_HOURS in the
+    environment (the GTA 6 workflow sets it to 2.0 for the whole job)."""
+    return _decide(path, now, min_spacing_hours=min_spacing_hours, max_inline_wait_hours=max_inline_wait_hours)
 
 NOW = datetime(2026, 11, 12, 12, 0, 0, tzinfo=timezone.utc)
 

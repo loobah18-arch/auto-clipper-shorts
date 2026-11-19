@@ -193,7 +193,7 @@ def generate_instagram_sticker(username, time_ago, text, likes, out_path,
     spacing = 10
 
     card_h = pad_y * 2 + header_h + spacing + (len(lines) * line_h) + spacing + reply_h
-    card_h = max(card_h, 210)
+    card_h = max(card_h, 176)  # hug the text: no empty white band under 'Reply'
 
     card = Image.new("RGBA", (width, card_h), (0, 0, 0, 0))
     cd = ImageDraw.Draw(card)

@@ -258,7 +258,7 @@ class TestChatClipFinder(unittest.TestCase):
             self.assertTrue(out_png.exists())
             self.assertGreater(out_png.stat().st_size, 1000)
             self.assertEqual(info["card_width"], 940)
-            self.assertGreater(info["card_height"], 180)
+            self.assertGreaterEqual(info["card_height"], 176)
             self.assertEqual(info["margin"], 50)
             with Image.open(out_png) as im:
                 self.assertEqual(im.mode, "RGBA")
