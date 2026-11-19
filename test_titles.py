@@ -132,3 +132,11 @@ class StickerSpamFilter(unittest.TestCase):
         pick = T.pick_sticker_comment(msgs, 0, 10, peak_t=2, rnd=random.Random(1))
         self.assertEqual(pick["text"], "he really bought the knife again")
         self.assertLessEqual(len(pick["text"]), 70)
+
+
+class StickerSystemLines(unittest.TestCase):
+    def test_sub_gift_notifications_rejected(self):
+        from ccf import titles as T
+        for bad in ["overlordfrenzy gifted a Tier 1 sub to djiboulle!", "ElDogoTTV subscribed at Tier 1.",
+                    "someone subscribed with Prime. They've subscribed for 5 months!"]:
+            self.assertTrue(T.is_spammy(bad), bad)

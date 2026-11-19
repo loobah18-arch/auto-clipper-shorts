@@ -133,6 +133,9 @@ MENTION_RE = re.compile(r"@\w+")
 BLOCK_RE = re.compile(r"(n[i1!]gg|f[a@]gg?[o0]?t|retard|tranny|kys\b|kill\s+yourself|rape|porn|onlyfans|nazi|hitler|"
                       r"cancer|\bslut|\bwhore)", re.I)
 SPAM_RE = re.compile(r"(\b\w+\b)(\s+\1\b){3,}", re.I)
+# Twitch system / monetisation lines that show up in VOD chat replays
+SYSTEM_RE = re.compile(r"(gifted (a|\d+)|subscribed (at|with)|tier [123]\b|is gifting|gift sub|\bresub|"
+                       r"\braid(ing|ed)?\b|\bcheer\d+|\bbits\b|\bprime\b.*\bsub|has subscribed)", re.I)
 CAMEL_EMOTE_RE = re.compile(r"^[a-z]+[A-Z][A-Za-z0-9]*$")
 CHAT_PHRASE_RE = re.compile(r"[^\w\s'!?.,]")
 
@@ -226,6 +229,8 @@ def is_spammy(text):
     raw = re.sub(r"\s+", " ", (text or "")).strip()
     if not raw:
         return True
+    if SYSTEM_RE.search(raw):
+        return True                                     # sub / gift / raid notifications
     if collapse_repeats(raw).lower() != raw.lower():
         return True                                     # message was a repeated phrase: reject the loop
     if not (8 <= len(raw) <= 70):
