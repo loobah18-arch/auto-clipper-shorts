@@ -15,6 +15,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FONT_PATH = REPO_ROOT / "assets" / "fonts" / "Inter.ttf"
 EMOJI_DIR = REPO_ROOT / "assets" / "emojis"
+MAX_BODY_LINES = 2
 
 
 def draw_heart(size=30, color=(237, 73, 86, 255)):
@@ -171,6 +172,10 @@ def generate_instagram_sticker(username, time_ago, text, likes, out_path,
                 tot += f_body.getlength(c) if hasattr(f_body, "getlength") else 18
         return tot
 
+    # no tofu boxes: drop joiners / variation selectors and any symbol we have neither a Twemoji PNG nor a glyph for
+    text = "".join(c for c in (text or "") if not (ord(c) in (0x200D, 0xFE0E, 0xFE0F) or 0x1F3FB <= ord(c) <= 0x1F3FF
+                   or (ord(c) >= 0x2190 and not (EMOJI_DIR / f"{ord(c):x}.png").exists())))
+    text = " ".join(text.split())
     words = text.split(" ")
     lines = []
     curr = []
@@ -186,6 +191,11 @@ def generate_instagram_sticker(username, time_ago, text, likes, out_path,
         lines.append(" ".join(curr))
     if not lines:
         lines = [text]
+    if len(lines) > MAX_BODY_LINES:                    # never more than two lines: ellipsize the second
+        last = " ".join(lines[MAX_BODY_LINES - 1:])
+        while last and measure_text_with_emojis(last + "…") > max_text_w:
+            last = last[:-1].rstrip()
+        lines = lines[:MAX_BODY_LINES - 1] + [last + "…"]
 
     line_h = 44
     header_h = 32
