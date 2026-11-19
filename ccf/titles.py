@@ -194,25 +194,82 @@ def clean_chat_text(text):
     t = re.sub(r"(.)\1{4,}", r"\1\1\1", t)      # "NOOOOOOOO" -> "NOOO"
     if SPAM_RE.search(t):
         return ""
-    return t
+    return collapse_repeats(t)
+
+
+def _tok_key(w):
+    return re.sub(r"[^\w]", "", w.lower())
+
+
+def collapse_repeats(text, max_n=8):
+    """Collapse back-to-back repeated words / phrases (spam / copypasta loops) to one instance:
+    'Aim resist omegalul aim resist omegalul aim resist omegalul' -> 'Aim resist omegalul'."""
+    toks = (text or "").split()
+    changed = True
+    while changed:
+        changed = False
+        for n in range(min(max_n, len(toks) // 2), 0, -1):
+            i = 0
+            while i + 2 * n <= len(toks):
+                a = [_tok_key(w) for w in toks[i:i + n]]
+                if any(a) and a == [_tok_key(w) for w in toks[i + n:i + 2 * n]]:
+                    del toks[i + n:i + 2 * n]
+                    changed = True
+                else:
+                    i += 1
+    return " ".join(toks)
+
+
+def is_spammy(text):
+    """True when a (cleaned) chat line is not fit for the comment card: repeated n-gram loops, mostly emote
+    names, all-caps shouting, fewer than 3 distinct real words, or outside 8-70 chars."""
+    raw = re.sub(r"\s+", " ", (text or "")).strip()
+    if not raw:
+        return True
+    if collapse_repeats(raw).lower() != raw.lower():
+        return True                                     # message was a repeated phrase: reject the loop
+    if not (8 <= len(raw) <= 70):
+        return True
+    toks = raw.split()
+    emotes = [w for w in toks if _is_emote_token(w)]
+    real = [_tok_key(w) for w in toks if not _is_emote_token(w) and len(w.strip(".,!?'\"")) >= 2]
+    if len(set(real)) < 3 or len(emotes) > 0.34 * len(toks):
+        return True
+    letters = re.sub(r"[^A-Za-z]", "", raw)
+    if len(letters) > 8 and letters.isupper():
+        return True                                     # all-caps spam
+    if len(set(real)) < 0.6 * len(real):
+        return True                                     # low-variety (word salad / loop)
+    return False
+
+
+SENTENCE_WORDS = {"the", "a", "an", "is", "was", "he", "she", "they", "that", "this", "it", "i", "you", "bro",
+                  "why", "how", "what", "did", "just", "not", "no", "so", "to", "of", "in", "on", "his", "her",
+                  "be", "are", "can", "got", "with", "for", "and", "like", "really", "actually"}
+
+
+def sentence_score(text):
+    toks = [_tok_key(w) for w in text.split()]
+    hits = sum(1 for t in toks if t in SENTENCE_WORDS)
+    return min(1.0, hits / 2.0)
 
 
 def chat_phrase_candidates(messages, start, end):
     """Cleaned messages in [start, end] that read like a real human comment: (text, author, t)."""
-    out = []
+    out, seen = [], set()
     for m in messages:
         if not (start <= m.get("t", -1) <= end):
             continue
-        txt = clean_chat_text(m.get("text", ""))
-        if not txt or not (8 <= len(txt) <= 90):
+        raw = re.sub(r"\s+", " ", MENTION_RE.sub("", m.get("text", "") or "")).strip()
+        if is_spammy(raw):                              # judge the raw line: loops are rejected, not trimmed
             continue
-        toks = txt.split()
-        real = [w for w in toks if not _is_emote_token(w) and len(w.strip(".,!?'\"")) >= 2]
-        if len(real) < 3 or len(real) < 0.5 * len(toks):
+        txt = clean_chat_text(raw)
+        if not txt or is_spammy(txt):
             continue
-        letters = re.sub(r"[^A-Za-z]", "", txt)
-        if letters.isupper() and len(letters) > 12:   # full-caps shouting reads badly: soften
-            txt = txt[:1].upper() + txt[1:].lower()
+        key = " ".join(_tok_key(w) for w in txt.split())
+        if key in seen:                                 # copypasta posted by many users: keep it once
+            continue
+        seen.add(key)
         out.append((txt, (m.get("author") or "").strip(), float(m.get("t", 0))))
     return out
 
@@ -233,7 +290,7 @@ def pick_sticker_comment(messages, start, end, peak_t=None, words=None, kind=Non
             txt, _a, t = c
             w, _k = classify(txt, "gta6")
             ln = len(txt)
-            shape = 1.0 if 18 <= ln <= 60 else 0.6
+            shape = (1.0 if 18 <= ln <= 60 else 0.6) + sentence_score(txt)
             near = 1.0 / (1.0 + abs(t - peak) / 6.0)
             return w + shape + near + rnd.random() * 0.15
 

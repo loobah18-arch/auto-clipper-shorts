@@ -102,3 +102,33 @@ class TestStickerText(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StickerSpamFilter(unittest.TestCase):
+    def test_repeated_ngram_loop_rejected_or_collapsed(self):
+        from ccf import titles as T
+        spam = "Aim resist omegalul aim resist omegalul aim resist omegalul aim resist omegalul"
+        self.assertEqual(T.collapse_repeats(spam), "Aim resist omegalul")
+        self.assertTrue(T.is_spammy(spam))
+        self.assertEqual(T.chat_phrase_candidates([{"t": 1, "text": spam, "author": "a"}], 0, 5), [])
+
+    def test_emote_caps_short_and_long_rejected(self):
+        from ccf import titles as T
+        for bad in ["omegalul KEKW lul pog he", "KEKW KEKW KEKW", "WHAT IS HE EVEN DOING BRO", "nice shot",
+                    "lol", "x " * 40, "aim resist omegalul", "kekw lul pog omegalul lmao"]:
+            self.assertTrue(T.is_spammy(bad), bad)
+        for good in ["bro really missed that whole spray", "he said the knife was worth it lol",
+                     "how did he not see that guy"]:
+            self.assertFalse(T.is_spammy(good), good)
+
+    def test_copypasta_kept_once_and_sentence_preferred(self):
+        from ccf import titles as T
+        msgs = [{"t": 1 + i, "text": "he really bought the knife again", "author": f"u{i}"} for i in range(5)]
+        msgs.append({"t": 2, "text": "Aim resist omegalul aim resist omegalul aim resist omegalul aim resist omegalul",
+                     "author": "spam"})
+        c = T.chat_phrase_candidates(msgs, 0, 10)
+        self.assertEqual(len(c), 1)
+        import random
+        pick = T.pick_sticker_comment(msgs, 0, 10, peak_t=2, rnd=random.Random(1))
+        self.assertEqual(pick["text"], "he really bought the knife again")
+        self.assertLessEqual(len(pick["text"]), 70)

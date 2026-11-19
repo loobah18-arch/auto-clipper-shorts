@@ -122,15 +122,17 @@ class Layout(unittest.TestCase):
         self.assertIn("crop=956:1080:482:0", game)          # centred, full height
         self.assertIn("scale=1080:1220", game)
 
-    def test_gameplay_crop_slides_away_from_big_central_cam(self):
-        gx = render.gameplay_crop_x(W, 956, (900, 300, 700, 700))
-        self.assertLess(gx, 482)                              # slid away from the cam...
-        self.assertGreaterEqual(gx, 482 - 0.2 * 956 - 2)      # ...but the screen centre stays in the panel
-        self.assertTrue(gx < W / 2 < gx + 956)
-        gx = render.gameplay_crop_x(W, 956, (200, 300, 600, 700))
-        self.assertGreater(gx, 482)
-        self.assertLess(gx, W / 2)
-        self.assertEqual(render.gameplay_crop_x(W, 956, (0, 434, 374, 206)), 482)
+    def test_gameplay_crop_is_always_frame_centre(self):
+        for cam in (None, (900, 300, 700, 700), (200, 300, 600, 700), (0, 434, 374, 206), (1500, 0, 420, 300)):
+            gx = render.gameplay_crop_x(W, 956, cam)
+            self.assertEqual(gx, 482)                       # (1920-956)/2, ignores the cam
+            self.assertEqual(gx + 956 / 2, W / 2)           # horizontally centred on the frame centre
+        self.assertEqual(render.gameplay_crop_x(1280, 628), 326)
+        self.assertEqual(render.gameplay_crop_x(800, 956), 0)   # narrower source: no negative offset
+
+    def test_stack_gameplay_panel_full_height_centred_with_big_cam(self):
+        g, _, _ = render.video_graph("stack", W, H, cam=(900, 300, 700, 700))
+        self.assertIn("crop=956:1080:482:0", g.split("[cam];")[1])   # full height => vertically centred
 
 
 if __name__ == "__main__":
