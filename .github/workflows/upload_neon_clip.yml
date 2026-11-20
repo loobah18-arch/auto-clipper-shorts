@@ -1,0 +1,67 @@
+name: 🚀 Upload Neon Clip to Woo's Clips (@woosclips)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Temporary release tag containing the rendered clip'
+        required: true
+      title:
+        description: 'YouTube Shorts Title'
+        required: true
+      creator:
+        description: 'Creator handle / name'
+        required: false
+        default: 'ishowspeed'
+      privacy:
+        description: 'Upload privacy (public, unlisted, private)'
+        required: false
+        default: 'public'
+
+jobs:
+  upload:
+    name: 📤 Publish Clip to Woo's Clips
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Fetch clip from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/clip
+          gh release download "${{ inputs.release_tag }}" --pattern "*.mp4" --dir /tmp/clip
+          mv /tmp/clip/*.mp4 /tmp/short.mp4
+          ls -la /tmp/short.mp4
+
+      - name: Upload to YouTube (@woosclips)
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+        run: |
+          python3 youtube_uploader.py \
+            --video /tmp/short.mp4 \
+            --title "${{ inputs.title }}" \
+            --creator "${{ inputs.creator }}" \
+            --privacy "${{ inputs.privacy }}" \
+            --force
+
+      - name: Cleanup temporary release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete "${{ inputs.release_tag }}" --yes --cleanup-tag 2>/dev/null || true
