@@ -1,4 +1,0 @@
-# Minimal deps for the unit tests (CI installs these next to requirements.txt)
-numpy>=1.24.0
-Pillow>=10.0.0
-opencv-python-headless>=4.8

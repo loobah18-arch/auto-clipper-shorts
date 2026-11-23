@@ -10,13 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from preflight_gate import decide as _decide
-
-
-def decide(path, now=None, min_spacing_hours=24.0, max_inline_wait_hours=0.5):
-    """Explicit 24h / 30-min defaults so the suite does not depend on MIN_UPLOAD_SPACING_HOURS in the
-    environment (the GTA 6 workflow sets it to 2.0 for the whole job)."""
-    return _decide(path, now, min_spacing_hours=min_spacing_hours, max_inline_wait_hours=max_inline_wait_hours)
+from preflight_gate import decide
 
 NOW = datetime(2026, 11, 12, 12, 0, 0, tzinfo=timezone.utc)
 
@@ -108,33 +102,6 @@ class TestPreflightDecide(unittest.TestCase):
         res = decide(self.path, NOW)
         self.assertFalse(res["proceed"])
         self.assertEqual(res["last_video_id"], "NEWERvid1")
-
-    def test_latest_by_timestamp_not_list_order(self):
-        # two workflows rebasing the same file can leave an older entry last in the list
-        self.write([
-            entry(video_id="NEWERvid1", ts=(NOW - timedelta(hours=1)).isoformat()),
-            entry(ts=(NOW - timedelta(hours=30)).isoformat()),
-        ])
-        res = decide(self.path, NOW, min_spacing_hours=2.0, max_inline_wait_hours=0.4)
-        self.assertFalse(res["proceed"])
-        self.assertEqual(res["last_video_id"], "NEWERvid1")
-
-    def test_two_hour_spacing(self):
-        self.write([entry(ts=(NOW - timedelta(hours=1, minutes=10)).isoformat())])
-        self.assertFalse(decide(self.path, NOW, min_spacing_hours=2.0, max_inline_wait_hours=0.4)["proceed"])
-        self.write([entry(ts=(NOW - timedelta(hours=2, minutes=5)).isoformat())])
-        self.assertTrue(decide(self.path, NOW, min_spacing_hours=2.0, max_inline_wait_hours=0.4)["proceed"])
-
-    def test_human_readable_timestamp(self):
-        # "Thu 2026-11-12 4:30 PM IST (UTC+05:30)" == 11:00 UTC -> 1h before NOW
-        self.write([entry(ts="Thu 2026-11-12 4:30 PM IST (UTC+05:30)")])
-        res = decide(self.path, NOW, min_spacing_hours=2.0, max_inline_wait_hours=0.4)
-        self.assertFalse(res["proceed"])
-        self.assertAlmostEqual(res["elapsed_hours"], 1.0, places=2)
-
-    def test_real_history_is_read(self):
-        res = decide(Path(__file__).resolve().parent / "upload_history.json", min_spacing_hours=2.0)
-        self.assertIsNotNone(res["last_video_id"])
 
     def test_malformed_timestamp_fail_open(self):
         self.write([entry(ts="not-a-timestamp")])

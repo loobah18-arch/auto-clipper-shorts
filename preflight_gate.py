@@ -28,42 +28,27 @@ from pathlib import Path
 from candle_gate import CandleGate
 
 DEFAULT_HISTORY = Path(__file__).resolve().parent / "upload_history.json"
-DEFAULT_MIN_SPACING_HOURS = float(os.environ.get("MIN_UPLOAD_SPACING_HOURS", "24.0"))
-DEFAULT_MAX_INLINE_WAIT_HOURS = float(os.environ.get("MAX_INLINE_WAIT_HOURS", "0.5"))
+DEFAULT_MIN_SPACING_HOURS = 24.0
+DEFAULT_MAX_INLINE_WAIT_HOURS = 0.5
 HARD_SLEEP_CAP_SECONDS = 1900  # defensive: below the preflight job's 45-min timeout
 
 
 def _parse_timestamp(raw: str) -> datetime:
-    """ISO 8601 (what the uploader writes), plus the human 'Wed 2026-11-18 1:41 PM IST (UTC+05:30)' form."""
-    import re
     ts = raw.strip()
     if ts.endswith("Z"):
         ts = ts[:-1] + "+00:00"
-    try:
-        dt = datetime.fromisoformat(ts)
-    except ValueError:
-        m = re.search(r"(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s*([AP]M)?.*?UTC([+-]\d{2}):?(\d{2})", ts, re.I)
-        if not m:
-            raise
-        day, clock, ampm, oh, om = m.groups()
-        fmt = "%Y-%m-%d %I:%M %p" if ampm else "%Y-%m-%d %H:%M"
-        if clock.count(":") == 2:
-            fmt = fmt.replace("%M", "%M:%S")
-        dt = datetime.strptime(f"{day} {clock}" + (f" {ampm.upper()}" if ampm else ""), fmt)
-        sign = -1 if oh.startswith("-") else 1
-        dt = dt.replace(tzinfo=timezone(sign * timedelta(hours=abs(int(oh)), minutes=int(om))))
+    dt = datetime.fromisoformat(ts)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
 
 
 def _last_valid_upload(records):
-    """Most recent entry (by timestamp, not list order: rebased commits from two workflows can
-    interleave the file) representing a real successful upload. Skips dry-run ids, non-uploaded
-    statuses, and entries without a usable timestamp. If no timestamp parses, the last listed valid
-    entry is returned so the caller reports it (fail-open)."""
-    best, best_dt, last_listed = None, None, None
-    for rec in records if isinstance(records, list) else []:
+    """Latest entry representing a real successful upload. Skips dry-run ids,
+    non-uploaded statuses, and entries without a usable timestamp (fail-open
+    direction: a stricter filter errs toward re-running, and the upload step's
+    candle gate still enforces Layer 0 anyway)."""
+    for rec in reversed(records if isinstance(records, list) else []):
         if not isinstance(rec, dict):
             continue
         vid = str(rec.get("video_id") or "")
@@ -74,16 +59,8 @@ def _last_valid_upload(records):
         raw_ts = rec.get("timestamp")
         if not raw_ts or not isinstance(raw_ts, str):
             continue
-        last_listed = (rec, raw_ts)
-        try:
-            dt = _parse_timestamp(raw_ts)
-        except Exception:
-            continue
-        if best_dt is None or dt >= best_dt:
-            best, best_dt = (rec, raw_ts), dt
-    if best:
-        return best
-    return last_listed if last_listed else (None, None)
+        return rec, raw_ts
+    return None, None
 
 
 def decide(
@@ -139,15 +116,9 @@ def main() -> int:
     )
 
     if bypass:
-        # still read the committed history so the log shows the real last upload
-        try:
-            seen = decide()
-        except Exception:
-            seen = {"elapsed_hours": None, "last_video_id": None}
-        result = {"proceed": True, "sleep_seconds": 0, "elapsed_hours": seen.get("elapsed_hours"),
-                  "last_video_id": seen.get("last_video_id"),
-                  "reason": "PREFLIGHT_BYPASS set (manual dispatch) — spacing gate bypassed "
-                            f"(would have been: {'proceed' if seen.get('proceed', True) else 'skip'})"}
+        result = {"proceed": True, "sleep_seconds": 0, "elapsed_hours": None,
+                  "last_video_id": None,
+                  "reason": "PREFLIGHT_BYPASS set (manual dispatch) — spacing gate bypassed"}
     else:
         try:
             result = decide()
@@ -162,8 +133,7 @@ def main() -> int:
         time.sleep(result["sleep_seconds"])
 
     icon = "✅ PROCEED" if result["proceed"] else "🛑 SKIP"
-    print(f"{icon} | elapsed={result['elapsed_hours']}h | last_upload={result['last_video_id']} "
-          f"| history={DEFAULT_HISTORY.name} | spacing={DEFAULT_MIN_SPACING_HOURS}h")
+    print(f"{icon} | elapsed={result['elapsed_hours']}h | last_upload={result['last_video_id']}")
     if not result["proceed"] and result.get("due_at"):
         print(f"⏰ Next upload due at {result['due_at']} ({result['remaining_seconds']}s from now)")
     print(result["reason"])
