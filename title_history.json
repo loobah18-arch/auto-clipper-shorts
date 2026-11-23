@@ -82,5 +82,11 @@
   "template": "chat_lost",
   "streamer": "ohnePixel",
   "at": 1795372472
+ },
+ {
+  "title": "Jynxzi's Stream Went Silent After This GTA 6 Moment 💀",
+  "template": "stream_froze",
+  "streamer": "Jynxzi",
+  "at": 1795393125
  }
 ]
