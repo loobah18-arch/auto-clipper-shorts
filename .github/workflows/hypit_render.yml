@@ -108,25 +108,32 @@ jobs:
           set -euo pipefail
           python3 preflight_gate.py
 
-  # When the 24h gate skips, wait for the exact moment the next upload is due
-  # and dispatch the pipeline then, instead of waiting for the next 6-hour cron.
-  # Only arms when the due time falls before the next cron (job limit is 6h).
+  # When the 24h gate skips, calculate time remaining, sleep until exact due time,
+  # and automatically restart/dispatch the pipeline instead of wasting idle time.
   exact_due_timer:
     name: ⏰ Trigger Pipeline Exactly When 24h Is Up
     needs: preflight_gate
-    if: needs.preflight_gate.outputs.proceed == 'false' && needs.preflight_gate.outputs.remaining_seconds != '' && fromJSON(needs.preflight_gate.outputs.remaining_seconds) > 0 && fromJSON(needs.preflight_gate.outputs.remaining_seconds) <= 21300
+    if: needs.preflight_gate.outputs.proceed == 'false' && needs.preflight_gate.outputs.remaining_seconds != '' && fromJSON(needs.preflight_gate.outputs.remaining_seconds) > 0
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    permissions:
+      actions: write
     concurrency:
       group: hypit-exact-due-timer
       cancel-in-progress: true
     steps:
       - name: ⏳ Sleep until due (${{ needs.preflight_gate.outputs.due_at }})
         run: |
-          DUE=$(date -u -d "${{ needs.preflight_gate.outputs.due_at }}" +%s)
-          WAIT=$(( DUE - $(date -u +%s) + 60 ))
-          echo "Sleeping ${WAIT}s until ${{ needs.preflight_gate.outputs.due_at }} (+60s margin)"
-          [ "$WAIT" -gt 0 ] && sleep "$WAIT" || true
+          REM=${{ needs.preflight_gate.outputs.remaining_seconds }}
+          WAIT=$(( REM + 60 ))
+          MAX_SLEEP=20400
+          if [ "$WAIT" -gt "$MAX_SLEEP" ]; then
+            echo "Remaining wait (${WAIT}s) exceeds 5.6h runner cap. Sleeping ${MAX_SLEEP}s then chaining..."
+            sleep "$MAX_SLEEP"
+          else
+            echo "Sleeping ${WAIT}s until ${{ needs.preflight_gate.outputs.due_at }} (+60s margin)..."
+            [ "$WAIT" -gt 0 ] && sleep "$WAIT" || true
+          fi
       - name: 🚀 Dispatch the pipeline now
         env:
           GH_TOKEN: ${{ github.token }}
